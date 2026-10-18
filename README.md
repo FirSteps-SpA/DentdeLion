@@ -12,7 +12,7 @@ para los principios de arquitectura del proyecto.
 
 ## Requisitos
 
-- **Node.js** ≥ 20 (LTS)
+- **Node.js** 24 LTS (o ≥ 22.22.2; lo exigen jsdom y vitest)
 - **npm** (se instala junto con Node.js)
 
 Si tu versión de Node/npm no cumple el mínimo, `npm install` mostrará una advertencia indicando
