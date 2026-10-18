@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Movimiento } from '../../src/lib/db'
 import type { MemoryTable } from '../helpers/memoryDb'
+import { authFalso } from '../helpers/authFalso'
 
 vi.mock('../../src/lib/db', async () => {
   const { createMemoryDb, MemoryTable } = await import('../helpers/memoryDb')
@@ -15,6 +16,8 @@ vi.mock('../../src/lib/db', async () => {
       categorias: new MemoryTable(),
       itemsCompra: new MemoryTable(),
       usuarioActual: new MemoryTable(),
+      estadoSync: new MemoryTable(),
+      usuariosConocidos: new MemoryTable(),
     }),
   }
 })
@@ -26,6 +29,7 @@ let opcionesUpsertMovimientos: unknown = null
 const subidosMovimientos: string[] = []
 
 const client = {
+  auth: authFalso,
   from(nombre: string) {
     return {
       async upsert(rows: unknown, opciones?: unknown) {

@@ -16,7 +16,7 @@ export function NotificacionesSection() {
 
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="flex items-center gap-2 text-base font-extrabold text-text">
+      <h2 className="flex items-center gap-2 text-h3 text-text">
         <Bell size={18} className="text-primary" />
         Notificaciones
       </h2>

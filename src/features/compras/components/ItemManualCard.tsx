@@ -39,7 +39,7 @@ export function ItemManualCard({
           </span>
         )}
         {insumoVinculado && (
-          <span className="text-xs text-text-faint">
+          <span className="text-xs text-text-muted">
             Vinculado a «{insumoVinculado.nombre}»
           </span>
         )}
@@ -72,7 +72,7 @@ export function ItemManualCard({
               setMenuAbierto(false)
               onEliminar()
             }}
-            className="touch-target flex w-full items-center gap-3 rounded-xl border border-border bg-danger-bg px-3.5 text-left text-sm font-bold text-danger"
+            className="touch-target flex w-full items-center gap-3 rounded-md border border-border bg-danger-bg px-3.5 text-left text-sm font-bold text-danger"
           >
             <Trash size={18} />
             <span className="flex-1">Eliminar</span>

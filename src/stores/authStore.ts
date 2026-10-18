@@ -33,6 +33,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (usuario) => {
     await db.usuarioActual.clear()
     await db.usuarioActual.add(usuario)
+    // Spec 012 research.md R7: nombra los pendientes que esta persona deje en
+    // el dispositivo cuando otra tenga la sesión. `logout` no la borra.
+    await db.usuariosConocidos.put({
+      id: usuario.id,
+      nombre: usuario.nombre,
+      vistoEn: new Date().toISOString(),
+    })
     set({ usuario, isReady: true })
   },
   logout: async () => {

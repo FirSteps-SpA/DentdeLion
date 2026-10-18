@@ -12,7 +12,9 @@ const FOCUSABLE =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 /**
- * Panel inferior modal (feature 007, contracts/ui-contracts.md) — el único
+ * Panel inferior modal (feature 007, contracts/ui-contracts.md) — en móvil
+ * sube desde abajo; desde tablet se muestra centrado como el modal del DS §36
+ * (spec 013 FR-016: máx. 560 px, padding 24, radio 20). El único
  * primitivo de overlay para el menú de opciones, los formularios y la
  * confirmación de baja. Replica la semántica de `<dialog>` con ARIA (el
  * soporte de `showModal` en jsdom es incompleto, research.md R7): cierra
@@ -47,10 +49,10 @@ export function BottomSheet({ titulo, onClose, children }: BottomSheetProps) {
   }, [])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
+    <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6">
       <div
         data-testid="bottom-sheet-backdrop"
-        className="absolute inset-0 bg-slate-900/40"
+        className="absolute inset-0 bg-text/40"
         onClick={onClose}
       />
       <div
@@ -58,10 +60,13 @@ export function BottomSheet({ titulo, onClose, children }: BottomSheetProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={tituloId}
-        className="relative flex max-h-[90dvh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-t-[20px] bg-surface p-4 text-left shadow-xl"
+        className="relative flex max-h-[90dvh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-t-xl bg-surface p-4 text-left shadow-modal motion-safe:animate-[entrada-sheet_160ms_ease-out] md:max-w-[560px] md:rounded-xl md:p-6"
       >
         <div className="flex items-center justify-between gap-2">
-          <h2 id={tituloId} className="text-base font-extrabold text-text">
+          <h2
+            id={tituloId}
+            className="text-h3 text-text md:text-[20px] md:leading-7"
+          >
             {titulo}
           </h2>
           <TouchButton

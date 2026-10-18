@@ -4,6 +4,7 @@ import { useAlertasStore } from '../../../stores/alertasStore'
 import {
   actualizarStockMinimo,
   actualizarNivelesAviso,
+  actualizarHorasAvisoPendientes,
 } from '../../alertas/lib/configuracion'
 import { Card } from '../../../components/ui/Card'
 import { IconField } from '../../../components/ui/IconField'
@@ -17,9 +18,11 @@ import { IconField } from '../../../components/ui/IconField'
 export function ConfiguracionAlertasSection() {
   const insumos = useInventoryStore((s) => s.insumos)
   const nivelesAvisoDias = useAlertasStore((s) => s.nivelesAvisoDias)
+  const horasAvisoPendientes = useAlertasStore((s) => s.horasAvisoPendientes)
 
   const [errorConfig, setErrorConfig] = useState<string | null>(null)
   const [errorNiveles, setErrorNiveles] = useState<string | null>(null)
+  const [errorHoras, setErrorHoras] = useState<string | null>(null)
 
   async function handleStockMinimoChange(insumoId: string, valor: string) {
     setErrorConfig(null)
@@ -44,10 +47,19 @@ export function ConfiguracionAlertasSection() {
     }
   }
 
+  async function handleHorasAvisoChange(valor: string) {
+    setErrorHoras(null)
+    try {
+      await actualizarHorasAvisoPendientes(Number(valor))
+    } catch (err) {
+      setErrorHoras(err instanceof Error ? err.message : 'No se pudo guardar.')
+    }
+  }
+
   return (
     <>
       <section className="flex flex-col gap-2">
-        <h2 className="text-base font-extrabold text-text">
+        <h2 className="text-h3 text-text">
           Configurar stock mínimo por insumo
         </h2>
         {errorConfig && (
@@ -82,7 +94,7 @@ export function ConfiguracionAlertasSection() {
       </section>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-base font-extrabold text-text">
+        <h2 className="text-h3 text-text">
           Configurar niveles de aviso de caducidad
         </h2>
         {errorNiveles && (
@@ -102,7 +114,36 @@ export function ConfiguracionAlertasSection() {
             defaultValue={nivelesAvisoDias.join(', ')}
             onBlur={(event) => void handleNivelesAvisoChange(event.target.value)}
             aria-label="Niveles de aviso de caducidad, en días"
-            className="h-full w-full border-none bg-transparent text-[15px] text-text outline-none"
+            className="h-full w-full border-none bg-transparent text-sm text-text outline-none"
+          />
+        </IconField>
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="text-h3 text-text">
+          Aviso de cambios sin subir
+        </h2>
+        {errorHoras && (
+          <Card className="bg-danger-bg px-3.5 py-2.5">
+            <p role="alert" className="text-sm text-danger">
+              {errorHoras}
+            </p>
+          </Card>
+        )}
+        <IconField
+          label="Avisar si un cambio lleva más de (horas)"
+          htmlFor="horas-aviso-pendientes"
+        >
+          <input
+            id="horas-aviso-pendientes"
+            type="number"
+            min={1}
+            max={168}
+            step={1}
+            defaultValue={horasAvisoPendientes}
+            onBlur={(event) => void handleHorasAvisoChange(event.target.value)}
+            aria-label="Horas sin subir antes de avisar"
+            className="h-full w-full border-none bg-transparent text-sm text-text outline-none"
           />
         </IconField>
       </section>

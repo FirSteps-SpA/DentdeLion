@@ -1,27 +1,33 @@
 import { useEffect, useState } from 'react'
 import { APP_NAME } from '../lib/branding'
+import { Tooth } from '../components/icons'
 import { useBackendConnection } from '../lib/supabase/useBackendConnection'
 import { startBackgroundSync } from '../lib/sync'
 import { useAuthStore } from '../stores/authStore'
 import { useInventoryStore } from '../stores/inventoryStore'
 import { useAlertasStore } from '../stores/alertasStore'
 import { useClinicaStore } from '../stores/clinicaStore'
+import { usePendientesStore } from '../stores/pendientesStore'
+import { useSyncStore } from '../stores/syncStore'
 import { LoginForm } from '../features/auth/LoginForm'
 import { AlertasView } from '../features/alertas/components/AlertasView'
 import { contarAlertasPendientes } from '../features/alertas/lib/resumen'
 import { InventarioView } from '../features/insumos/components/InventarioView'
 import { ComprasView } from '../features/compras/components/ComprasView'
 import { AjustesView } from '../features/ajustes/components/AjustesView'
-import { AppHeader } from './AppHeader'
+import { InicioView } from '../features/inicio/components/InicioView'
+import { AppShell } from './AppShell'
 import { AvisosConsumo } from './AvisosConsumo'
-import { BottomNav, type Vista } from './BottomNav'
+import type { Vista } from './navegacion'
 
 function App() {
   useBackendConnection()
-  const [vista, setVista] = useState<Vista>('inventario')
+  const [vista, setVista] = useState<Vista>('inicio')
   const subscribeInventory = useInventoryStore((s) => s.subscribe)
   const subscribeAlertas = useAlertasStore((s) => s.subscribe)
   const subscribeClinica = useClinicaStore((s) => s.subscribe)
+  const subscribePendientes = usePendientesStore((s) => s.subscribe)
+  const subscribeSync = useSyncStore((s) => s.subscribe)
 
   // Boot guard: reads only the local Dexie cache (authStore.hydrate), never
   // a live Supabase call, so login-vs-app-shell is never gated on network
@@ -56,37 +62,52 @@ function App() {
     const unsubscribeInventory = subscribeInventory()
     const unsubscribeAlertas = subscribeAlertas()
     const unsubscribeClinica = subscribeClinica()
+    // Spec 012: pendientes y estado del ciclo para el indicador del encabezado.
+    const unsubscribePendientes = subscribePendientes()
+    const unsubscribeSync = subscribeSync()
     const stopSync = startBackgroundSync()
     return () => {
       unsubscribeInventory()
       unsubscribeAlertas()
       unsubscribeClinica()
+      unsubscribePendientes()
+      unsubscribeSync()
       stopSync()
     }
-  }, [usuario, subscribeInventory, subscribeAlertas, subscribeClinica])
+  }, [
+    usuario,
+    subscribeInventory,
+    subscribeAlertas,
+    subscribeClinica,
+    subscribePendientes,
+    subscribeSync,
+  ])
 
-  return (
-    <main className="flex min-h-dvh flex-col items-center gap-4 bg-bg p-6 text-center">
-      {!isReady ? (
-        <>
-          <h1 className="text-2xl font-extrabold text-text">{APP_NAME}</h1>
-          <p className="text-sm text-text-muted">Cargando…</p>
-        </>
-      ) : !usuario ? (
-        <LoginForm />
-      ) : (
-        <div className="flex w-full max-w-md flex-col items-stretch gap-4 pb-[calc(5rem+env(safe-area-inset-bottom))] text-left">
-          <AppHeader />
-
+  if (isReady && usuario) {
+    return (
+      <>
+        <AppShell vista={vista} onCambiarVista={setVista} alertasBadge={alertasBadge}>
+          {vista === 'inicio' && <InicioView onNavegar={setVista} />}
           {vista === 'inventario' && <InventarioView />}
           {vista === 'compras' && <ComprasView />}
           {vista === 'alertas' && <AlertasView />}
           {vista === 'mas' && <AjustesView />}
+        </AppShell>
+        <AvisosConsumo />
+      </>
+    )
+  }
 
-          <AvisosConsumo />
-
-          <BottomNav active={vista} onChange={setVista} alertasBadge={alertasBadge} />
-        </div>
+  return (
+    <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-bg p-6 text-center">
+      {!isReady ? (
+        <>
+          <Tooth size={48} className="text-brand" />
+          <h1 className="text-h1 text-teal-dark">{APP_NAME}</h1>
+          <p className="text-body text-text-muted">Cargando…</p>
+        </>
+      ) : (
+        <LoginForm />
       )}
     </main>
   )

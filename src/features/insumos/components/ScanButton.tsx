@@ -112,7 +112,7 @@ export function ScanButton({ onSelect, onCodigo }: ScanButtonProps) {
             ref={videoRef}
             muted
             playsInline
-            className="w-full rounded-[10px]"
+            className="w-full rounded-md"
           />
           <TouchButton type="button" variant="ghost" onClick={cancelar}>
             Cancelar

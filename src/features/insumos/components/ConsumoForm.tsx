@@ -155,8 +155,8 @@ export function ConsumoForm({ insumoInicial, onDone }: ConsumoFormProps = {}) {
       onSubmit={(event) => void handleSubmit(event)}
       className="flex flex-col gap-4"
     >
-      <div className="flex items-center gap-3 rounded-[14px] border border-border bg-surface px-3.5 py-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-white">
+      <div className="flex items-center gap-3 rounded-lg border border-border bg-surface px-3.5 py-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-primary text-white">
           <Package size={20} />
         </div>
         <p className="text-sm font-bold text-text">{insumo.nombre}</p>
@@ -187,7 +187,7 @@ export function ConsumoForm({ insumoInicial, onDone }: ConsumoFormProps = {}) {
               id="lote-consumo"
               value={loteSeleccionado?.lote.id ?? ''}
               onChange={(event) => setLoteOverrideId(event.target.value)}
-              className="h-full w-full border-none bg-transparent text-[15px] text-text outline-none"
+              className="h-full w-full border-none bg-transparent text-sm text-text outline-none"
             >
               {lotesConStock.map(({ lote, stockDisponible }) => (
                 <option key={lote.id} value={lote.id}>
@@ -216,7 +216,7 @@ export function ConsumoForm({ insumoInicial, onDone }: ConsumoFormProps = {}) {
           >
             <Minus size={16} />
           </TouchButton>
-          <div className="touch-target flex flex-1 items-center justify-center rounded-xl border border-border bg-surface">
+          <div className="touch-target flex flex-1 items-center justify-center rounded-md border border-border bg-surface">
             <input
               id="cantidad-consumo"
               type="number"

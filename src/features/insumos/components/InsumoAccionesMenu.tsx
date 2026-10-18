@@ -33,7 +33,7 @@ function Opcion({
     <button
       type="button"
       onClick={onClick}
-      className={`touch-target flex w-full items-center gap-3 rounded-xl border border-border px-3.5 text-left text-sm font-bold ${
+      className={`touch-target flex w-full items-center gap-3 rounded-md border border-border px-3.5 text-left text-sm font-bold ${
         peligro ? 'bg-danger-bg text-danger' : 'bg-surface text-text'
       }`}
     >

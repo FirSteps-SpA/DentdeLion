@@ -256,6 +256,53 @@ check(
   config.nombre,
 )
 
+// Spec 012 FR-011: umbral de pendientes antiguos en configuracion_alertas.
+const upsertAlertas = (token, body) =>
+  http('POST', '/rest/v1/configuracion_alertas?on_conflict=id', {
+    token,
+    body: { id: 'global', ...body },
+    prefer: 'resolution=merge-duplicates,return=minimal',
+  })
+const horasAviso = async () =>
+  (await leer('configuracion_alertas?select=horas_aviso_pendientes&id=eq.global'))[0]
+    ?.horas_aviso_pendientes
+
+r = await upsertAlertas(adm.token, {
+  niveles_aviso_dias: [30, 7, 1],
+  horas_aviso_pendientes: 12,
+})
+check(
+  'administrador fija el umbral de pendientes',
+  r.status < 300 && (await horasAviso()) === 12,
+  `HTTP ${r.status}`,
+)
+r = await upsertAlertas(per.token, {
+  niveles_aviso_dias: [30, 7, 1],
+  horas_aviso_pendientes: 48,
+})
+check(
+  'personal no modifica el umbral de pendientes',
+  r.status === 403 && (await horasAviso()) === 12,
+  `HTTP ${r.status}`,
+)
+for (const horas of [0, 169]) {
+  r = await upsertAlertas(adm.token, {
+    niveles_aviso_dias: [30, 7, 1],
+    horas_aviso_pendientes: horas,
+  })
+  check(
+    `el umbral ${horas} h viola el check (1 a 168)`,
+    r.status === 400 && r.data?.code === '23514' && (await horasAviso()) === 12,
+    `HTTP ${r.status} ${r.data?.code ?? ''}`,
+  )
+}
+r = await upsertAlertas(adm.token, { niveles_aviso_dias: [15] })
+check(
+  'un upsert sin la columna (cliente 2.1.0) conserva el umbral',
+  r.status < 300 && (await horasAviso()) === 12,
+  `HTTP ${r.status}`,
+)
+
 r = await http('GET', '/rest/v1/insumos?select=id')
 check(
   'sin sesión no se lee el inventario',

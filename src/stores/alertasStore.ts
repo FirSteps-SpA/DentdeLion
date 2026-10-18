@@ -1,6 +1,9 @@
 import { create } from 'zustand'
 import { liveQuery } from 'dexie'
 import { db } from '../lib/db'
+import { HORAS_AVISO_PENDIENTES_POR_DEFECTO } from '../lib/sync/indicador'
+
+export { HORAS_AVISO_PENDIENTES_POR_DEFECTO }
 
 /** data-model.md's default when no administrador has ever saved a value (FR-005). */
 export const NIVELES_AVISO_POR_DEFECTO: number[] = [30, 7, 1]
@@ -17,6 +20,8 @@ export const NIVELES_AVISO_POR_DEFECTO: number[] = [30, 7, 1]
  */
 interface AlertasState {
   nivelesAvisoDias: number[]
+  /** Spec 012 FR-011 — umbral global de pendientes antiguos, en horas. */
+  horasAvisoPendientes: number
   /** spec 010 FR-025 — `true` por defecto sin fila previa. */
   preferenciaStockBajo: boolean
   preferenciaCaducidad: boolean
@@ -26,6 +31,7 @@ interface AlertasState {
 
 export const useAlertasStore = create<AlertasState>((set) => ({
   nivelesAvisoDias: NIVELES_AVISO_POR_DEFECTO,
+  horasAvisoPendientes: HORAS_AVISO_PENDIENTES_POR_DEFECTO,
   preferenciaStockBajo: true,
   preferenciaCaducidad: true,
   isReady: false,
@@ -36,6 +42,8 @@ export const useAlertasStore = create<AlertasState>((set) => ({
       next: (config) =>
         set({
           nivelesAvisoDias: config?.nivelesAvisoDias ?? NIVELES_AVISO_POR_DEFECTO,
+          horasAvisoPendientes:
+            config?.horasAvisoPendientes ?? HORAS_AVISO_PENDIENTES_POR_DEFECTO,
           isReady: true,
         }),
     })

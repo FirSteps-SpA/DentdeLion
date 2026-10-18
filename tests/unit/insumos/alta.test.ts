@@ -328,7 +328,7 @@ describe('darDeAltaMaterial — US2 (FR-013..FR-021, SC-003)', () => {
     const movimiento = movimientosT.all()[0]
     expect(movimiento.sincronizado).toBe(false)
 
-    await expect(runSyncBatch()).resolves.toBeUndefined()
+    await expect(runSyncBatch()).resolves.toMatchObject({ estado: 'sin-red' })
 
     expect(movimientosT.all()[0].sincronizado).toBe(false)
   })

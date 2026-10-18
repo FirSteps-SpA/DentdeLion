@@ -1,6 +1,7 @@
 import { db } from '../../../lib/db'
 import { permiteDecimales } from '../../insumos/lib/quantity'
 import { editarInsumo } from '../../insumos/lib/catalogo'
+import { NIVELES_AVISO_POR_DEFECTO } from '../../../stores/alertasStore'
 
 export interface StockMinimoValidation {
   valid: boolean
@@ -62,5 +63,33 @@ export async function actualizarNivelesAviso(dias: number[]): Promise<void> {
   if (niveles.length === 0) {
     throw new Error('Ingresa al menos un nivel de aviso válido (días > 0).')
   }
-  await db.configuracionAlertas.put({ id: 'global', nivelesAvisoDias: niveles })
+  const actual = await db.configuracionAlertas.get('global')
+  // Conserva el umbral de pendientes y marca la fila para el próximo push
+  // (spec 012 research.md R5).
+  await db.configuracionAlertas.put({
+    ...actual,
+    id: 'global',
+    nivelesAvisoDias: niveles,
+    sincronizado: false,
+  })
+}
+
+/**
+ * Sets the global threshold, in hours, after which a not-yet-synced change is
+ * flagged as old (spec 012 FR-011). Only callable from an administrador-gated
+ * UI (`ConfiguracionAlertasSection`), same client-side gating as
+ * `actualizarNivelesAviso`. Keeps the caducidad levels and marks the row for
+ * the next push (research.md R5).
+ */
+export async function actualizarHorasAvisoPendientes(horas: number): Promise<void> {
+  if (!Number.isInteger(horas) || horas < 1 || horas > 168) {
+    throw new Error('Ingresa un número de horas entre 1 y 168.')
+  }
+  const actual = await db.configuracionAlertas.get('global')
+  await db.configuracionAlertas.put({
+    id: 'global',
+    nivelesAvisoDias: actual?.nivelesAvisoDias ?? NIVELES_AVISO_POR_DEFECTO,
+    horasAvisoPendientes: horas,
+    sincronizado: false,
+  })
 }

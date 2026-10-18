@@ -104,6 +104,14 @@ export interface Movimiento {
 export interface ConfiguracionAlertas {
   id: 'global'
   nivelesAvisoDias: number[]
+  /**
+   * Spec 012 FR-011 — horas tras las que un cambio sin subir se avisa como
+   * antiguo. Ausente = `HORAS_AVISO_PENDIENTES_POR_DEFECTO` (24); nunca se
+   * rellena al subir, para no pisar el valor del servidor (research.md R6).
+   */
+  horasAvisoPendientes?: number
+  /** Spec 012 (research.md R5) — local: `false` = cambio de un administrador aún sin subir. */
+  sincronizado: boolean
 }
 
 /**
@@ -163,6 +171,8 @@ export interface ItemCompra {
 export interface ConfiguracionClinica {
   id: 'global'
   nombre: string | null
+  /** Spec 012 (research.md R5) — local: `false` = cambio de un administrador aún sin subir. */
+  sincronizado: boolean
 }
 
 /**
@@ -175,6 +185,28 @@ export interface PreferenciaNotificaciones {
   id: 'local'
   stockBajo: boolean
   caducidad: boolean
+}
+
+/**
+ * Spec 012 data-model.md — UsuarioConocido. Quién inició sesión alguna vez en
+ * este dispositivo, solo para nombrar a los dueños de pendientes ajenos
+ * (FR-012): `perfiles` no deja leer nombres de otros (research.md R7). Local,
+ * nunca sincronizada; `logout` no la borra.
+ */
+export interface UsuarioConocido {
+  id: string
+  nombre: string
+  vistoEn: string
+}
+
+/**
+ * Spec 012 data-model.md — EstadoSync. Fila única, local al dispositivo: hora
+ * del último ciclo de sincronización sin errores (FR-006). Ausente o `null` =
+ * "Nunca sincronizado".
+ */
+export interface EstadoSync {
+  id: 'local'
+  ultimaExitosaEn: string | null
 }
 
 /**
@@ -194,6 +226,8 @@ export const db = new Dexie('inDENToryDB') as Dexie & {
   itemsCompra: EntityTable<ItemCompra, 'id'>
   configuracionClinica: EntityTable<ConfiguracionClinica, 'id'>
   preferenciasNotificaciones: EntityTable<PreferenciaNotificaciones, 'id'>
+  usuariosConocidos: EntityTable<UsuarioConocido, 'id'>
+  estadoSync: EntityTable<EstadoSync, 'id'>
 }
 
 db.version(1).stores({
@@ -275,7 +309,6 @@ db.version(7)
       }),
   )
 
-
 // Version 8 (fix sync de movimientos): hasta esta versión `pushMovimientos`
 // marcaba un lote como `sincronizado` aunque el upsert fallara (sin red, 5xx,
 // RLS), y esos movimientos no se reintentaban nunca. Reabre todos para un único
@@ -291,5 +324,29 @@ db.version(8)
         movimiento.sincronizado = false
       }),
   )
+
+// Version 9 (spec 012, data-model.md): tablas locales `usuariosConocidos` y
+// `estadoSync`, nunca sincronizadas. Las filas de configuración global ganan la
+// bandera local `sincronizado` (research.md R5): las existentes ya vinieron del
+// servidor o ya se subieron, así que arrancan en `true`.
+db.version(9)
+  .stores({
+    usuariosConocidos: 'id',
+    estadoSync: 'id',
+  })
+  .upgrade(async (tx) => {
+    await tx
+      .table('configuracionAlertas')
+      .toCollection()
+      .modify((config: Partial<ConfiguracionAlertas>) => {
+        config.sincronizado ??= true
+      })
+    await tx
+      .table('configuracionClinica')
+      .toCollection()
+      .modify((config: Partial<ConfiguracionClinica>) => {
+        config.sincronizado ??= true
+      })
+  })
 
 export type { EntityTable }

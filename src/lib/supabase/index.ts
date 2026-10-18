@@ -43,5 +43,12 @@ export function getSupabaseStatus(): SupabaseStatus {
   if ('message' in config) {
     return { client: null, error: config }
   }
-  return { client: createClient(config.url, config.anonKey), error: null }
+  // Sin los reintentos internos de PostgREST (hasta 3 por GET, 1+2+4 s): sin
+  // red cada descarga del ciclo esperaba ~7 s y "Sincronizar ahora" tardaba
+  // cerca de un minuto en responder (spec 012 FR-009). El ciclo de sync ya
+  // reintenta solo cada 30 s y al volver la red.
+  return {
+    client: createClient(config.url, config.anonKey, { db: { retry: false } }),
+    error: null,
+  }
 }

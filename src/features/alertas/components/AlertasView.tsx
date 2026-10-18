@@ -5,7 +5,7 @@ import { useAlertasStore } from '../../../stores/alertasStore'
 import { computeInsumosStockBajo } from '../lib/stockBajo'
 import { computeAlertasCaducidad } from '../lib/caducidad'
 import { lotesEnRevision, marcarLoteResuelto } from '../lib/revision'
-import { AlertTriangle } from '../../../components/icons'
+import { AlertTriangle, CircleAlert, Clock } from '../../../components/icons'
 import { Badge, type BadgeVariant } from '../../../components/ui/Badge'
 import { Card } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
@@ -19,7 +19,9 @@ function badgeVariantParaNivel(nivel: number | 'caducado'): BadgeVariant {
 
 /**
  * Dedicated alerts screen (FR-013): consolidates stock-bajo, caducidad, and
- * revisión-manual alerts in one place. Visible to every authenticated user.
+ * revisión-manual alerts in one place. Spec 013: cada alerta en una tarjeta
+ * blanca con ícono y badge de su estado (DS §21) — los niveles se distinguen
+ * por color, ícono y etiqueta, nunca solo por el fondo (Constitución IV). Visible to every authenticated user.
  * The stock-mínimo/niveles-de-aviso configuration controls that used to live
  * here moved to "Ajustes" ▸ Configuración de Alertas (spec 010 FR-006/007/
  * 008) — this view is now dedicated exclusively to displaying alerts.
@@ -57,8 +59,10 @@ export function AlertasView() {
 
   return (
     <div className="flex w-full flex-col gap-6 text-left">
+      {/* Spec 013 FR-011: stock bajo y caducidad lado a lado en desktop. */}
+      <div className="grid grid-cols-1 gap-4 desk:grid-cols-2 desk:items-start desk:gap-6">
       <section className="flex flex-col gap-2">
-        <h2 className="text-base font-extrabold text-text">Stock bajo</h2>
+        <h2 className="text-h3 text-text">Stock bajo</h2>
         {alertasStockBajo.length === 0 ? (
           <Card className="px-3.5 py-2.5">
             <p className="text-sm text-text-muted">
@@ -69,13 +73,23 @@ export function AlertasView() {
           <ul className="flex flex-col gap-2">
             {alertasStockBajo.map(({ insumo, stockActual }) => (
               <li key={insumo.id}>
-                <Card className="flex items-center justify-between gap-2 bg-danger-bg px-3.5 py-2.5">
-                  <span className="text-sm text-text">
+                <Card className="flex items-center justify-between gap-2 px-3.5 py-2.5">
+                  {stockActual === 0 ? (
+                    <CircleAlert size={18} className="shrink-0 text-danger" />
+                  ) : (
+                    <AlertTriangle size={18} className="shrink-0 text-warning-icon" />
+                  )}
+                  <span className="flex-1 text-sm text-text">
                     <span className="font-bold">{insumo.nombre}</span> —{' '}
                     {stockActual} {insumo.unidadMedida} disponibles (mínimo{' '}
                     {insumo.stockMinimo} {insumo.unidadMedida})
                   </span>
-                  <Badge variant="danger">Bajo mínimo</Badge>
+                  <Badge
+                    variant={stockActual === 0 ? 'danger' : 'warning-30'}
+                    icono={stockActual === 0 ? CircleAlert : AlertTriangle}
+                  >
+                    Bajo mínimo
+                  </Badge>
                 </Card>
               </li>
             ))}
@@ -84,7 +98,7 @@ export function AlertasView() {
       </section>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-base font-extrabold text-text">Próximos a caducar</h2>
+        <h2 className="text-h3 text-text">Próximos a caducar</h2>
         {alertasCaducidad.length === 0 ? (
           <Card className="px-3.5 py-2.5">
             <p className="text-sm text-text-muted">
@@ -95,8 +109,13 @@ export function AlertasView() {
           <ul className="flex flex-col gap-2">
             {alertasCaducidad.map(({ lote, insumo, diasRestantes, nivel }) => (
               <li key={lote.id}>
-                <Card className="flex items-center justify-between gap-2 bg-danger-bg px-3.5 py-2.5">
-                  <span className="text-sm text-text">
+                <Card className="flex items-center justify-between gap-2 px-3.5 py-2.5">
+                  {nivel === 'caducado' ? (
+                    <CircleAlert size={18} className="shrink-0 text-danger" />
+                  ) : (
+                    <Clock size={18} className="shrink-0 text-warning-icon" />
+                  )}
+                  <span className="flex-1 text-sm text-text">
                     <span className="font-bold">{insumo.nombre}</span> — lote{' '}
                     {lote.numeroLote}, vence {lote.fechaCaducidad} (
                     {nivel === 'caducado'
@@ -104,7 +123,10 @@ export function AlertasView() {
                       : `nivel ${nivel} días`}
                     )
                   </span>
-                  <Badge variant={badgeVariantParaNivel(nivel)}>
+                  <Badge
+                    variant={badgeVariantParaNivel(nivel)}
+                    icono={nivel === 'caducado' ? CircleAlert : Clock}
+                  >
                     {nivel === 'caducado' ? 'Caducado' : `${nivel} días`}
                   </Badge>
                 </Card>
@@ -113,9 +135,10 @@ export function AlertasView() {
           </ul>
         )}
       </section>
+      </div>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-base font-extrabold text-text">Lotes en revisión</h2>
+        <h2 className="text-h3 text-text">Lotes en revisión</h2>
         {errorRevision && (
           <Card className="bg-danger-bg px-3.5 py-2.5">
             <p role="alert" className="text-sm text-danger">
@@ -133,7 +156,7 @@ export function AlertasView() {
           <ul className="flex flex-col gap-2">
             {alertasRevision.map(({ lote, insumo, stockDerivado }) => (
               <li key={lote.id}>
-                <Card className="flex items-center justify-between gap-2 bg-danger-bg px-3.5 py-2.5">
+                <Card className="flex items-center justify-between gap-2 px-3.5 py-2.5">
                   <span className="flex items-start gap-2 text-sm text-text">
                     <AlertTriangle size={16} className="mt-0.5 shrink-0 text-danger" />
                     <span>
