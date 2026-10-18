@@ -29,38 +29,48 @@ npm run dev
 
 Abre la URL que imprime `npm run dev` (por defecto `http://localhost:5173`) en tu navegador. La
 app queda funcionando localmente **sin necesidad de configurar backend** — ver
-"Configurar backend de desarrollo" más abajo para conectarla a un proyecto Supabase de desarrollo.
+"Configurar backend de desarrollo" más abajo para conectarla a Supabase local.
 
 ## Configurar backend de desarrollo
 
-El proyecto usa un proyecto **Supabase alojado en la nube** para desarrollo (compartido por el
-equipo o una cuenta individual gratuita en [supabase.com](https://supabase.com)) — no se usa ni
-se soporta una instancia local autoalojada vía Docker.
+El desarrollo se hace contra un **Supabase local** (Supabase CLI + Docker), nunca contra
+producción. Esto reemplaza la decisión de la spec `001-project-setup-local-dev` (proyecto
+de desarrollo en la nube): el plan gratuito de Supabase no admite un proyecto adicional.
 
-1. Crea (o pide acceso a) un proyecto Supabase de desarrollo.
-2. En el panel del proyecto, copia la **Project URL** y la **anon public key**
-   (Project Settings → API).
-3. Copia la plantilla de configuración y complétala:
+Requisitos extra: Docker y la
+[Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started).
+
+1. Levanta Supabase local; aplica todas las migraciones de
+   [`supabase/migrations/`](supabase/migrations) sobre una base vacía:
 
    ```sh
-   cp .env.example .env
+   supabase start
    ```
 
-   Edita `.env` y reemplaza `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` con esos valores.
-4. Reinicia `npm run dev`. Si la conexión es exitosa verás `[inDENTory] Conectado a Supabase.` en
+   `supabase db reset` recrea la base desde cero; `supabase stop` la detiene conservando los
+   datos. Solo puede haber un stack local a la vez (VetApp usa los mismos puertos).
+2. Crea `.env.local` (ignorado por git; Vite lo prioriza sobre `.env`) con los valores que
+   imprime `supabase status` — son claves de demostración del stack local:
+
+   ```sh
+   VITE_SUPABASE_URL=http://127.0.0.1:54321
+   VITE_SUPABASE_ANON_KEY=<ANON_KEY de supabase status>
+   ```
+
+3. Reinicia `npm run dev`. Si la conexión es exitosa verás `[inDENTory] Conectado a Supabase.` en
    la consola del navegador; si falta o es inválida alguna variable, verás un mensaje explícito
    indicando cuál.
-5. Aplica el esquema de base de datos (tablas, índices, RLS y triggers) versionado en
-   [`supabase/migrations/`](supabase/migrations) con la Supabase CLI:
 
-   ```sh
-   supabase link --project-ref <ref-del-proyecto>
-   supabase db push
-   ```
+### Cambios de esquema
 
-   Los archivos `specs/*/contracts/supabase-schema.md` quedan como documentación histórica de
-   cada feature; la fuente de verdad del esquema es `supabase/migrations/`. Cualquier cambio
-   nuevo al esquema va como una migración nueva (`supabase migration new <nombre>`).
+La fuente de verdad del esquema es `supabase/migrations/`; los archivos
+`specs/*/contracts/supabase-schema.md` quedan como documentación histórica de cada feature.
+
+1. `supabase migration new <nombre>` crea el archivo de migración.
+2. Pruébalo con `supabase db reset` + `npm run test:rls`.
+3. El CI repite esas pruebas en cada push/PR a `main` y `develop`.
+4. Tras el release, aplícalo a producción con `supabase db push` (proyecto vinculado con
+   `supabase link`). Haz un respaldo antes.
 
 ### Credenciales — nunca las subas al repositorio
 
@@ -73,11 +83,10 @@ se soporta una instancia local autoalojada vía Docker.
 ## Cuentas de personal clínico (desarrollo)
 
 No existe una pantalla de autorregistro ni de alta de usuarios en la app (spec
-`003-login-personal-clinico`, FR-009) — las cuentas se crean manualmente en el proyecto Supabase
-de desarrollo:
+`003-login-personal-clinico`, FR-009) — las cuentas se crean manualmente en el Supabase
+local:
 
-1. Asegúrate de haber aplicado las migraciones (paso 5 de la sección anterior); incluyen la
-   tabla `perfiles` y sus políticas RLS.
+1. Con Supabase local corriendo, abre Studio (`http://127.0.0.1:54323`).
 2. En **Authentication → Users**, crea un usuario de prueba (correo + contraseña) por cada rol
    que quieras probar.
 3. Para cada usuario creado, inserta su fila correspondiente en `perfiles` (mismo `id` que el
@@ -92,6 +101,7 @@ Antes de proponer un cambio, corre localmente:
 ```sh
 npm run lint    # orden de código (ESLint)
 npm run test    # pruebas (Vitest)
+npm run test:rls  # RLS y triggers contra Supabase local (requiere supabase start)
 npm run build   # compilación (tsc + Vite)
 ```
 
