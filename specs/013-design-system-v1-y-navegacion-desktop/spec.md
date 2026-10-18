@@ -111,7 +111,7 @@ hoy se ven en Alertas y Compras, y tocar cada tarjeta lleva a la sección corres
 
 1. **Given** un usuario autenticado, **When** abre la app, **Then** llega a Inicio, con el saludo "¡Hola, {nombre}!" y la fecha de hoy.
 2. **Given** Inicio, **When** se muestra, **Then** tiene cuatro tarjetas KPI con el estilo del DS (§20): "Productos bajo mínimo", "Próximos a vencer", "Para comprar" y "Alertas", cada una con su número.
-3. **Given** los datos locales, **When** se calculan las tarjetas, **Then** "Productos bajo mínimo" y "Próximos a vencer" coinciden con lo que muestra Alertas (respetando las preferencias de notificaciones del dispositivo, como la burbuja de la spec 010), "Para comprar" coincide con lo pendiente en Compras y "Alertas" con la burbuja de alertas.
+3. **Given** los datos locales, **When** se calculan las tarjetas, **Then** "Productos bajo mínimo" y "Próximos a vencer" coinciden con lo que muestra Alertas, "Para comprar" coincide con lo pendiente en Compras y "Alertas" con la burbuja de alertas (que respeta las preferencias de notificaciones del dispositivo).
 4. **Given** una tarjeta KPI, **When** el usuario la toca, **Then** llega a la sección correspondiente: bajo mínimo y por vencer a Alertas, para comprar a Compras, alertas a Alertas.
 5. **Given** Inicio, **When** hay alertas de stock bajo o caducidad, **Then** se muestra la lista "Alertas" con hasta 5 ítems (nombre, stock o fecha y el estado con su color), y "Ver todas" lleva a Alertas.
 6. **Given** Inicio, **When** hay lotes con fecha de caducidad, **Then** se muestra la lista "Próximos vencimientos" con hasta 5 lotes ordenados por fecha (insumo, lote y días que faltan), y "Ver todos" lleva a Alertas.
@@ -215,7 +215,7 @@ fila. En el teléfono siguen las tarjetas.
 **Inicio (US3)**
 
 - **FR-022**: Inicio DEBE mostrar un saludo con el nombre del usuario y la fecha de hoy, y cuatro tarjetas KPI (DS §20): "Productos bajo mínimo", "Próximos a vencer", "Para comprar" y "Alertas".
-- **FR-023**: Las tarjetas DEBEN calcularse con los datos locales del dispositivo y coincidir con las secciones existentes: bajo mínimo y por vencer con Alertas (mismas reglas de stock mínimo, niveles de aviso de caducidad y preferencias de notificaciones del dispositivo), para comprar con lo pendiente en Compras (sugeridos e ítems manuales) y alertas con la burbuja de la spec 010.
+- **FR-023**: Las tarjetas DEBEN calcularse con los datos locales del dispositivo y coincidir con las secciones existentes: bajo mínimo y por vencer con las secciones "Stock bajo" y "Próximos a caducar" de Alertas (mismas reglas de stock mínimo y niveles de aviso de caducidad), para comprar con lo pendiente en Compras (sugeridos e ítems manuales) y alertas con la burbuja de la spec 010, que es la única que aplica las preferencias de notificaciones del dispositivo.
 - **FR-024**: Cada tarjeta DEBE llevar a su sección al tocarla: bajo mínimo, por vencer y alertas a Alertas; para comprar a Compras.
 - **FR-025**: Inicio DEBE mostrar la lista "Alertas" (hasta 5, las más urgentes primero, con estado por color e ícono) y la lista "Próximos vencimientos" (hasta 5 lotes por fecha, con los días que faltan), cada una con un enlace a Alertas, y la tarjeta "¿Qué necesitas comprar?" con un botón a Compras cuando haya algo para comprar.
 - **FR-026**: Inicio NO DEBE mostrar KPIs ni gráficos que necesiten datos que aún no existen (valor del inventario, gasto, consumo por categoría, materiales más consumidos): llegan con las specs 015–017.
