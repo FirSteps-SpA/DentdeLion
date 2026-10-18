@@ -51,6 +51,19 @@ Entradas: `insumos` (activos), `lotes`, `movimientos`, `itemsCompra`, `nivelesAv
 | `listaAlertas` | Hasta 5 `{ insumo, tipo: 'caducado' \| 'caducidad' \| 'stock-bajo', detalle, diasRestantes? }`. Primero las caducadas, después la caducidad por `diasRestantes` ascendente y al final el stock bajo por nombre |
 | `proximosVencimientos` | Hasta 5 `{ insumo, lote, diasRestantes }` de lotes con `fechaCaducidad` y stock > 0, por fecha ascendente |
 
+## `estadoVisual` (`src/features/insumos/lib/estado.ts`, función pura)
+
+Etiqueta, ícono y tono que se muestran para un `EstadoInsumo` (FR-007, aclaración 4). No cambia
+`computeEstadoInsumo` ni sus reglas: solo agrega el caso "crítico".
+
+| `estado` (spec 006) | `stockTotal` | Estado visual | Ícono | Tono |
+|---|---|---|---|---|
+| `caducado` | cualquiera | Caducado | `CircleAlert` | danger |
+| `proximo-a-caducar` | cualquiera | Próximo a caducar | `Clock` | warning-30 |
+| `bajo-stock` u `ok` | `0` | **Stock crítico** | `CircleAlert` | danger |
+| `bajo-stock` | > 0 | Stock bajo | `TriangleAlert` | warning-30 |
+| `ok` | > 0 | Stock suficiente | `CircleCheck` | success |
+
 ## Tokens de diseño (`src/styles/index.css`, `@theme`)
 
 Valores del DS con los ajustes AA de research.md R2. El contrato completo, con los pares que verifica
@@ -71,13 +84,14 @@ la prueba de contraste, está en [contracts/design-tokens.md](./contracts/design
 | `--color-primary-active` | — | `#04605C` |
 | `--color-primary-soft` | `#E6F4F3` | `#D8F3EF` (menta) |
 | `--color-primary-text` | — | `#06706C` (texto sobre menta) |
+| `--color-secondary-bg` | — | `#E7F7F5` (botón secundario) |
 | `--color-brand` | — | `#12B8AE` (logo, foco, rellenos, sin texto encima) |
 | `--color-brand-icon` | — | `#07958F` (íconos activos) |
 | `--color-teal-dark` | — | `#0D5360` (logotipo, títulos de marca) |
 | `--color-success-*` | verdes spec 005 | `#35B779` / `#E8F8F0` / texto `#1F7E54` / ícono `#2B9A65` |
 | `--color-warning-30-*` | ámbar spec 005 | `#FFF6E3` / texto `#986712` / ícono `#A87A22` |
 | `--color-danger*` | rojos spec 005 | `#E96767` / `#FDEEEE` / texto `#B84040` |
-| `--color-urgent-7-*`, `--color-urgent-1-*` | naranja / rojo spec 005 | Se mantienen los niveles de caducidad (spec 004) y se ajustan a la familia warning/error del DS: 7 días `#FFF0DA`/`#8A5410`, 1 día `#FDEEEE`/`#A23838` |
+| `--color-urgent-7-*`, `--color-urgent-1-*` | naranja / rojo spec 005 | Se mantienen los niveles de caducidad (spec 004) y se ajustan a la familia warning/error del DS: 7 días `#FDE7C2`/`#8A5410` (5,18:1), 1 día `#FBE3E0`/`#A23838` (5,43:1). Distintos de 30 días (`#FFF6E3`) y de caducado (`#FDEEEE`) |
 | `--color-info*` | — | `#EDF7FD` / ícono `#3F8BC2` |
 | `--radius-*` | — | `sm 8`, `md 10`, `lg 16`, `xl 20`, `pill 999` |
 | `--shadow-card`, `--shadow-modal`, `--shadow-dropdown` | — | DS §11 |
@@ -85,5 +99,7 @@ la prueba de contraste, está en [contracts/design-tokens.md](./contracts/design
 | `--font-sans` | Manrope | Manrope (+ peso 600) |
 
 Los niveles de caducidad (30, 7 y 1 días, y caducado) deben seguir siendo **cuatro tonos
-distinguibles** (FR-007, Constitución IV). La prueba de contraste también verifica que el texto de
-cada nivel cumpla 4,5:1 sobre su fondo.
+distinguibles** (FR-007, Constitución IV): fondos con valores distintos y, dentro de cada familia
+(ámbar: 30 y 7 días; rojo: 1 día y caducado), una diferencia de luminancia relativa de al menos 0,05.
+Cada badge lleva además su etiqueta ("30 días", "7 días", "1 día", "Caducado") y su ícono. La prueba
+de contraste verifica todo esto y que el texto de cada nivel cumpla 4,5:1 sobre su fondo.

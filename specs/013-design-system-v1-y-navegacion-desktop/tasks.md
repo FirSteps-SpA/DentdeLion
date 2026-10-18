@@ -58,7 +58,9 @@ de navegación, Inicio y tabla. Se usa el patrón del proyecto: Vitest + RTL, `m
   - verificar **cada fila** de la tabla "Pares verificados" de `contracts/design-tokens.md`, con un
     `it.each` y el mínimo de cada fila (4,5 o 3);
   - verificar que los cuatro niveles de caducidad (`warning-30`, `urgent-7`, `urgent-1` y `danger`)
-    tengan fondos distintos entre sí.
+    tengan fondos distintos entre sí y que, dentro de cada familia (ámbar: `warning-30`/`urgent-7`;
+    rojo: `urgent-1`/`danger`), la luminancia relativa de los fondos difiera al menos 0,05
+    (data-model.md).
 
   Debe fallar antes de T003 y pasar después.
 - [ ] T005 En `src/styles/index.css`, agregar las utilidades de la escala tipográfica del DS §5, una
@@ -95,7 +97,8 @@ de navegación, Inicio y tabla. Se usa el patrón del proyecto: Vitest + RTL, `m
   - mover aquí `type Vista` desde `src/app/BottomNav.tsx`, por ahora `'inventario' | 'compras' |
     'alertas' | 'mas'` (`'inicio'` se agrega en US3);
   - exportar `SECCIONES: { vista, etiquetaMovil, etiquetaLateral, Icon }[]` según la tabla de
-    data-model.md (`mas`: "Más" en móvil y "Ajustes" en la sidebar).
+    data-model.md, con los íconos del DS desde ya (Inventario `Boxes`, Compras `ShoppingCart`,
+    Alertas `Bell`, Ajustes `Settings`; `mas`: "Más" en móvil y "Ajustes" en la sidebar).
 
   `BottomNav.tsx` re-exporta `Vista` para no romper imports.
 - [ ] T012 [P] Crear `src/stores/layoutStore.ts` (Zustand, R6):
@@ -121,7 +124,12 @@ de navegación, Inicio y tabla. Se usa el patrón del proyecto: Vitest + RTL, `m
   `onClick`. Mínimo 132 px de alto, padding de 20 px, título 13/600 `text-muted` y valor `text-num`.
 - [ ] T016 [P] Restilar `src/components/ui/Badge.tsx` con los colores AA de las variantes y agregar la
   prop opcional `icono` (con `CircleCheck`, `TriangleAlert` y `CircleAlert` para los estados del DS
-  §21), con radio `pill`.
+  §21), con radio `pill`. En `src/features/insumos/lib/estado.ts`, agregar la función pura
+  `estadoVisual(estadoInsumo)`, que devuelve `{ etiqueta, icono, tono }` según la tabla de
+  data-model.md, con "Stock crítico" cuando `stockTotal === 0` y el estado no es de caducidad. No se
+  toca `computeEstadoInsumo`. Crear `tests/unit/insumos/estadoVisual.test.ts` con los 5 casos de la
+  tabla, más uno que confirme que un insumo con stock 0 y sin stock mínimo **no** aparece en
+  `computeInsumosStockBajo` (no hay alerta nueva).
 - [ ] T017 [P] Restilar `src/components/ui/Switch.tsx` y `src/components/ui/Stepper.tsx` con los tokens
   nuevos (activo en `primary`, foco con anillo `brand`), sin tocar las áreas táctiles.
 - [ ] T018 Hacer responsivo `src/components/ui/BottomSheet.tsx` (R7):
@@ -153,10 +161,10 @@ tareas habituales (quickstart #3, #11 y #12; regresión funcional).
   - `vite.config.ts`: manifest `name`/`short_name` en `'Dentdelion'`, `theme_color: '#0D5360'` y
     `background_color: '#F8FCFC'`;
   - `tests/unit/App.test.tsx`: esperar `'Dentdelion'`.
-- [ ] T020 [P] [US1] Regenerar `public/icons/icon-192.png` e `icon-512.png` a partir de
-  `public/icons/icon.svg`, con un script de una vez que rasterice el SVG con Playwright
-  (`page.setContent` + `screenshot` a 192 y 512 px). El script va en el scratchpad y no se commitea.
-  Verificar visualmente los PNG.
+- [ ] T020 [P] [US1] Crear `scripts/generar-iconos.mjs`, que rasteriza `public/icons/icon.svg` con
+  Playwright (`page.setContent` + `screenshot` a 192 y 512 px) y escribe `public/icons/icon-192.png`
+  e `icon-512.png`. Correrlo una vez, verificar los PNG a la vista y commitear el script junto con
+  los íconos (research R11).
 - [ ] T021 [US1] Restilar `src/app/AppHeader.tsx` (móvil):
   - logo con `Tooth` de 32 px en `text-brand` y "Dentdelion" 22/800 `text-teal-dark`;
   - chip de la clínica en `primary-soft`/`primary-text`;
@@ -175,7 +183,8 @@ tareas habituales (quickstart #3, #11 y #12; regresión funcional).
 - [ ] T024 [P] [US1] Restilar `src/features/insumos/components/InsumoCard.tsx`,
   `InsumoFiltros.tsx`, `ResumenAlertasBanner.tsx` y `SearchPicker.tsx`:
   - nombre de 15/700, secundario `text-muted`;
-  - badge de estado con el ícono del DS §21 (FR-007);
+  - badge de estado desde `estadoVisual` (suficiente / bajo / crítico con stock 0 / caducidad), con
+    el ícono del DS §21 (FR-007), en reemplazo de `BADGE_POR_ESTADO`;
   - chips de filtro en radio pill, con el activo en `primary-soft`/`primary-text`;
   - acción "Consumir 1" como `TouchButton` secundario.
 
@@ -299,8 +308,7 @@ existentes, que llevan a las secciones.
   Grilla: 1 columna en móvil, KPIs en 2 × 2 desde `md`, KPIs en 4 columnas y listas en 2 columnas
   desde `desk`. Lee de `useInventoryStore`, `useAlertasStore` y `useAuthStore`.
 - [ ] T042 [US3] En `src/app/navegacion.ts`, agregar `'inicio'` al tipo `Vista` y como primer
-  elemento de `SECCIONES` (ícono `House`, etiqueta "Inicio"). Cambiar el ícono de Inventario a
-  `Boxes`. En `src/app/App.tsx`, cambiar `useState<Vista>('inventario')` por `'inicio'` y renderizar
+  elemento de `SECCIONES` (ícono `House`, etiqueta "Inicio"). En `src/app/App.tsx`, cambiar `useState<Vista>('inventario')` por `'inicio'` y renderizar
   `<InicioView onNavegar={setVista} />` cuando `vista === 'inicio'`.
 - [ ] T043 [US3] Ajustar las pruebas que asumían Inventario como vista inicial: buscar con
   `grep -rn "render(<App" tests` y las aserciones de `tests/integration/bottom-nav.test.tsx` sobre el
@@ -378,8 +386,7 @@ desplazamiento horizontal; el estado se conserva al cambiar de ancho.
   `contracts/ui-contracts.md` § InventarioTabla:
   - `<table>` semántico con `<th scope="col">`;
   - filas de 64 px de alto mínimo, encabezado 12/700 `text-muted`, contenido 14/500 y hover `bg`;
-  - el estado con el mismo `BADGE_POR_ESTADO` de `InsumoCard` (exportarlo desde ahí o moverlo a
-    `src/features/insumos/lib/estado.ts`);
+  - el estado con el mismo `estadoVisual` que la tarjeta (T016/T024);
   - "Consumir 1" con la misma regla de habilitación y el mismo motivo (`disponibilidad`) que la
     tarjeta, y "Más opciones" (`MoreVertical` → `Ellipsis`) de 48 px.
 - [ ] T051 [US5] En `src/features/insumos/components/InventarioView.tsx`, con `useDisposicion() ===
@@ -394,7 +401,9 @@ desplazamiento horizontal; el estado se conserva al cambiar de ancho.
 ## Phase 8: Polish & Cross-Cutting
 
 - [ ] T052 Verificación visual con `run-indentory`: capturas de Login, Inicio, Inventario, Compras,
-  Alertas y Ajustes en **375, 768, 1024 y 1440 px**, más un modal abierto en 1440 px. En cada ancho,
+  Alertas y Ajustes en **375, 768, 1024 y 1440 px**, más un modal abierto en 1440 px; medir también
+  1920 px (sin captura). Con `page.emulateMedia({ reducedMotion: 'reduce' })`, comprobar que la
+  sidebar y el modal no tienen `transition-duration` mayor que 0 (FR-021). En cada ancho,
   medir con `page.evaluate` que `document.documentElement.scrollWidth <= innerWidth` y que todo
   `button, a, input, select, [role=button]` visible mida al menos 48 × 48 px (o que su contenedor
   `IconField` lo cumpla). Corregir lo que falle (SC-002, SC-006, quickstart #10).
@@ -427,8 +436,8 @@ desplazamiento horizontal; el estado se conserva al cambiar de ancho.
 - **US3** (T039–T044) depende de Foundational y de T015 (`KpiCard`). Puede ir en paralelo con US2,
   salvo T042, que toca `App.tsx` y `navegacion.ts` (hay que coordinarlo con T037).
 - **US4** (T045–T048) depende de US2 (Sidebar y AppShell).
-- **US5** (T049–T051) depende de Foundational (T009) y de T024 (`InsumoCard` restilada, por
-  `BADGE_POR_ESTADO`).
+- **US5** (T049–T051) depende de Foundational (T009) y de T016/T024 (`estadoVisual` e `InsumoCard`
+  restilada).
 - **Polish** al final.
 
 ```text

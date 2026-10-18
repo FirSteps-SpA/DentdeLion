@@ -208,7 +208,7 @@ con `useDisposicion() === 'desktop'`.
   `tests/unit/App.test.tsx`.
 - Los íconos de la app instalada (`public/icons/icon-192.png`, `icon-512.png`) se regeneran a partir
   del SVG del diente nuevo, en turquesa sobre `#F8FCFC`, rasterizándolo con Playwright (ya es
-  devDependency). El SVG fuente se guarda en `public/icons/icon.svg` y el favicon pasa a ser ese
+  devDependency) mediante `scripts/generar-iconos.mjs`, que se commitea para poder repetirlo. El SVG fuente se guarda en `public/icons/icon.svg` y el favicon pasa a ser ese
   mismo SVG.
 - `theme_color` pasa a `#0D5360` y `background_color` a `#F8FCFC`.
 

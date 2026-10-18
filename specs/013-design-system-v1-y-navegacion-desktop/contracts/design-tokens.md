@@ -15,13 +15,13 @@ La prueba lee el `@theme`, resuelve cada token y exige el mínimo indicado (WCAG
 | Texto principal | `text` | `surface`, `bg`, `bg-secondary` | 4,5 |
 | Texto secundario, placeholder, nav inactiva | `text-muted` | `surface`, `bg`, `bg-secondary` | 4,5 |
 | Botón primario, chip activo, burbuja | blanco | `primary`, `primary-dark`, `primary-active` | 4,5 |
-| Botón secundario, sidebar activo | `primary-text` | `primary-soft`, `bg-secondary` | 4,5 |
+| Botón secundario, sidebar activo | `primary-text` | `primary-soft`, `bg-secondary`, `secondary-bg` | 4,5 |
 | Botón outline | `teal-dark` | `surface`, `bg` | 4,5 |
 | Badge stock OK | `success-text` | `success-bg` | 4,5 |
 | Badge stock bajo / caducidad 30 d | `warning-30-text` | `warning-30-bg` | 4,5 |
 | Caducidad 7 d | `urgent-7-text` | `urgent-7-bg` | 4,5 |
 | Caducidad 1 d | `urgent-1-text` | `urgent-1-bg` | 4,5 |
-| Stock crítico, caducado, errores | `danger` | `danger-bg`, `surface` | 4,5 |
+| Stock crítico (stock 0), caducado, errores | `danger` | `danger-bg`, `surface` | 4,5 |
 | Aviso (toast) | blanco | `text` (`#17363D`) | 4,5 |
 | Ícono activo de navegación | `brand-icon` | `surface`, `primary-soft` | 3 |
 | Íconos de estado | `success-icon`, `warning-icon`, `danger`, `info-icon` | `surface` | 3 |
@@ -54,7 +54,7 @@ Exentos (WCAG 1.4.3 y 1.4.11): `text-faint` en controles deshabilitados, `brand`
 | `IconField` e inputs | Borde `border-input`, radio 10, padding 0 14 px, 14 px `text`; foco: borde 2 px `brand` y anillo `0 0 0 3px rgba(18,184,174,.10)` | Altura 48 px; placeholder en `text-muted` |
 | `Card` | `surface`, borde `border`, radio 16, `shadow-card` | — |
 | `Card` KPI | Mínimo 132 px de alto, padding 20; título 13/600 `text-muted`; valor `text-num` | — |
-| `Badge` (chips) | Radio pill, ícono del DS §21 y texto de estado | Colores AA |
+| `Badge` (chips) | Radio pill, ícono del DS §21 y texto de estado según `estadoVisual` (data-model.md): suficiente, bajo, crítico (stock 0), próximo a caducar, caducado | Colores AA |
 | `BottomSheet` | Móvil: igual que hoy, desde abajo, radio superior 20. Desde `md`: centrado, máximo 560 px, padding 24, radio 20, `shadow-modal`, título 20/700 | — |
 | `Switch`, `Stepper` | Colores `primary`; las áreas táctiles no cambian | — |
 | `AvisosConsumo` (toast) | Fondo `text`, texto blanco, ícono `#35B779`, radio 10 | Contenido y duración sin cambios |

@@ -121,11 +121,14 @@ src/app/
 ├── TopBar.tsx           # nuevo
 ├── navegacion.ts        # nuevo: Vista + lista de secciones compartida
 ├── useDisposicion.ts    # nuevo
+├── usePanelSync.ts      # nuevo: estado del panel de sincronización compartido por AppHeader y TopBar
 ├── AppHeader.tsx        # logo nuevo
 ├── BottomNav.tsx        # DS §29, 5 ítems
 ├── AvisosConsumo.tsx    # toast DS §37
 └── SyncIndicator.tsx / SyncSheet.tsx   # solo estilo
 src/stores/layoutStore.ts                   # nuevo
+src/features/insumos/lib/estado.ts          # + estadoVisual (suficiente / bajo / crítico = stock 0)
+scripts/generar-iconos.mjs                  # nuevo: rasteriza public/icons/icon.svg a 192/512 px
 src/features/inicio/
 ├── components/InicioView.tsx               # nuevo
 └── lib/resumenInicio.ts                    # nuevo
