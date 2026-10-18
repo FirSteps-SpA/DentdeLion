@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vite'
+import { sentryVitePlugin } from '@sentry/vite-plugin'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -32,10 +33,22 @@ export default defineConfig({
         ],
       },
     }),
+    sentryVitePlugin({
+      org: 'first-steps',
+      project: 'dentdelion',
+      // No publicar los .map en Netlify: se suben a Sentry y se borran de dist/.
+      sourcemaps: { filesToDeleteAfterUpload: ['./dist/**/*.map'] },
+    }),
   ],
+
   test: {
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./tests/setup.ts'],
+  },
+
+  build: {
+    // 'hidden': genera los .map sin referenciarlos desde el bundle.
+    sourcemap: 'hidden',
   },
 })
