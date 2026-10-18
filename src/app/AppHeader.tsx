@@ -1,8 +1,11 @@
+import { useState } from 'react'
 import { useAuthStore } from '../stores/authStore'
-import { useAppStore } from '../stores/appStore'
 import { useClinicaStore } from '../stores/clinicaStore'
 import { APP_NAME } from '../lib/branding'
 import { Tooth } from '../components/icons'
+import { SyncIndicator } from './SyncIndicator'
+import { SyncSheet } from './SyncSheet'
+import { useIndicadorSync } from './useIndicadorSync'
 
 function iniciales(nombre: string): string {
   return nombre
@@ -16,10 +19,14 @@ function iniciales(nombre: string): string {
 /**
  * Shared authenticated-shell header (feature 005, FR-004, contracts/design-system.md):
  * logo mark, a pill showing the configured clinic name (spec 010 FR-020,
- * `useClinicaStore` — falls back to "Gabinete" until one is set), a binary
- * connection indicator reading the *existing* `useAppStore().isBackendConnected`
- * flag (not a pending-operations counter — spec Clarifications excludes
- * that), and an avatar-initials chip. Identical on every authenticated screen.
+ * `useClinicaStore` — falls back to "Gabinete" until one is set), the sync
+ * indicator and an avatar-initials chip. Identical on every authenticated
+ * screen.
+ *
+ * El indicador (spec 012) cuenta los cambios pendientes reales y el resultado
+ * del último ciclo — reemplaza el indicador binario de conexión de la spec
+ * 005. Su panel se abre aquí, con estado local: no cambia de vista, así que
+ * un formulario a medio llenar abajo conserva lo ingresado (FR-007).
  *
  * No renderiza sesión/cerrar sesión (spec 011 FR-006/FR-007) — esa
  * información y acción viven únicamente en Ajustes → Perfil
@@ -27,8 +34,9 @@ function iniciales(nombre: string): string {
  */
 export function AppHeader() {
   const usuario = useAuthStore((s) => s.usuario)
-  const isBackendConnected = useAppStore((s) => s.isBackendConnected)
   const nombreClinica = useClinicaStore((s) => s.nombreClinica)
+  const indicador = useIndicadorSync()
+  const [panelAbierto, setPanelAbierto] = useState(false)
 
   return (
     <div className="flex w-full items-center gap-2.5 rounded-2xl border border-border bg-surface px-4 py-3">
@@ -44,18 +52,14 @@ export function AppHeader() {
         </span>
       </div>
       <div className="flex-1" />
-      <div className="flex items-center gap-1.5">
-        <span
-          className={`h-1.5 w-1.5 rounded-full ${isBackendConnected ? 'bg-success-dot' : 'bg-text-faint'}`}
-        />
-        <span className="text-[11px] font-semibold text-text-muted">
-          {isBackendConnected ? 'Sincronizado' : 'Sin conexión'}
-        </span>
-      </div>
+      <SyncIndicator indicador={indicador} onClick={() => setPanelAbierto(true)} />
       {usuario && (
-        <div className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-primary-soft text-xs font-bold text-primary">
+        <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-bold text-primary">
           {iniciales(usuario.nombre)}
         </div>
+      )}
+      {panelAbierto && (
+        <SyncSheet indicador={indicador} onClose={() => setPanelAbierto(false)} />
       )}
     </div>
   )

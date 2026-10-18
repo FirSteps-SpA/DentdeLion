@@ -5,7 +5,7 @@ type ErrorSupabase = { message?: string; code?: string } | null
 const yaReportados = new Set<string>()
 
 /** Sin red no es una falla: el ciclo se reintenta solo (Constitution I). */
-function esFallaDeRed(error: NonNullable<ErrorSupabase>): boolean {
+export function esFallaDeRed(error: NonNullable<ErrorSupabase>): boolean {
   if (typeof navigator !== 'undefined' && navigator.onLine === false)
     return true
   return /failed to fetch|networkerror|load failed|fetch failed|network request failed/i.test(

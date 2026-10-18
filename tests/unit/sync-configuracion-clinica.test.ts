@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ConfiguracionClinica } from '../../src/lib/db'
 import type { MemoryTable } from '../helpers/memoryDb'
+import { authFalso } from '../helpers/authFalso'
 
 vi.mock('../../src/lib/db', async () => {
   const { createMemoryDb, MemoryTable } = await import('../helpers/memoryDb')
@@ -15,6 +16,8 @@ vi.mock('../../src/lib/db', async () => {
       categorias: new MemoryTable(),
       itemsCompra: new MemoryTable(),
       usuarioActual: new MemoryTable(),
+      estadoSync: new MemoryTable(),
+      usuariosConocidos: new MemoryTable(),
     }),
   }
 })
@@ -29,6 +32,7 @@ function tabla(nombre: string) {
 }
 
 const client = {
+  auth: authFalso,
   from(nombre: string) {
     return {
       async upsert(rows: RemoteRow | RemoteRow[]) {
@@ -85,13 +89,16 @@ beforeEach(() => {
 
 describe('sync of configuracion_clinica (spec 010 FR-020, same pattern as configuracion_alertas)', () => {
   it('pushes the local row when one has been saved', async () => {
-    configT.seed([{ id: 'global', nombre: 'Clínica Dental Sonrisas' }])
+    configT.seed([
+      { id: 'global', nombre: 'Clínica Dental Sonrisas', sincronizado: false },
+    ])
 
     await runSyncBatch()
 
     expect(tabla('configuracion_clinica').get('global')).toMatchObject({
       nombre: 'Clínica Dental Sonrisas',
     })
+    expect(configT.all()[0].sincronizado).toBe(true)
   })
 
   it('does not push anything when no row has ever been saved', async () => {
@@ -115,8 +122,9 @@ describe('sync of configuracion_clinica (spec 010 FR-020, same pattern as config
 
   it('never throws without a backend', async () => {
     redCaida = true
-    configT.seed([{ id: 'global', nombre: 'Clínica X' }])
+    configT.seed([{ id: 'global', nombre: 'Clínica X', sincronizado: false }])
 
-    await expect(runSyncBatch()).resolves.toBeUndefined()
+    await expect(runSyncBatch()).resolves.toMatchObject({ estado: 'sin-red' })
+    expect(configT.all()[0].sincronizado).toBe(false)
   })
 })

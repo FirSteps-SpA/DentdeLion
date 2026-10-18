@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Categoria, ItemCompra, UsuarioActual } from '../../src/lib/db'
 import type { MemoryTable } from '../helpers/memoryDb'
+import { authFalso } from '../helpers/authFalso'
 
 vi.mock('../../src/lib/db', async () => {
   const { createMemoryDb, MemoryTable } = await import('../helpers/memoryDb')
@@ -15,6 +16,8 @@ vi.mock('../../src/lib/db', async () => {
       categorias: new MemoryTable(),
       itemsCompra: new MemoryTable(),
       usuarioActual: new MemoryTable(),
+      estadoSync: new MemoryTable(),
+      usuariosConocidos: new MemoryTable(),
     }),
   }
 })
@@ -31,6 +34,7 @@ function tabla(nombre: string) {
 }
 
 const client = {
+  auth: authFalso,
   from(nombre: string) {
     return {
       async upsert(rows: RemoteRow | RemoteRow[]) {
@@ -157,7 +161,7 @@ describe('pushItemsCompra / pullItemsCompra (research.md R2)', () => {
     itemsCompraT.seed([itemCompra({ id: 'item-1' })])
     redCaida = true
 
-    await expect(runSyncBatch()).resolves.toBeUndefined()
+    await expect(runSyncBatch()).resolves.toMatchObject({ estado: 'sin-red' })
 
     expect(itemsCompraT.all()[0]).toMatchObject({ estado: 'pendiente' })
   })

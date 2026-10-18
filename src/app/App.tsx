@@ -6,6 +6,8 @@ import { useAuthStore } from '../stores/authStore'
 import { useInventoryStore } from '../stores/inventoryStore'
 import { useAlertasStore } from '../stores/alertasStore'
 import { useClinicaStore } from '../stores/clinicaStore'
+import { usePendientesStore } from '../stores/pendientesStore'
+import { useSyncStore } from '../stores/syncStore'
 import { LoginForm } from '../features/auth/LoginForm'
 import { AlertasView } from '../features/alertas/components/AlertasView'
 import { contarAlertasPendientes } from '../features/alertas/lib/resumen'
@@ -22,6 +24,8 @@ function App() {
   const subscribeInventory = useInventoryStore((s) => s.subscribe)
   const subscribeAlertas = useAlertasStore((s) => s.subscribe)
   const subscribeClinica = useClinicaStore((s) => s.subscribe)
+  const subscribePendientes = usePendientesStore((s) => s.subscribe)
+  const subscribeSync = useSyncStore((s) => s.subscribe)
 
   // Boot guard: reads only the local Dexie cache (authStore.hydrate), never
   // a live Supabase call, so login-vs-app-shell is never gated on network
@@ -56,14 +60,26 @@ function App() {
     const unsubscribeInventory = subscribeInventory()
     const unsubscribeAlertas = subscribeAlertas()
     const unsubscribeClinica = subscribeClinica()
+    // Spec 012: pendientes y estado del ciclo para el indicador del encabezado.
+    const unsubscribePendientes = subscribePendientes()
+    const unsubscribeSync = subscribeSync()
     const stopSync = startBackgroundSync()
     return () => {
       unsubscribeInventory()
       unsubscribeAlertas()
       unsubscribeClinica()
+      unsubscribePendientes()
+      unsubscribeSync()
       stopSync()
     }
-  }, [usuario, subscribeInventory, subscribeAlertas, subscribeClinica])
+  }, [
+    usuario,
+    subscribeInventory,
+    subscribeAlertas,
+    subscribeClinica,
+    subscribePendientes,
+    subscribeSync,
+  ])
 
   return (
     <main className="flex min-h-dvh flex-col items-center gap-4 bg-bg p-6 text-center">

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Categoria, Insumo, UsuarioActual } from '../../src/lib/db'
 import type { MemoryTable } from '../helpers/memoryDb'
+import { authFalso } from '../helpers/authFalso'
 
 vi.mock('../../src/lib/db', async () => {
   const { createMemoryDb, MemoryTable } = await import('../helpers/memoryDb')
@@ -15,6 +16,8 @@ vi.mock('../../src/lib/db', async () => {
       categorias: new MemoryTable(),
       itemsCompra: new MemoryTable(),
       usuarioActual: new MemoryTable(),
+      estadoSync: new MemoryTable(),
+      usuariosConocidos: new MemoryTable(),
     }),
   }
 })
@@ -24,6 +27,8 @@ type RemoteRow = { id: string } & Record<string, unknown>
 const remoto: Record<string, Map<string, RemoteRow>> = {}
 const roles: Record<string, 'administrador' | 'personal'> = {}
 const llamadas: string[] = []
+/** Filas que el RLS falso rechaza aunque su autor sea administrador. */
+const rechazarIds = new Set<string>()
 let redCaida = false
 
 function tabla(nombre: string) {
@@ -32,6 +37,7 @@ function tabla(nombre: string) {
 }
 
 const client = {
+  auth: authFalso,
   from(nombre: string) {
     return {
       async upsert(rows: RemoteRow | RemoteRow[]) {
@@ -42,7 +48,9 @@ const client = {
         if (nombre === 'categorias') {
           if (
             lista.some(
-              (row) => roles[row.creado_por as string] !== 'administrador',
+              (row) =>
+                roles[row.creado_por as string] !== 'administrador' ||
+                rechazarIds.has(row.id),
             )
           ) {
             return {
@@ -135,6 +143,7 @@ const admin: UsuarioActual = {
 beforeEach(() => {
   for (const key of Object.keys(remoto)) delete remoto[key]
   llamadas.length = 0
+  rechazarIds.clear()
   redCaida = false
   roles['admin-1'] = 'administrador'
   roles['admin-2'] = 'administrador'
@@ -157,9 +166,9 @@ describe('pushCategorias (spec 008 contracts/supabase-schema.md step 0)', () => 
   it('falls back to row-by-row on a batch RLS error, marking only the failing row rechazadoEn', async () => {
     categoriasT.seed([
       categoria({ id: 'cat-ok', nombre: 'Ortodoncia', creadoPor: 'admin-1' }),
-      categoria({ id: 'cat-rechazada', nombre: 'Implantes', creadoPor: 'admin-2' }),
+      categoria({ id: 'cat-rechazada', nombre: 'Implantes', creadoPor: 'admin-1' }),
     ])
-    roles['admin-2'] = 'personal'
+    rechazarIds.add('cat-rechazada')
 
     await runSyncBatch()
 
@@ -210,6 +219,7 @@ describe('moverASinCategoria (research.md R4)', () => {
       categoria({ id: 'cat-rechazada', nombre: 'Implantes', creadoPor: 'admin-2' }),
     ])
     roles['admin-2'] = 'personal'
+    useAuthStore.setState({ usuario: { ...admin, id: 'admin-2' } })
     const ins = insumo({ id: 'i1', categoria: 'Implantes' })
     insumosT.seed([ins])
 
@@ -229,6 +239,7 @@ describe('moverASinCategoria (research.md R4)', () => {
       categoria({ id: 'cat-rechazada', nombre: 'Fresas', creadoPor: 'admin-2' }),
     ])
     roles['admin-2'] = 'personal'
+    useAuthStore.setState({ usuario: { ...admin, id: 'admin-2' } })
     const ins = insumo({ id: 'i1', categoria: 'Fresas' })
     insumosT.seed([ins])
 
