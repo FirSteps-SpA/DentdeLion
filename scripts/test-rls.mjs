@@ -157,6 +157,31 @@ check(
   `HTTP ${r.status}`,
 )
 
+// Reenvío de un movimiento que ya llegó (p. ej. se perdió la respuesta): el
+// sync usa ON CONFLICT DO NOTHING porque la tabla es solo-INSERT.
+const yaSubido = movimiento(per.id)
+await http('POST', '/rest/v1/movimientos', { token: per.token, body: yaSubido })
+r = await http('POST', '/rest/v1/movimientos?on_conflict=id', {
+  token: per.token,
+  body: yaSubido,
+  prefer: 'resolution=ignore-duplicates,return=minimal',
+})
+check(
+  'reenviar un movimiento existente con DO NOTHING no falla',
+  r.status === 201 || r.status === 200,
+  `HTTP ${r.status}`,
+)
+r = await http('POST', '/rest/v1/movimientos?on_conflict=id', {
+  token: per.token,
+  body: yaSubido,
+  prefer: 'resolution=merge-duplicates,return=minimal',
+})
+check(
+  'reenviarlo con DO UPDATE sí falla (por eso el sync usa DO NOTHING)',
+  r.status === 403,
+  `HTTP ${r.status}`,
+)
+
 r = await http('PATCH', `/rest/v1/movimientos?lote_id=eq.${lote}`, {
   token: adm.token,
   body: { cantidad: 99 },
@@ -166,14 +191,15 @@ check(
   Array.isArray(r.data) && r.data.length === 0,
   `HTTP ${r.status}`,
 )
+const antes = (await leer(`movimientos?select=id&lote_id=eq.${lote}`)).length
 r = await http('DELETE', `/rest/v1/movimientos?lote_id=eq.${lote}`, {
   token: adm.token,
 })
 const quedan = await leer(`movimientos?select=id&lote_id=eq.${lote}`)
 check(
   'movimientos no borrables, ni por administrador',
-  quedan.length === 1,
-  `${quedan.length} filas`,
+  antes > 0 && quedan.length === antes,
+  `${quedan.length}/${antes} filas`,
 )
 
 await http('PATCH', `/rest/v1/insumos?id=eq.${insumo}`, {
