@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getSupabaseStatus } from '../supabase'
 import {
@@ -25,6 +26,7 @@ import {
 import { useAuthStore } from '../../stores/authStore'
 import { useAvisosStore } from '../../stores/avisosStore'
 import { reconcileOverdraft } from './reconcileOverdraft'
+import { reportarErrorSync } from './reportar'
 
 interface InsumoRow {
   id: string
@@ -357,7 +359,10 @@ async function pushCambiosInsumo(
     )
     return []
   }
-  if (!esRechazoDePermisos(error)) return []
+  if (!esRechazoDePermisos(error)) {
+    reportarErrorSync('push cambios_insumo', error)
+    return []
+  }
 
   const rechazados: CambioInsumo[] = []
   for (const cambio of pendientes) {
@@ -378,6 +383,7 @@ async function pushCambiosInsumo(
 
 async function pullCambiosInsumo(client: SupabaseClient): Promise<void> {
   const { data, error } = await client.from('cambios_insumo').select('*')
+  reportarErrorSync('pull cambios_insumo', error)
   if (error || !data) return
   await db.cambiosInsumo.bulkPut(
     (data as CambioInsumoRow[]).map(fromCambioInsumoRow),
@@ -435,7 +441,10 @@ async function pushCategorias(client: SupabaseClient): Promise<Categoria[]> {
     )
     return []
   }
-  if (!esRechazoDePermisos(error)) return []
+  if (!esRechazoDePermisos(error)) {
+    reportarErrorSync('push categorias', error)
+    return []
+  }
 
   const rechazadas: Categoria[] = []
   for (const categoria of pendientes) {
@@ -517,6 +526,7 @@ async function notificarRechazoCategorias(
  */
 async function pullCategorias(client: SupabaseClient): Promise<void> {
   const { data, error } = await client.from('categorias').select('*')
+  reportarErrorSync('pull categorias', error)
   if (error || !data) return
   const rechazadasLocalmente = new Set(
     (await db.categorias.toArray())
@@ -548,21 +558,50 @@ async function pushItemsCompra(client: SupabaseClient): Promise<void> {
   await client.from('items_compra').upsert(items.map(toItemCompraRow))
 }
 
-/** Pushes unsynced movimientos and returns the loteIds of any `consumo` rows just pushed. */
+/**
+ * Pushes the current user's unsynced movimientos and returns the loteIds of
+ * any `consumo` rows actually pushed. Only rows the server accepted are marked
+ * `sincronizado`: supabase-js returns `{ error }` instead of throwing (offline,
+ * 5xx, RLS), and marking a failed batch as synced lost those movimientos for
+ * good. `ignoreDuplicates` (ON CONFLICT DO NOTHING) because `movimientos` is
+ * insert-only (no UPDATE policy): re-sending a row that already reached the
+ * server must not fail the whole batch. Rows of other users on a shared device
+ * stay pending until their owner signs in (RLS: `usuario_id = auth.uid()`).
+ */
 async function pushMovimientos(client: SupabaseClient): Promise<string[]> {
-  const todos = await db.movimientos.toArray()
-  const pendientes = todos.filter((movimiento) => !movimiento.sincronizado)
+  const usuarioId = useAuthStore.getState().usuario?.id
+  if (!usuarioId) return []
+  const pendientes = (await db.movimientos.toArray()).filter(
+    (movimiento) => !movimiento.sincronizado && movimiento.usuarioId === usuarioId,
+  )
   if (pendientes.length === 0) return []
 
-  await client.from('movimientos').upsert(pendientes.map(toMovimientoRow))
+  const subir = (filas: Movimiento[]) =>
+    client
+      .from('movimientos')
+      .upsert(filas.map(toMovimientoRow), { onConflict: 'id', ignoreDuplicates: true })
+
+  let subidos = pendientes
+  const { error } = await subir(pendientes)
+  if (error) {
+    reportarErrorSync('push movimientos', error)
+    if (!esRechazoDePermisos(error)) return []
+    // Un rechazo de permisos no debe bloquear las filas válidas: fila por fila.
+    subidos = []
+    for (const movimiento of pendientes) {
+      const { error: errorFila } = await subir([movimiento])
+      if (errorFila) reportarErrorSync('push movimiento (fila)', errorFila)
+      else subidos.push(movimiento)
+    }
+  }
+
   await db.movimientos.bulkUpdate(
-    pendientes.map((movimiento) => ({
+    subidos.map((movimiento) => ({
       key: movimiento.id,
       changes: { sincronizado: true },
     })),
   )
-
-  return pendientes
+  return subidos
     .filter((movimiento) => movimiento.tipo === 'consumo')
     .map((movimiento) => movimiento.loteId)
 }
@@ -587,18 +626,21 @@ async function pushConfiguracionClinica(client: SupabaseClient): Promise<void> {
 
 async function pullInsumos(client: SupabaseClient): Promise<void> {
   const { data, error } = await client.from('insumos').select('*')
+  reportarErrorSync('pull insumos', error)
   if (error || !data) return
   await db.insumos.bulkPut((data as InsumoRow[]).map(fromInsumoRow))
 }
 
 async function pullLotes(client: SupabaseClient): Promise<void> {
   const { data, error } = await client.from('lotes').select('*')
+  reportarErrorSync('pull lotes', error)
   if (error || !data) return
   await db.lotes.bulkPut((data as LoteRow[]).map(fromLoteRow))
 }
 
 async function pullItemsCompra(client: SupabaseClient): Promise<void> {
   const { data, error } = await client.from('items_compra').select('*')
+  reportarErrorSync('pull items_compra', error)
   if (error || !data) return
   await db.itemsCompra.bulkPut((data as ItemCompraRow[]).map(fromItemCompraRow))
 }
@@ -610,6 +652,7 @@ async function pullConfiguracionAlertas(client: SupabaseClient): Promise<void> {
     .select('*')
     .eq('id', 'global')
     .maybeSingle()
+  reportarErrorSync('pull configuracion_alertas', error)
   if (error || !data) return
   await db.configuracionAlertas.put(
     fromConfiguracionAlertasRow(data as ConfiguracionAlertasRow),
@@ -623,6 +666,7 @@ async function pullConfiguracionClinica(client: SupabaseClient): Promise<void> {
     .select('*')
     .eq('id', 'global')
     .maybeSingle()
+  reportarErrorSync('pull configuracion_clinica', error)
   if (error || !data) return
   await db.configuracionClinica.put(
     fromConfiguracionClinicaRow(data as ConfiguracionClinicaRow),
@@ -632,6 +676,7 @@ async function pullConfiguracionClinica(client: SupabaseClient): Promise<void> {
 /** Pulls remote movimientos and returns the loteIds of any `consumo` rows pulled. */
 async function pullMovimientos(client: SupabaseClient): Promise<string[]> {
   const { data, error } = await client.from('movimientos').select('*')
+  reportarErrorSync('pull movimientos', error)
   if (error || !data) return []
   const rows = data as MovimientoRow[]
   await db.movimientos.bulkPut(rows.map(fromMovimientoRow))
@@ -702,6 +747,7 @@ export function startBackgroundSync(intervalMs = 30_000): () => void {
   const tick = () => {
     void runSyncBatch().catch((err: unknown) => {
       console.error('[inDENTory] Error de sincronización:', err)
+      Sentry.captureException(err, { tags: { etapa: 'ciclo de sync' } })
     })
   }
   tick()
