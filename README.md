@@ -50,18 +50,17 @@ se soporta una instancia local autoalojada vía Docker.
 4. Reinicia `npm run dev`. Si la conexión es exitosa verás `[inDENTory] Conectado a Supabase.` en
    la consola del navegador; si falta o es inválida alguna variable, verás un mensaje explícito
    indicando cuál.
-5. En el SQL Editor del proyecto Supabase, ejecuta las tablas, índices y la política RLS de
-   inventario (insumos/lotes/movimientos) definidas en
-   [`specs/002-registro-consumo-insumos/contracts/supabase-schema.md`](specs/002-registro-consumo-insumos/contracts/supabase-schema.md),
-   necesarias para la sincronización en segundo plano del registro y consumo de insumos.
-6. En el mismo SQL Editor, ejecuta la columna `stock_minimo` de `insumos`, la tabla
-   `configuracion_alertas` y su política RLS definidas en
-   [`specs/004-alertas-caducidad-stock/contracts/supabase-schema.md`](specs/004-alertas-caducidad-stock/contracts/supabase-schema.md),
-   necesarias para la sincronización de las alertas de caducidad y stock mínimo.
-7. En el mismo SQL Editor, ejecuta las columnas de baja lógica de `insumos`, la tabla
-   `cambios_insumo` y su política RLS definidas en
-   [`specs/007-acciones-rapidas-consumo-edicion/contracts/supabase-schema.md`](specs/007-acciones-rapidas-consumo-edicion/contracts/supabase-schema.md),
-   necesarias para sincronizar la edición y la baja de insumos entre dispositivos.
+5. Aplica el esquema de base de datos (tablas, índices, RLS y triggers) versionado en
+   [`supabase/migrations/`](supabase/migrations) con la Supabase CLI:
+
+   ```sh
+   supabase link --project-ref <ref-del-proyecto>
+   supabase db push
+   ```
+
+   Los archivos `specs/*/contracts/supabase-schema.md` quedan como documentación histórica de
+   cada feature; la fuente de verdad del esquema es `supabase/migrations/`. Cualquier cambio
+   nuevo al esquema va como una migración nueva (`supabase migration new <nombre>`).
 
 ### Credenciales — nunca las subas al repositorio
 
@@ -77,9 +76,8 @@ No existe una pantalla de autorregistro ni de alta de usuarios en la app (spec
 `003-login-personal-clinico`, FR-009) — las cuentas se crean manualmente en el proyecto Supabase
 de desarrollo:
 
-1. En el SQL Editor del proyecto Supabase, ejecuta la tabla `perfiles` y sus políticas RLS
-   definidas en
-   [`specs/003-login-personal-clinico/contracts/supabase-schema.md`](specs/003-login-personal-clinico/contracts/supabase-schema.md).
+1. Asegúrate de haber aplicado las migraciones (paso 5 de la sección anterior); incluyen la
+   tabla `perfiles` y sus políticas RLS.
 2. En **Authentication → Users**, crea un usuario de prueba (correo + contraseña) por cada rol
    que quieras probar.
 3. Para cada usuario creado, inserta su fila correspondiente en `perfiles` (mismo `id` que el
