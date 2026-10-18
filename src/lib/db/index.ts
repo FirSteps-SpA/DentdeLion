@@ -275,4 +275,21 @@ db.version(7)
       }),
   )
 
+
+// Version 8 (fix sync de movimientos): hasta esta versión `pushMovimientos`
+// marcaba un lote como `sincronizado` aunque el upsert fallara (sin red, 5xx,
+// RLS), y esos movimientos no se reintentaban nunca. Reabre todos para un único
+// reenvío: el push usa ON CONFLICT DO NOTHING, así que los que ya están en el
+// servidor se ignoran y solo se recuperan los perdidos. Sin cambios de forma.
+db.version(8)
+  .stores({})
+  .upgrade((tx) =>
+    tx
+      .table('movimientos')
+      .toCollection()
+      .modify((movimiento: Partial<Movimiento>) => {
+        movimiento.sincronizado = false
+      }),
+  )
+
 export type { EntityTable }

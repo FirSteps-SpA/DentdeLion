@@ -151,3 +151,5 @@ dev-dist/
 # run-indentory skill: generated locally by setup.sh / driver.mjs, never committed
 .claude/skills/run-indentory/pw-libs/
 .claude/skills/run-indentory/screenshots/
+# Sentry Config File
+.env.sentry-build-plugin

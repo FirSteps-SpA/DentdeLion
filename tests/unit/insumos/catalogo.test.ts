@@ -251,9 +251,18 @@ describe('restaurarInsumo (spec 010 FR-023/024)', () => {
   })
 
   it('reverts a dado-de-baja insumo back to activo, recorded in the ledger', async () => {
-    await darDeBajaInsumo('i1')
+    // Relojes distintos: en el mismo milisegundo el ledger desempata por `id`
+    // (UUID aleatorio) y la restauración podía quedar ordenada antes de la baja.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      vi.setSystemTime(new Date('2026-01-01T10:00:00.000Z'))
+      await darDeBajaInsumo('i1')
 
-    await restaurarInsumo('i1')
+      vi.setSystemTime(new Date('2026-01-01T10:00:01.000Z'))
+      await restaurarInsumo('i1')
+    } finally {
+      vi.useRealTimers()
+    }
 
     const cambios = cambiosT.all().filter((c) => c.campo === 'baja')
     expect(cambios).toHaveLength(2)
