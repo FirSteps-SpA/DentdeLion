@@ -175,6 +175,15 @@ salta y `sincronizarAhora` devuelve la promesa en curso. El botón se deshabilit
 
 Hoy dos ciclos pueden solaparse si uno tarda más de 30 s. El guardián también elimina ese riesgo.
 
+**Ajustes tras la implementación** (verificados en Chromium contra Supabase local):
+- **Corte por red**: supabase-js 2.115 reintenta cada GET fallido por red hasta 3 veces (1 + 2 + 4
+  s). Con 8 descargas por ciclo, sin servidor "Sincronizar ahora" tardaba cerca de un minuto
+  (incumplía FR-009). Por eso el cliente se crea con `db: { retry: false }`, el ciclo se corta en
+  el primer error de red (igual que con la sesión) y, si `navigator.onLine === false`, no hace
+  ninguna petición. Ahora el resultado llega en menos de 1 s.
+- **`online` durante un ciclo**: si la red vuelve mientras termina un ciclo que empezó sin ella, el
+  evento `online` encadena un ciclo nuevo después, en vez de reutilizar ese.
+
 ## R10 · Persistencia de la última sincronización exitosa
 
 **Decisión**: tabla local nueva `estadoSync`, con una fila `id: 'local'` y el campo

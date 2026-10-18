@@ -247,3 +247,29 @@ export const Tag = makeIcon(() => (
     <circle cx="7.5" cy="7.5" r="1.25" />
   </>
 ))
+
+/** Spec 012 — estado "N pendientes" del indicador de sincronización. */
+export const ArrowsSync = makeIcon(() => (
+  <>
+    <path d="M21 12a9 9 0 0 0-15.5-6.2L3 8" />
+    <polyline points="3 3 3 8 8 8" />
+    <path d="M3 12a9 9 0 0 0 15.5 6.2L21 16" />
+    <polyline points="21 21 21 16 16 16" />
+  </>
+))
+
+/** Spec 012 — estado "Sin conexión". */
+export const CloudOff = makeIcon(() => (
+  <>
+    <path d="M22.61 16.95A5 5 0 0 0 18 10h-1.26a8 8 0 0 0-7.05-6M5 5a8 8 0 0 0 4 15h9a5 5 0 0 0 1.7-.3" />
+    <line x1="1" y1="1" x2="23" y2="23" />
+  </>
+))
+
+/** Spec 012 — alerta de pendientes antiguos. */
+export const Clock = makeIcon(() => (
+  <>
+    <circle cx="12" cy="12" r="9" />
+    <polyline points="12 7 12 12 15 14" />
+  </>
+))

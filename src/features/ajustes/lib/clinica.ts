@@ -14,5 +14,10 @@ export async function guardarNombreClinica(
   if (!limpio) {
     return { error: 'Ingresa un nombre de clínica.' }
   }
-  await db.configuracionClinica.put({ id: 'global', nombre: limpio })
+  // `sincronizado: false`: el ciclo la sube en el próximo push (spec 012 research.md R5).
+  await db.configuracionClinica.put({
+    id: 'global',
+    nombre: limpio,
+    sincronizado: false,
+  })
 }

@@ -35,7 +35,9 @@ Cambios respecto del contrato de la spec 008/010 (el orden de etapas no cambia):
    red, el ciclo devuelve `sin-red`. Si no hay sesión o no es del usuario local, devuelve `sesion`.
    En ambos casos no se hace ningún push ni pull. Además, si **cualquier** etapa posterior recibe
    un error de sesión (`PGRST301`, 401 o `/jwt/i`), el ciclo se corta en esa etapa y devuelve
-   `sesion` (R2/R3).
+   `sesion` (R2/R3). Un error de red también corta el ciclo (devuelve `sin-red`), y con
+   `navigator.onLine === false` no se hace ninguna petición (R9, ajustes tras la
+   implementación).
 1. `pushCategorias`: **solo** las de `creadoPor === usuario actual` (R4).
 2. `pushInsumos`: sin cambios, pero su `{ error }` ahora se registra.
 3. `pushCambiosInsumo`: **solo** los de `usuarioId === usuario actual` (R4).
@@ -64,7 +66,8 @@ Invariantes que se mantienen:
 sincronizarAhora(): Promise<ResultadoCiclo>
   // si hay un ciclo en curso devuelve esa misma promesa; si no, lanza uno
 startBackgroundSync(intervalMs = 30_000): () => void
-  // tick inmediato + intervalo + listeners 'online' (ciclo inmediato) y 'offline'
+  // tick inmediato + intervalo + listeners 'online' (un ciclo nuevo, después del que
+  // esté en curso) y 'offline'
   // (estado sin-red); los ticks pasan por el mismo guardián; la función de
   // retorno limpia intervalo y listeners
 ```

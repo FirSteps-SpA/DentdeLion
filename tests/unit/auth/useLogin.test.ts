@@ -32,6 +32,7 @@ vi.mock('../../../src/lib/db', () => {
         }),
         toCollection: () => ({ first: async () => row }),
       },
+      usuariosConocidos: { put: vi.fn(async () => undefined) },
     },
   }
 })

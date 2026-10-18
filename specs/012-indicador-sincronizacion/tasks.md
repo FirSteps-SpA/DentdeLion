@@ -27,12 +27,12 @@ más un cliente Supabase falso con `from().upsert/select` y `auth.getSession`.
 
 **Purpose**: esquema remoto e íconos que usan varias historias.
 
-- [ ] T001 [P] Crear `supabase/migrations/20261019000000_horas_aviso_pendientes.sql` con el SQL
+- [X] T001 [P] Crear `supabase/migrations/20261019000000_horas_aviso_pendientes.sql` con el SQL
   exacto de contracts/supabase-schema.md (columna `horas_aviso_pendientes integer not null default
   24` y check `between 1 and 168`, con nombre `configuracion_alertas_horas_aviso_pendientes_check`).
   Encabezado de comentario en el estilo de `20261018000000_endurecer_funciones.sql`. Verificar
   con `supabase db reset`.
-- [ ] T002 [P] En `src/components/icons/index.tsx`, agregar los íconos `Check`, `ArrowsSync` (dos
+- [X] T002 [P] En `src/components/icons/index.tsx`, agregar los íconos `Check`, `ArrowsSync` (dos
   flechas circulares), `CloudOff`, `AlertTriangle` y `Clock`. Mismo formato de props (`size`,
   `className`) y trazo que los íconos existentes.
 
@@ -47,7 +47,7 @@ R1–R5, R9 y R10.
 
 ### Tests (escribir primero; deben fallar)
 
-- [ ] T003 [P] Crear `tests/unit/sync-resultado-ciclo.test.ts`. Debe cubrir:
+- [X] T003 [P] Crear `tests/unit/sync-resultado-ciclo.test.ts`. Debe cubrir:
   (a) todas las etapas sin error dan `estado: 'ok'` y escriben `estadoSync.ultimaExitosaEn`;
   (b) un `{ error: { message: 'Failed to fetch' } }` en `push lotes` da `sin-red` y no escribe
   `ultimaExitosaEn`;
@@ -65,11 +65,11 @@ R1–R5, R9 y R10.
   (k) un error `{ code: 'PGRST301' }`, un `{ status: 401 }` o un mensaje "JWT expired" en
   cualquier etapa da `sesion`, aunque haya otros errores de servidor o de red en el mismo ciclo
   (R2/R3).
-- [ ] T004 [P] Crear `tests/unit/sync-autoria.test.ts`. Con `usuarioActual` = B, un `CambioInsumo`
+- [X] T004 [P] Crear `tests/unit/sync-autoria.test.ts`. Con `usuarioActual` = B, un `CambioInsumo`
   pendiente de A y otro de B, y una `Categoria` pendiente de A y otra de B, debe comprobar que:
   solo se suben los de B; los de A quedan `sincronizado: false` y `rechazadoEn: null` aunque el
   cliente falso rechace con 42501 cualquier fila cuyo autor ≠ B (R4).
-- [ ] T005 [P] Crear `tests/unit/sync-configuracion-bandera.test.ts`. Debe cubrir:
+- [X] T005 [P] Crear `tests/unit/sync-configuracion-bandera.test.ts`. Debe cubrir:
   (a) con rol `personal` y `configuracionAlertas.sincronizado: false`, no hay upsert;
   (b) como administrador, con `sincronizado: false`, se hace un upsert y queda `true`;
   (c) como administrador, con `sincronizado: true`, no hay upsert;
@@ -86,7 +86,7 @@ R1–R5, R9 y R10.
 
 ### Implementation
 
-- [ ] T006 En `src/lib/db/index.ts`, según data-model.md:
+- [X] T006 En `src/lib/db/index.ts`, según data-model.md:
   - agregar las interfaces `UsuarioConocido` (`id`, `nombre`, `vistoEn`) y `EstadoSync`
     (`id: 'local'`, `ultimaExitosaEn: string | null`);
   - agregar `horasAvisoPendientes?: number` y `sincronizado: boolean` a `ConfiguracionAlertas`, y
@@ -98,8 +98,8 @@ R1–R5, R9 y R10.
 
   Agregar también las tablas a los `createMemoryDb({...})` de los tests de sync existentes que las
   necesiten.
-- [ ] T007 En `src/lib/sync/reportar.ts`, exportar `esFallaDeRed`, sin cambiar su lógica.
-- [ ] T008 Crear `src/stores/syncStore.ts` (Zustand) con:
+- [X] T007 En `src/lib/sync/reportar.ts`, exportar `esFallaDeRed`, sin cambiar su lógica.
+- [X] T008 Crear `src/stores/syncStore.ts` (Zustand) con:
   - el estado `fase: 'inactivo' | 'sincronizando'`, `ultimoResultado: ResultadoCiclo['estado'] |
     null` y `ultimaExitosaEn: string | null`;
   - los setters internos `iniciarCiclo()` y `terminarCiclo(resultado)`;
@@ -109,7 +109,7 @@ R1–R5, R9 y R10.
 
   Exportar desde aquí `type ResultadoCiclo = { estado: 'ok' | 'sin-red' | 'error' | 'sesion';
   etapasConError: string[]; terminadoEn: string }`.
-- [ ] T009 En `src/lib/sync/index.ts`, agregar la clase o closure `CicloSync` (R1/R2):
+- [X] T009 En `src/lib/sync/index.ts`, agregar la clase o closure `CicloSync` (R1/R2):
   - `registrar(etapa, error)`, que ignora `null` y clasifica el error en una de tres clases:
     `sesion` si `code === 'PGRST301'`, `status === 401` o el mensaje coincide con `/jwt/i`; si
     no, `red` si `esFallaDeRed`; si no, `servidor`. Guarda la etapa y llama a
@@ -124,7 +124,7 @@ R1–R5, R9 y R10.
   los rechazos de fila: los movimientos no tienen `rechazadoEn` y siguen pendientes, así que
   deben verse como error. Sustituir las llamadas directas a `reportarErrorSync` por
   `ciclo.registrar`.
-- [ ] T010 En `src/lib/sync/index.ts`, `runSyncBatch(): Promise<ResultadoCiclo>`:
+- [X] T010 En `src/lib/sync/index.ts`, `runSyncBatch(): Promise<ResultadoCiclo>`:
   - Si `getSupabaseStatus()` da error, devolver `sin-red`.
   - Paso 0 de contracts/supabase-schema.md: `client.auth.getSession()`. Si es error de red
     (`esFallaDeRed`), devolver `sin-red`. Si no hay `session` o `session.user.id !==
@@ -138,11 +138,11 @@ R1–R5, R9 y R10.
   - Envolver todo en `try/catch`: una excepción devuelve `error` con la etapa `'ciclo'` y va a
     Sentry, como hace hoy `startBackgroundSync`.
   - Actualizar el JSDoc del contrato.
-- [ ] T011 En `src/lib/sync/index.ts` (R4), filtrar `pushCambiosInsumo` por `cambio.usuarioId ===
+- [X] T011 En `src/lib/sync/index.ts` (R4), filtrar `pushCambiosInsumo` por `cambio.usuarioId ===
   usuarioActual` y `pushCategorias` por `categoria.creadoPor === usuarioActual`, igual que
   `pushMovimientos`. Sin usuario, devolver `[]`. Documentar en el JSDoc por qué (RLS
   `usuario_id/creado_por = auth.uid()` en un dispositivo compartido).
-- [ ] T012 En `src/lib/sync/index.ts` (R5/R6):
+- [X] T012 En `src/lib/sync/index.ts` (R5/R6):
   - `pushConfiguracionAlertas` y `pushConfiguracionClinica` suben solo si la fila local tiene
     `sincronizado === false` **y** `useAuthStore.getState().usuario?.rol === 'administrador'`. Si
     no hay error, `update(..., { sincronizado: true })`. Si el upsert se rechaza por permisos
@@ -155,12 +155,12 @@ R1–R5, R9 y R10.
   - `toConfiguracionAlertasRow` incluye `horas_aviso_pendientes` solo si `horasAvisoPendientes
     !== undefined`, y `fromConfiguracionAlertasRow` lo mapea.
   - Agregar `horas_aviso_pendientes?: number` a `ConfiguracionAlertasRow`.
-- [ ] T013 En `src/features/alertas/lib/configuracion.ts` y en el guardado del nombre de clínica
+- [X] T013 En `src/features/alertas/lib/configuracion.ts` y en el guardado del nombre de clínica
   (`src/features/ajustes/lib/clinica.ts`), cada escritura de
   configuración global usa `sincronizado: false` y conserva los demás campos de la fila (leer y
   fusionar en vez de `put` con la fila nueva). `actualizarNivelesAviso` mantiene
   `horasAvisoPendientes`.
-- [ ] T014 En `src/lib/sync/index.ts` (R9):
+- [X] T014 En `src/lib/sync/index.ts` (R9):
   - Guardián de módulo `let cicloEnCurso: Promise<ResultadoCiclo> | null`.
   - `export function sincronizarAhora()`: devuelve `cicloEnCurso` si existe; si no, llama a
     `useSyncStore.getState().iniciarCiclo()`, ejecuta `runSyncBatch()`, y en `finally` llama a
@@ -169,7 +169,7 @@ R1–R5, R9 y R10.
     `window.addEventListener('online', tick)` y `('offline', () =>
     useSyncStore.getState().marcarSinRed())`. La función de retorno quita los listeners y el
     intervalo.
-- [ ] T015 Ajustar las pruebas existentes al nuevo contrato:
+- [X] T015 Ajustar las pruebas existentes al nuevo contrato:
   - `tests/unit/sync-configuracion-clinica.test.ts`, `tests/unit/sync-full-repush.test.ts` y el
     resto de `tests/unit/sync-*.test.ts`: clientes falsos con `auth.getSession` que devuelve la
     sesión del usuario mockeado, filas de configuración con `sincronizado`, y aserciones que
@@ -191,7 +191,7 @@ de forma reactiva.
 
 ### Tests
 
-- [ ] T016 [P] [US1] Crear `tests/unit/indicador.test.ts` para `calcularIndicador()` (algoritmo
+- [X] T016 [P] [US1] Crear `tests/unit/indicador.test.ts` para `calcularIndicador()` (algoritmo
   de data-model.md). Debe cubrir:
   - prioridad `error` > `sin-conexion` > `pendientes` > `sincronizado`;
   - `sesion` da `error` con `motivoError: 'sesion'`;
@@ -200,7 +200,7 @@ de forma reactiva.
   - con 100 pendientes, la etiqueta es "99+";
   - las filas `rechazadoEn` no cuentan;
   - los pendientes ajenos no cambian `estado`.
-- [ ] T017 [P] [US1] Crear `tests/integration/indicador-sincronizacion.test.tsx`, montando `App`
+- [X] T017 [P] [US1] Crear `tests/integration/indicador-sincronizacion.test.tsx`, montando `App`
   con un usuario y el `memoryDb` (patrón de `tests/integration/consumo.test.tsx`, con
   `onMemoryDbChange` para simular `liveQuery`). Escenarios de US1:
   - (1) sin pendientes y ciclo `ok`: "Sincronizado";
@@ -215,7 +215,7 @@ de forma reactiva.
 
 ### Implementation
 
-- [ ] T018 [US1] Crear `src/lib/sync/indicador.ts` con:
+- [X] T018 [US1] Crear `src/lib/sync/indicador.ts` con:
   - `agruparPendientes(movimientos, cambios, categorias): PendientesPorAutor[]` (filtros de
     data-model.md, `masAntiguoEn` = `creadoEn` mínimo);
   - `calcularIndicador({ usuarioId, pendientes, ultimoResultado, enLinea, horasAviso, ahora,
@@ -224,7 +224,7 @@ de forma reactiva.
 
   Es puro, sin Dexie ni React. En US1 la alerta y los ajenos pueden devolver valores vacíos: se
   completan en T034 y T038.
-- [ ] T019 [US1] Crear `src/stores/pendientesStore.ts` (Zustand):
+- [X] T019 [US1] Crear `src/stores/pendientesStore.ts` (Zustand):
   - `subscribe()` con un `liveQuery` que lee `movimientos`, `cambiosInsumo` y `categorias` y
     guarda `agruparPendientes(...)`;
   - un `liveQuery` de `usuariosConocidos`;
@@ -232,7 +232,7 @@ de forma reactiva.
   - la función de retorno limpia todo.
 
   Mismo estilo que `src/stores/alertasStore.ts`.
-- [ ] T020 [US1] Crear `src/app/SyncIndicator.tsx` según contracts/ui-contracts.md:
+- [X] T020 [US1] Crear `src/app/SyncIndicator.tsx` según contracts/ui-contracts.md:
   - un `<button>` `touch-target` que lee `pendientesStore`, `syncStore`, `authStore` y
     `alertasStore` (para el umbral; hasta T031 usa 24), y `navigator.onLine` con listeners
     `online`/`offline` en un `useSyncExternalStore`;
@@ -241,14 +241,14 @@ de forma reactiva.
   - `aria-label="Estado de sincronización: …"` con el texto completo;
   - ícono girando con `motion-safe:animate-spin` mientras `fase === 'sincronizando'`;
   - prop `onClick`.
-- [ ] T021 [US1] En `src/app/AppHeader.tsx`, reemplazar el bloque del punto con el texto
+- [X] T021 [US1] En `src/app/AppHeader.tsx`, reemplazar el bloque del punto con el texto
   "Sincronizado"/"Sin conexión" por `<SyncIndicator onClick={...} />`. Quitar la lectura de
   `useAppStore().isBackendConnected` y actualizar el JSDoc: el contador ya no está excluido, y hay
   que referenciar la spec 012.
-- [ ] T022 [US1] En `src/app/App.tsx`, dentro del `useEffect` con usuario, llamar a
+- [X] T022 [US1] En `src/app/App.tsx`, dentro del `useEffect` con usuario, llamar a
   `useSyncStore.getState().subscribe()` y `usePendientesStore.getState().subscribe()` (o los
   selectores `subscribe`, como los demás stores) y limpiarlos en el retorno.
-- [ ] T023 [US1] Ajustar las pruebas existentes que buscan el texto "Sincronizado"/"Sin conexión"
+- [X] T023 [US1] Ajustar las pruebas existentes que buscan el texto "Sincronizado"/"Sin conexión"
   del encabezado viejo (`grep -rn "Sin conexión\|Sincronizado" tests/`) y correr `npm test`.
 
 **Checkpoint**: MVP. El indicador es veraz y reactivo; se puede publicar solo.
@@ -265,7 +265,7 @@ sincronización exitosa y el desglose por tipo.
 
 ### Tests
 
-- [ ] T024 [P] [US2] Agregar a `tests/integration/indicador-sincronizacion.test.tsx`:
+- [X] T024 [P] [US2] Agregar a `tests/integration/indicador-sincronizacion.test.tsx`:
   - (a) tocar el indicador abre un `role="dialog"` con el título "Sincronización";
   - (b) tras un ciclo `ok` muestra "Última sincronización: hoy HH:MM", y un ciclo `sin-red`
     posterior no la cambia;
@@ -276,7 +276,7 @@ sincronización exitosa y el desglose por tipo.
 
 ### Implementation
 
-- [ ] T025 [US2] Crear `src/app/SyncSheet.tsx` según contracts/ui-contracts.md, bloques 1–3:
+- [X] T025 [US2] Crear `src/app/SyncSheet.tsx` según contracts/ui-contracts.md, bloques 1–3:
   - `BottomSheet` con `titulo="Sincronización"`;
   - estado actual con el motivo de error (servidor o sesión, FR-015);
   - "Última sincronización", con un formateador local que dé "hoy HH:MM", "ayer HH:MM" o "d mmm
@@ -284,7 +284,7 @@ sincronización exitosa y el desglose por tipo.
   - desglose de los propios por tipo, sin líneas en 0.
 
   Recibe el resultado de `calcularIndicador` por props para no recalcular.
-- [ ] T026 [US2] En `src/app/AppHeader.tsx`, agregar el estado local `panelAbierto`:
+- [X] T026 [US2] En `src/app/AppHeader.tsx`, agregar el estado local `panelAbierto`:
   `SyncIndicator onClick` lo abre y `SyncSheet onClose` lo cierra. No cambiar `vista` ni montar
   nada fuera del header, para que el formulario de abajo conserve su estado.
 
@@ -301,7 +301,7 @@ ejecuta un solo ciclo; offline muestra el mensaje y no bloquea (quickstart escen
 
 ### Tests
 
-- [ ] T027 [P] [US3] Agregar a `tests/integration/indicador-sincronizacion.test.tsx`:
+- [X] T027 [P] [US3] Agregar a `tests/integration/indicador-sincronizacion.test.tsx`:
   - (a) pulsar "Sincronizar ahora" con el cliente aceptando: el botón dice "Sincronizando…" y está
     `disabled`; al terminar aparece "Listo" y el indicador muestra "Sincronizado";
   - (b) dos clics seguidos: `getSession` se llama una sola vez;
@@ -309,7 +309,7 @@ ejecuta un solo ciclo; offline muestra el mensaje y no bloquea (quickstart escen
 
 ### Implementation
 
-- [ ] T028 [US3] En `src/app/SyncSheet.tsx`, bloque 6 de contracts/ui-contracts.md:
+- [X] T028 [US3] En `src/app/SyncSheet.tsx`, bloque 6 de contracts/ui-contracts.md:
   - `TouchButton` primario de ancho completo "Sincronizar ahora", `disabled` y con el texto
     "Sincronizando…" mientras `syncStore.fase === 'sincronizando'`;
   - `onClick` hace `await sincronizarAhora()` y guarda el resultado en un estado local, que se
@@ -330,7 +330,7 @@ sincronizar desaparece (quickstart escenarios 8–9).
 
 ### Tests
 
-- [ ] T029 [P] [US4] Extender `tests/unit/indicador.test.ts`:
+- [X] T029 [P] [US4] Extender `tests/unit/indicador.test.ts`:
   - un pendiente de hace 25 h con umbral 24 da `alerta` y 1 antiguo;
   - con 23 h, no hay alerta;
   - con `creadoEn` en el futuro (reloj atrasado), la antigüedad es 0, sin alerta ni valores
@@ -344,30 +344,30 @@ sincronizar desaparece (quickstart escenarios 8–9).
   - (c) un valor de 0 o 200 muestra "Ingresa un número de horas entre 1 y 168." y no guarda;
   - (d) con rol `personal`, el campo no está en Ajustes y el panel muestra "Aviso tras 24 h sin
     subir".
-- [ ] T030 [P] [US4] En `scripts/test-rls.mjs`, agregar los 4 casos de la tabla de
+- [X] T030 [P] [US4] En `scripts/test-rls.mjs`, agregar los 4 casos de la tabla de
   contracts/supabase-schema.md (el administrador escribe 12; `personal` es rechazado con 42501;
   0 y 169 dan 23514; un upsert sin la columna conserva 12), con el mismo estilo de aserciones que
   los casos existentes. Correr `npm run test:rls`.
 
 ### Implementation
 
-- [ ] T031 [US4] Agregar a `src/stores/alertasStore.ts` el estado `horasAvisoPendientes` (desde
+- [X] T031 [US4] Agregar a `src/stores/alertasStore.ts` el estado `horasAvisoPendientes` (desde
   `config?.horasAvisoPendientes ?? HORAS_AVISO_PENDIENTES_POR_DEFECTO`) y exportar la constante
   `HORAS_AVISO_PENDIENTES_POR_DEFECTO = 24`.
-- [ ] T032 [US4] En `src/features/alertas/lib/configuracion.ts`, agregar
+- [X] T032 [US4] En `src/features/alertas/lib/configuracion.ts`, agregar
   `actualizarHorasAvisoPendientes(horas: number)`. Valida que sea entero y esté entre 1 y 168; si
   no, lanza `Error('Ingresa un número de horas entre 1 y 168.')`. Lee la fila `global`, la fusiona
   (conservando `nivelesAvisoDias`, o `NIVELES_AVISO_POR_DEFECTO` si no hay fila) y escribe con
   `sincronizado: false`.
-- [ ] T033 [US4] En `src/features/ajustes/components/ConfiguracionAlertasSection.tsx`, agregar la
+- [X] T033 [US4] En `src/features/ajustes/components/ConfiguracionAlertasSection.tsx`, agregar la
   sección "Aviso de cambios sin subir" según contracts/ui-contracts.md: `IconField`, `type=number`,
   `min=1`, `max=168`, `step=1`, `defaultValue` con el umbral vigente, `onBlur` que llama a
   `actualizarHorasAvisoPendientes`, y un error con `role="alert"` igual que `errorNiveles`.
-- [ ] T034 [US4] En `src/lib/sync/indicador.ts`, completar en `calcularIndicador` el cálculo de
+- [X] T034 [US4] En `src/lib/sync/indicador.ts`, completar en `calcularIndicador` el cálculo de
   `antiguos` y `alerta` para propios **y** ajenos (aclaración 2), con `max(0, ahora − creadoEn) >
   horasAviso h`. En `src/app/SyncIndicator.tsx`, leer `horasAvisoPendientes` de `alertasStore` y
   aplicar el ícono `Clock` y los colores `warning-30-text`/`warning-30-bg` si hay `alerta`.
-- [ ] T035 [US4] En `src/app/SyncSheet.tsx`, bloque 4: "N cambios llevan más de H h sin subir (el
+- [X] T035 [US4] En `src/app/SyncSheet.tsx`, bloque 4: "N cambios llevan más de H h sin subir (el
   más antiguo, del …)" y la línea "Aviso tras H h sin subir", siempre visible como lectura del
   umbral.
 
@@ -385,7 +385,7 @@ el aviso de A en el panel (quickstart escenarios 10–11).
 
 ### Tests
 
-- [ ] T036 [P] [US5] Extender `tests/unit/indicador.test.ts`: los pendientes de A con el usuario B
+- [X] T036 [P] [US5] Extender `tests/unit/indicador.test.ts`: los pendientes de A con el usuario B
   dan `estado` "sincronizado" y `ajenos: [{ nombre: 'Ana', total: 1 }]`. Si A no está en
   `usuariosConocidos`, el nombre es "otro usuario". Un ajeno antiguo activa `alerta` (aclaración 2).
   Crear `tests/unit/auth/usuariosConocidos.test.ts`: `login` hace `put` en `usuariosConocidos` y
@@ -395,13 +395,13 @@ el aviso de A en el panel (quickstart escenarios 10–11).
 
 ### Implementation
 
-- [ ] T037 [US5] En `src/stores/authStore.ts`, en `login`, agregar `await
+- [X] T037 [US5] En `src/stores/authStore.ts`, en `login`, agregar `await
   db.usuariosConocidos.put({ id: usuario.id, nombre: usuario.nombre, vistoEn: new
   Date().toISOString() })`. `logout` no toca esa tabla; dejarlo en el JSDoc con referencia a R7.
-- [ ] T038 [US5] En `src/lib/sync/indicador.ts`, completar `ajenos` en `calcularIndicador`: un
+- [X] T038 [US5] En `src/lib/sync/indicador.ts`, completar `ajenos` en `calcularIndicador`: un
   elemento por autor distinto del usuario actual, con `nombre` tomado de `usuariosConocidos`
   (o "otro usuario"), `total` y `antiguo` (boolean).
-- [ ] T039 [US5] En `src/app/SyncSheet.tsx`, bloque 5: por cada ajeno, "Hay N cambio(s) de
+- [X] T039 [US5] En `src/app/SyncSheet.tsx`, bloque 5: por cada ajeno, "Hay N cambio(s) de
   {nombre} que se subirán cuando esa persona inicie sesión en este dispositivo.", con singular y
   plural, y "Pídele que inicie sesión pronto." si `antiguo`.
 
@@ -411,20 +411,20 @@ el aviso de A en el panel (quickstart escenarios 10–11).
 
 ## Phase 8: Polish & Cross-Cutting
 
-- [ ] T040 Verificar la migración Dexie v8→v9 en Chromium real con el skill `run-indentory`,
+- [X] T040 Verificar la migración Dexie v8→v9 en Chromium real con el skill `run-indentory`,
   siguiendo la sección "Migración Dexie v9" de quickstart.md (build `2.1.0` → build de la rama).
   Anotar el resultado en el PR.
-- [ ] T041 Recorrer los escenarios manuales 1–12 de quickstart.md contra Supabase local y tomar
+- [X] T041 Recorrer los escenarios manuales 1–12 de quickstart.md contra Supabase local y tomar
   capturas del indicador en cada estado y del panel con `run-indentory`.
-- [ ] T042 [P] Comprobar que el indicador, el botón y el campo nuevo de Ajustes miden al menos
+- [X] T042 [P] Comprobar que el indicador, el botón y el campo nuevo de Ajustes miden al menos
   48×48 px en móvil (Constitución III).
-- [ ] T043 [P] En `../1stDocs/002-backlog/002-DentdeLion.md`, en "Operación y seguridad", agregar:
+- [X] T043 [P] En `../1stDocs/002-backlog/002-DentdeLion.md`, en "Operación y seguridad", agregar:
   "`pushItemsCompra` falla el lote completo si hay ítems nuevos de otro usuario sin subir en un
   dispositivo compartido (spec 012 research R4)". Marcar como hecho el ítem "Indicador visible de
   cambios pendientes…". En `../1stDocs/005-roadmap/002-DentdeLion.md`, poner la 012 en 🟡 o ✅
   según el estado del PR.
-- [ ] T044 Correr `npm run lint && npm run build && npm test && npm run test:rls`, todo verde.
-- [ ] T045 Descripción del PR: orden de despliegue (migración antes que el front), los arreglos R4
+- [X] T044 Correr `npm run lint && npm run build && npm test && npm run test:rls`, todo verde.
+- [X] T045 Descripción del PR: orden de despliegue (migración antes que el front), los arreglos R4
   y R5, la posibilidad de eventos nuevos en Sentry (R1) y el resultado de T040.
 
 ---

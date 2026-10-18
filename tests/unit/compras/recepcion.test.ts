@@ -226,7 +226,7 @@ describe('recibirEnInsumo', () => {
     await recibirEnInsumo(insumo({}), inputBase(), null)
     expect(movimientosT.all()[0].sincronizado).toBe(false)
 
-    await expect(runSyncBatch()).resolves.toBeUndefined()
+    await expect(runSyncBatch()).resolves.toMatchObject({ estado: 'sin-red' })
 
     expect(movimientosT.all()[0].sincronizado).toBe(false)
   })
