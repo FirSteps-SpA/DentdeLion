@@ -24,7 +24,7 @@ export function InsumosBajaSection() {
 
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="text-base font-extrabold text-text">Insumos dados de baja</h2>
+      <h2 className="text-h3 text-text">Insumos dados de baja</h2>
       {error && (
         <Card className="bg-danger-bg px-3.5 py-2.5">
           <p role="alert" className="text-sm text-danger">

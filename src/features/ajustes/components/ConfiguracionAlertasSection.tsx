@@ -59,7 +59,7 @@ export function ConfiguracionAlertasSection() {
   return (
     <>
       <section className="flex flex-col gap-2">
-        <h2 className="text-base font-extrabold text-text">
+        <h2 className="text-h3 text-text">
           Configurar stock mínimo por insumo
         </h2>
         {errorConfig && (
@@ -94,7 +94,7 @@ export function ConfiguracionAlertasSection() {
       </section>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-base font-extrabold text-text">
+        <h2 className="text-h3 text-text">
           Configurar niveles de aviso de caducidad
         </h2>
         {errorNiveles && (
@@ -114,13 +114,13 @@ export function ConfiguracionAlertasSection() {
             defaultValue={nivelesAvisoDias.join(', ')}
             onBlur={(event) => void handleNivelesAvisoChange(event.target.value)}
             aria-label="Niveles de aviso de caducidad, en días"
-            className="h-full w-full border-none bg-transparent text-[15px] text-text outline-none"
+            className="h-full w-full border-none bg-transparent text-sm text-text outline-none"
           />
         </IconField>
       </section>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-base font-extrabold text-text">
+        <h2 className="text-h3 text-text">
           Aviso de cambios sin subir
         </h2>
         {errorHoras && (
@@ -143,7 +143,7 @@ export function ConfiguracionAlertasSection() {
             defaultValue={horasAvisoPendientes}
             onBlur={(event) => void handleHorasAvisoChange(event.target.value)}
             aria-label="Horas sin subir antes de avisar"
-            className="h-full w-full border-none bg-transparent text-[15px] text-text outline-none"
+            className="h-full w-full border-none bg-transparent text-sm text-text outline-none"
           />
         </IconField>
       </section>

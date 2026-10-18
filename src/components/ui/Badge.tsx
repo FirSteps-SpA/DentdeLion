@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import type { ComponentType, ReactNode } from 'react'
+import type { IconProps } from '../icons'
 
 export type BadgeVariant =
   | 'success'
@@ -10,6 +11,8 @@ export type BadgeVariant =
 
 export interface BadgeProps {
   variant: BadgeVariant
+  /** Ícono del estado (DS §21): nunca solo color o texto (Constitución IV). */
+  icono?: ComponentType<IconProps>
   children: ReactNode
 }
 
@@ -26,14 +29,15 @@ const VARIANT_CLASSES: Record<BadgeVariant, string> = {
   'urgent-7': 'bg-urgent-7-bg text-urgent-7-text',
   'urgent-1': 'bg-urgent-1-bg text-urgent-1-text',
   danger: 'bg-danger-bg text-danger',
-  neutral: 'bg-slate-100 text-slate-600',
+  neutral: 'bg-bg-secondary text-text-muted',
 }
 
-export function Badge({ variant, children }: BadgeProps) {
+export function Badge({ variant, icono: Icono, children }: BadgeProps) {
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${VARIANT_CLASSES[variant]}`}
+      className={`inline-flex items-center gap-1 rounded-pill px-2.5 py-0.5 text-xs font-bold ${VARIANT_CLASSES[variant]}`}
     >
+      {Icono && <Icono size={14} />}
       {children}
     </span>
   )

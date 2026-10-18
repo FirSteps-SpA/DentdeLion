@@ -76,3 +76,34 @@ export function computeEstadoInsumo(
     }
   })
 }
+
+export type TonoEstado = 'success' | 'warning-30' | 'urgent-7' | 'danger'
+export type IconoEstado = 'ok' | 'bajo' | 'critico' | 'proximo' | 'caducado'
+
+export interface EstadoVisual {
+  etiqueta: string
+  tono: TonoEstado
+  icono: IconoEstado
+}
+
+/**
+ * Cómo se muestra el estado de un insumo (spec 013 FR-007, data-model.md):
+ * agrega "Stock crítico" (stock total 0, el "Agotado" del DS §21) sin tocar
+ * `computeEstadoInsumo` — es solo visual, no crea alertas ni cambia filtros,
+ * contadores ni sugeridos. La caducidad conserva su prioridad (spec 006).
+ */
+export function estadoVisual({
+  estado,
+  stockTotal,
+}: EstadoInsumo): EstadoVisual {
+  if (estado === 'caducado')
+    return { etiqueta: 'Caducado', tono: 'danger', icono: 'caducado' }
+  if (estado === 'proximo-a-caducar') {
+    return { etiqueta: 'Próximo a caducar', tono: 'urgent-7', icono: 'proximo' }
+  }
+  if (stockTotal === 0)
+    return { etiqueta: 'Stock crítico', tono: 'danger', icono: 'critico' }
+  if (estado === 'bajo-stock')
+    return { etiqueta: 'Bajo Stock', tono: 'warning-30', icono: 'bajo' }
+  return { etiqueta: 'Ok', tono: 'success', icono: 'ok' }
+}

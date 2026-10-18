@@ -66,13 +66,13 @@ export function AgregarItemManualForm({
               setNombre(event.target.value)
               setInsumoId(null)
             }}
-            className="h-full w-full border-none bg-transparent text-[15px] text-text outline-none"
+            className="h-full w-full border-none bg-transparent text-sm text-text outline-none"
           />
         </IconField>
 
         {sugerencias.length > 0 && (
           <div className="flex flex-col gap-1.5">
-            <p className="text-xs font-bold uppercase tracking-wide text-text-faint">
+            <p className="text-xs font-bold uppercase tracking-wide text-text-muted">
               Vincular a un material existente
             </p>
             <ul className="flex flex-col gap-1.5">
@@ -110,7 +110,7 @@ export function AgregarItemManualForm({
             type="text"
             value={nota}
             onChange={(event) => setNota(event.target.value)}
-            className="h-full w-full border-none bg-transparent text-[15px] text-text outline-none"
+            className="h-full w-full border-none bg-transparent text-sm text-text outline-none"
           />
         </IconField>
 

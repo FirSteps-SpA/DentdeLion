@@ -121,7 +121,7 @@ export function RecibirItemForm({
             type="text"
             value={datos.numeroLote}
             onChange={(event) => setDatos({ ...datos, numeroLote: event.target.value })}
-            className="h-full w-full border-none bg-transparent text-[15px] text-text outline-none"
+            className="h-full w-full border-none bg-transparent text-sm text-text outline-none"
           />
         </IconField>
 
@@ -136,7 +136,7 @@ export function RecibirItemForm({
             type="text"
             value={datos.proveedor}
             onChange={(event) => setDatos({ ...datos, proveedor: event.target.value })}
-            className="h-full w-full border-none bg-transparent text-[15px] text-text outline-none"
+            className="h-full w-full border-none bg-transparent text-sm text-text outline-none"
           />
         </IconField>
 
@@ -159,7 +159,7 @@ export function RecibirItemForm({
               onChange={(event) =>
                 setDatos({ ...datos, fechaCaducidad: event.target.value })
               }
-              className="h-full w-full border-none bg-transparent text-[15px] text-text outline-none"
+              className="h-full w-full border-none bg-transparent text-sm text-text outline-none"
             />
           </IconField>
         )}

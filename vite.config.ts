@@ -12,12 +12,18 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Precachear también fuentes e íconos (spec 013 FR-020): por defecto
+      // Workbox solo toma js/css/html, y sin esto Manrope no estaba disponible
+      // en la primera carga sin red.
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,woff2,svg,png,webmanifest}'],
+      },
       manifest: {
-        name: 'DENTDELION',
-        short_name: 'DENTDELION',
+        name: 'Dentdelion',
+        short_name: 'Dentdelion',
         description: 'Gestión de inventario dental offline-first',
-        theme_color: '#0E5C73',
-        background_color: '#F5F8FA',
+        theme_color: '#0D5360',
+        background_color: '#F8FCFC',
         display: 'standalone',
         icons: [
           {

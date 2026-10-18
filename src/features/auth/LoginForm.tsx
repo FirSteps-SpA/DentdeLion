@@ -18,15 +18,14 @@ export function LoginForm() {
   }
 
   return (
-    <div className="flex w-full max-w-xs flex-col items-center gap-6">
+    <div className="flex w-full max-w-sm flex-col items-center gap-6 rounded-xl border border-border bg-surface p-6 shadow-card md:p-8">
       <div className="flex flex-col items-center gap-2">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary-dark">
-          <Tooth size={30} className="text-white" />
-        </div>
-        <h1 className="text-xl font-extrabold tracking-tight text-text">
-          {APP_NAME}
-        </h1>
+        <Tooth size={48} className="text-brand" />
+        <h1 className="text-h1 text-teal-dark">{APP_NAME}</h1>
+        {/* Frase de marca del DS §43. */}
+        <p className="text-body text-text-muted">Tu inventario. Tu tiempo. Tu ganancia.</p>
       </div>
+      <h2 className="self-start text-h3 text-text">Inicia sesión</h2>
       <form onSubmit={handleSubmit} className="flex w-full flex-col gap-4 text-left">
       <IconField label="Correo" icon={<Mail size={18} />} htmlFor="login-email">
         <input
@@ -36,7 +35,7 @@ export function LoginForm() {
           required
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          className="h-full w-full border-none bg-transparent text-[15px] text-text outline-none"
+          className="h-full w-full border-none bg-transparent text-sm text-text outline-none"
         />
       </IconField>
       <IconField
@@ -51,17 +50,17 @@ export function LoginForm() {
           required
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          className="h-full w-full border-none bg-transparent text-[15px] text-text outline-none"
+          className="h-full w-full border-none bg-transparent text-sm text-text outline-none"
         />
       </IconField>
       {error && (
-        <div className="rounded-xl bg-danger-bg px-3.5 py-2.5">
+        <div className="rounded-md bg-danger-bg px-3.5 py-2.5">
           <p role="alert" className="text-sm text-danger">
             {error}
           </p>
         </div>
       )}
-      <TouchButton type="submit" disabled={isPending}>
+      <TouchButton type="submit" disabled={isPending} className="w-full">
         {isPending ? 'Ingresando…' : 'Ingresar'}
       </TouchButton>
       </form>

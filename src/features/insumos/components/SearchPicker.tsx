@@ -60,7 +60,7 @@ export function SearchPicker({ onSelect }: SearchPickerProps) {
             setMostrarCrearInsumo(false)
           }}
           placeholder="Nombre del insumo"
-          className="h-full w-full border-none bg-transparent text-[15px] text-text outline-none"
+          className="h-full w-full border-none bg-transparent text-sm text-text outline-none"
         />
       </IconField>
 
@@ -93,7 +93,7 @@ export function SearchPicker({ onSelect }: SearchPickerProps) {
       )}
 
       {!categoria && !texto.trim() && resultados.length > 0 && (
-        <p className="text-xs font-bold uppercase tracking-wide text-text-faint">
+        <p className="text-xs font-bold uppercase tracking-wide text-text-muted">
           Selección rápida
         </p>
       )}

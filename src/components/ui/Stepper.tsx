@@ -50,7 +50,7 @@ export function Stepper({
   }
 
   return (
-    <div className="flex flex-col gap-1.5 text-sm font-bold text-text">
+    <div className="flex flex-col gap-1.5 text-[13px] font-semibold text-text">
       <label htmlFor={id}>{label}</label>
       <div className="flex items-stretch gap-2">
         <TouchButton
@@ -61,7 +61,7 @@ export function Stepper({
         >
           <Minus size={16} />
         </TouchButton>
-        <div className="touch-target flex flex-1 items-center justify-center rounded-xl border border-border bg-surface">
+        <div className="touch-target flex flex-1 items-center justify-center rounded-md border border-border-input bg-surface focus-within:outline-2 focus-within:outline-brand">
           <input
             id={id}
             type="number"

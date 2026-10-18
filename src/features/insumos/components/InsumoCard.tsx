@@ -1,13 +1,9 @@
-import type { EstadoInsumo, Estado } from '../lib/estado'
+import { estadoVisual, type EstadoInsumo } from '../lib/estado'
+import { ICONO_ESTADO } from '../lib/estadoIconos'
 import type { DisponibilidadConsumoRapido } from '../lib/consumoRapido'
 import { useLongPress } from '../lib/useLongPress'
-import {
-  AlertTriangle,
-  PackageMinus,
-  Check,
-  MoreVertical,
-} from '../../../components/icons'
-import { Badge, type BadgeVariant } from '../../../components/ui/Badge'
+import { MoreVertical } from '../../../components/icons'
+import { Badge } from '../../../components/ui/Badge'
 import { Card } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
 
@@ -21,25 +17,11 @@ export interface InsumoCardProps {
   onAbrirMenu: (insumoId: string) => void
 }
 
-const BADGE_POR_ESTADO: Record<
-  Estado,
-  { variant: BadgeVariant; Icon: typeof Check; label: string }
+// eslint-disable-next-line react-refresh/only-export-components -- compartido con InventarioTabla
+export const MOTIVO_DESHABILITADO: Record<
+  'sin-stock' | 'solo-caducado',
+  string
 > = {
-  ok: { variant: 'success', Icon: Check, label: 'Ok' },
-  'bajo-stock': {
-    variant: 'warning-30',
-    Icon: PackageMinus,
-    label: 'Bajo Stock',
-  },
-  'proximo-a-caducar': {
-    variant: 'urgent-7',
-    Icon: AlertTriangle,
-    label: 'Próximo a caducar',
-  },
-  caducado: { variant: 'danger', Icon: AlertTriangle, label: 'Caducado' },
-}
-
-const MOTIVO_DESHABILITADO: Record<'sin-stock' | 'solo-caducado', string> = {
   'sin-stock': 'Sin stock',
   'solo-caducado': 'Solo stock caducado',
 }
@@ -60,8 +42,8 @@ export function InsumoCard({
   onConsumirUno,
   onAbrirMenu,
 }: InsumoCardProps) {
-  const { insumo, estado, stockTotal, loteMasProximoAVencer } = estadoInsumo
-  const badge = BADGE_POR_ESTADO[estado]
+  const { insumo, stockTotal, loteMasProximoAVencer } = estadoInsumo
+  const visual = estadoVisual(estadoInsumo)
   const longPress = useLongPress(() => onAbrirMenu(insumo.id))
 
   return (
@@ -70,21 +52,22 @@ export function InsumoCard({
         type="button"
         onClick={() => onOpen(insumo.id)}
         {...longPress}
-        className="touch-target flex flex-1 flex-col gap-1 rounded-[14px] py-1 pl-3.5 text-left select-none"
+        className="touch-target flex flex-1 flex-col gap-1 rounded-lg py-1 pl-3.5 text-left select-none"
       >
         <span className="flex flex-wrap items-center gap-1.5">
           <span className="text-xs text-text-muted">{insumo.categoria}</span>
-          <Badge variant={badge.variant}>
-            <badge.Icon size={12} />
-            {badge.label}
+          <Badge variant={visual.tono} icono={ICONO_ESTADO[visual.icono]}>
+            {visual.etiqueta}
           </Badge>
           {posibleDuplicado && (
             <Badge variant="warning-30">Posible duplicado</Badge>
           )}
         </span>
-        <span className="text-sm font-bold text-text">{insumo.nombre}</span>
+        <span className="text-[15px] leading-5 font-bold text-text">
+          {insumo.nombre}
+        </span>
         {loteMasProximoAVencer?.fechaCaducidad && (
-          <span className="text-xs text-text-faint">
+          <span className="text-xs text-text-muted">
             Lote {loteMasProximoAVencer.numeroLote} — vence{' '}
             {loteMasProximoAVencer.fechaCaducidad}
           </span>
@@ -96,7 +79,7 @@ export function InsumoCard({
 
       <TouchButton
         type="button"
-        variant={disponibilidad.ok ? 'primary' : 'ghost'}
+        variant={disponibilidad.ok ? 'secondary' : 'ghost'}
         disabled={!disponibilidad.ok}
         onClick={() => onConsumirUno(insumo.id)}
         aria-label={
@@ -117,7 +100,7 @@ export function InsumoCard({
         onClick={() => onAbrirMenu(insumo.id)}
         aria-label={`Más opciones de ${insumo.nombre}`}
         aria-haspopup="dialog"
-        className="shrink-0 border-none px-0"
+        className="shrink-0 border-none px-0 text-text-muted"
       >
         <MoreVertical size={20} />
       </TouchButton>

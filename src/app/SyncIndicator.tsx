@@ -53,7 +53,7 @@ export function SyncIndicator({ indicador, onClick }: SyncIndicatorProps) {
         size={16}
         className={sincronizando ? 'motion-safe:animate-spin' : undefined}
       />
-      <span className="text-[11px] font-semibold">
+      <span className="whitespace-nowrap text-[11px] font-semibold">
         <span className="sm:hidden">{textoCortoIndicador(indicador)}</span>
         <span className="hidden sm:inline">{texto}</span>
       </span>
