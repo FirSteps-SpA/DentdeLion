@@ -18,8 +18,11 @@ hay forma de saber si un ciclo terminó bien.
 a cada `push*`/`pull*`, que le entrega su `{ error }` con la etapa (`registrar(etapa, error)`).
 El recolector clasifica cada error con la misma regla que ya usa `reportarErrorSync` (R2) y
 también lo reporta a Sentry, así una sola llamada sustituye a `reportarErrorSync` en cada etapa.
-Los rechazos por permisos que la etapa ya resolvió (filas marcadas `rechazadoEn`) **no** se
-registran como error: son un resultado esperado, ya notificado con avisos.
+Los rechazos por permisos que la etapa ya resolvió (filas de `cambiosInsumo` y `categorias`
+marcadas `rechazadoEn`) **no** se registran como error: son un resultado esperado, ya notificado
+con avisos. Los movimientos son la excepción. No tienen `rechazadoEn`, así que una fila rechazada
+sigue pendiente para siempre, y su rechazo **sí** se registra como error. Si no, el indicador
+mostraría "N pendientes" sin explicación.
 
 **Alternativas descartadas**:
 - Lanzar excepciones desde cada etapa: cortaría el ciclo en la primera falla, y hoy cada etapa
@@ -33,14 +36,17 @@ registran como error: son un resultado esperado, ya notificado con avisos.
 **Decisión** (aclaración 3 de la spec): un error es de **red** si `navigator.onLine === false` o
 si el mensaje es de tipo `failed to fetch | networkerror | load failed | fetch failed | network
 request failed`. Es la función `esFallaDeRed` de `src/lib/sync/reportar.ts`, que pasa a
-exportarse. Cualquier otro `{ error }` es de **servidor**. El resultado del ciclo es:
+exportarse. Un error es de **sesión** si `code === 'PGRST301'`, si `status === 401` o si el
+mensaje coincide con `/jwt/i` (token revocado o vencido en el servidor, R3). Cualquier otro
+`{ error }` es de **servidor**. El resultado del ciclo es:
 
-1. `sesion` si la validación previa de sesión falla (R3), y entonces no se sube nada.
+1. `sesion` si la validación previa de sesión falla o si alguna etapa dio un error de sesión
+   (R3).
 2. Si no, `error` si hubo al menos un error de servidor.
 3. Si no, `sin-red` si hubo al menos un error de red.
 4. Si no, `ok`.
 
-La prioridad sigue FR-002: Error > Sin conexión. Basta un ciclo y el siguiente ciclo `ok` lo
+La prioridad sigue FR-002: Error (incluida la sesión) > Sin conexión. Basta un ciclo y el siguiente ciclo `ok` lo
 borra. No hay contador de fallos seguidos.
 
 ## R3 · Sesión expirada
@@ -55,6 +61,12 @@ filas como `rechazadoEn`: las **revierten** aunque el usuario sea administrador.
 - Si no hay sesión, o su `user.id` no coincide con `useAuthStore.usuario.id`, el ciclo es
   `sesion` (motivo de error FR-015) y no se hace ningún push ni pull.
 - Si no, sigue normal.
+
+`getSession` no valida el token contra el servidor: un token revocado, o vencido sin poder
+refrescarse, pasa esta validación y el servidor responde 401 / `PGRST301`. Por eso `CicloSync`
+también clasifica esas respuestas como `sesion` (R2), y en ese caso el ciclo **se corta** en esa
+etapa. Así `pushCambiosInsumo` y `pushCategorias` no llegan a interpretar la falta de sesión como
+un rechazo de permisos.
 
 `getSession` lee la sesión guardada y solo usa la red para refrescarla, así que sin red es barato.
 
@@ -95,9 +107,13 @@ el primer pull). Esto trae dos problemas:
 servidor), con el mismo patrón que `cambiosInsumo`:
 - Guardar desde Ajustes escribe `sincronizado: false`.
 - El push sube solo si `sincronizado === false` **y** el usuario es administrador, y marca `true`
-  si no hubo error.
-- El pull escribe `sincronizado: true` y **no** pisa una fila local con `sincronizado: false`
-  (gana el cambio local, que se sube en el siguiente push).
+  si no hubo error. Si el servidor lo rechaza por permisos (al administrador le quitaron el rol),
+  el cambio local se **descarta**: queda marcado `true`, sin error, y el pull del mismo ciclo trae
+  el valor del servidor. Cualquier otro error deja `false` para reintentar.
+- El pull escribe `sincronizado: true`. Solo **no** pisa una fila local con `sincronizado: false`
+  si el usuario actual es administrador (gana el cambio local, que se sube en el siguiente push).
+  Si quien tiene la sesión no es administrador, el pull siempre pisa la fila. Así un dispositivo
+  con un cambio sin subir de un administrador degradado converge en vez de quedar atascado.
 
 Las filas existentes no tienen la bandera. El `upgrade` de Dexie v9 las marca `true`: ya vinieron
 del servidor o ya se subieron en algún ciclo anterior.

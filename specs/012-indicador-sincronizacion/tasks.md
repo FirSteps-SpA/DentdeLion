@@ -59,7 +59,12 @@ R1–R5, R9 y R10.
   (g) `getSession` con error de red da `sin-red`, sin push;
   (h) dos llamadas seguidas a `sincronizarAhora()` devuelven la misma promesa y ejecutan un solo
   ciclo (contar las llamadas a `getSession`);
-  (i) `runSyncBatch` nunca lanza aunque `upsert` lance.
+  (i) `runSyncBatch` nunca lanza aunque `upsert` lance;
+  (j) un movimiento rechazado con 42501 en el reintento fila por fila da `error`, y la fila sigue
+  `sincronizado: false` (los movimientos no tienen `rechazadoEn`, R1);
+  (k) un error `{ code: 'PGRST301' }`, un `{ status: 401 }` o un mensaje "JWT expired" en
+  cualquier etapa da `sesion`, aunque haya otros errores de servidor o de red en el mismo ciclo
+  (R2/R3).
 - [ ] T004 [P] Crear `tests/unit/sync-autoria.test.ts`. Con `usuarioActual` = B, un `CambioInsumo`
   pendiente de A y otro de B, y una `Categoria` pendiente de A y otra de B, debe comprobar que:
   solo se suben los de B; los de A quedan `sincronizado: false` y `rechazadoEn: null` aunque el
@@ -68,11 +73,16 @@ R1–R5, R9 y R10.
   (a) con rol `personal` y `configuracionAlertas.sincronizado: false`, no hay upsert;
   (b) como administrador, con `sincronizado: false`, se hace un upsert y queda `true`;
   (c) como administrador, con `sincronizado: true`, no hay upsert;
-  (d) si el upsert falla queda `false` y el ciclo es `error`;
-  (e) un pull no pisa una fila local con `sincronizado: false`;
+  (d) si el upsert falla con un error que no es de permisos (p. ej. 500), queda `false` y el ciclo
+  es `error`;
+  (e) como administrador, un pull no pisa una fila local con `sincronizado: false`;
   (f) con `horasAvisoPendientes` indefinido, la fila subida no tiene la clave
   `horas_aviso_pendientes`;
-  (g) los mismos casos (a)–(e) para `configuracionClinica` (R5, R6).
+  (g) con rol `personal` y una fila local `sincronizado: false` (administrador degradado), el
+  pull **sí** la pisa con la del servidor y queda `sincronizado: true`;
+  (h) como administrador, un upsert rechazado con 42501 descarta el cambio local: la fila queda
+  `sincronizado: true`, el siguiente pull trae el valor del servidor y el ciclo **no** es `error`;
+  (i) los mismos casos (a)–(h) para `configuracionClinica` (R5, R6).
 
 ### Implementation
 
@@ -100,21 +110,29 @@ R1–R5, R9 y R10.
   Exportar desde aquí `type ResultadoCiclo = { estado: 'ok' | 'sin-red' | 'error' | 'sesion';
   etapasConError: string[]; terminadoEn: string }`.
 - [ ] T009 En `src/lib/sync/index.ts`, agregar la clase o closure `CicloSync` (R1/R2):
-  - `registrar(etapa, error)`, que ignora `null`, clasifica con `esFallaDeRed` en red o servidor,
-    guarda la etapa y llama a `reportarErrorSync(etapa, error)`;
-  - `resultado()`, con la prioridad error > sin-red > ok.
+  - `registrar(etapa, error)`, que ignora `null` y clasifica el error en una de tres clases:
+    `sesion` si `code === 'PGRST301'`, `status === 401` o el mensaje coincide con `/jwt/i`; si
+    no, `red` si `esFallaDeRed`; si no, `servidor`. Guarda la etapa y llama a
+    `reportarErrorSync(etapa, error)`;
+  - `resultado()`, con la prioridad sesion > error > sin-red > ok.
 
   Hacer que **todos** los `push*`/`pull*` reciban el ciclo y registren su `{ error }`, incluidos
   `pushInsumos`, `pushLotes`, `pushItemsCompra` y los dos `pushConfiguracion*`, que hoy lo
-  descartan. En `pushCambiosInsumo`, `pushCategorias` y `pushMovimientos`, el lote con rechazo de
-  permisos que se reintenta fila por fila registra solo los errores de fila que **no** son de
-  permisos: los rechazos marcados `rechazadoEn` no son error (R1). Sustituir las llamadas directas
-  a `reportarErrorSync` por `ciclo.registrar`.
+  descartan. En `pushCambiosInsumo` y `pushCategorias`, el lote con rechazo de permisos que se
+  reintenta fila por fila registra solo los errores de fila que **no** son de permisos: los
+  rechazos marcados `rechazadoEn` no son error (R1). En `pushMovimientos` **sí** se registran
+  los rechazos de fila: los movimientos no tienen `rechazadoEn` y siguen pendientes, así que
+  deben verse como error. Sustituir las llamadas directas a `reportarErrorSync` por
+  `ciclo.registrar`.
 - [ ] T010 En `src/lib/sync/index.ts`, `runSyncBatch(): Promise<ResultadoCiclo>`:
   - Si `getSupabaseStatus()` da error, devolver `sin-red`.
   - Paso 0 de contracts/supabase-schema.md: `client.auth.getSession()`. Si es error de red
     (`esFallaDeRed`), devolver `sin-red`. Si no hay `session` o `session.user.id !==
     useAuthStore.getState().usuario?.id`, devolver `sesion` sin push ni pull (R3).
+  - Si durante el ciclo `CicloSync` registra un error de clase `sesion` (token revocado o vencido
+    en el servidor), cortar el ciclo ahí: no seguir con los push restantes, para que
+    `pushCambiosInsumo` y `pushCategorias` no interpreten la falta de sesión como rechazo de
+    permisos y marquen `rechazadoEn`. Devolver `sesion`.
   - Al final, si el resultado es `ok`, hacer `db.estadoSync.put({ id: 'local', ultimaExitosaEn:
     terminadoEn })`.
   - Envolver todo en `try/catch`: una excepción devuelve `error` con la etapa `'ciclo'` y va a
@@ -127,9 +145,13 @@ R1–R5, R9 y R10.
 - [ ] T012 En `src/lib/sync/index.ts` (R5/R6):
   - `pushConfiguracionAlertas` y `pushConfiguracionClinica` suben solo si la fila local tiene
     `sincronizado === false` **y** `useAuthStore.getState().usuario?.rol === 'administrador'`. Si
-    no hay error, `update(..., { sincronizado: true })`.
-  - Los `pullConfiguracion*` saltan el `put` si la fila local tiene `sincronizado === false`, y
-    escriben `sincronizado: true`.
+    no hay error, `update(..., { sincronizado: true })`. Si el upsert se rechaza por permisos
+    (`esRechazoDePermisos`), se descarta el cambio local: `update(..., { sincronizado: true })`,
+    sin registrar error, y el pull del mismo ciclo trae el valor del servidor. Cualquier otro
+    error deja `false` y se registra.
+  - Los `pullConfiguracion*` saltan el `put` solo si la fila local tiene `sincronizado === false`
+    **y** el usuario actual es administrador. En los demás casos escriben la fila del servidor con
+    `sincronizado: true`, así un administrador degradado converge.
   - `toConfiguracionAlertasRow` incluye `horas_aviso_pendientes` solo si `horasAvisoPendientes
     !== undefined`, y `fromConfiguracionAlertasRow` lo mapea.
   - Agregar `horas_aviso_pendientes?: number` a `ConfiguracionAlertasRow`.

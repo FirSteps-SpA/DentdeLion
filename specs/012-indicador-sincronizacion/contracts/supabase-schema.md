@@ -33,23 +33,30 @@ Cambios respecto del contrato de la spec 008/010 (el orden de etapas no cambia):
 
 0. **Nuevo**: valida la sesión con `client.auth.getSession()` (research.md R3). Si hay error de
    red, el ciclo devuelve `sin-red`. Si no hay sesión o no es del usuario local, devuelve `sesion`.
-   En ambos casos no se hace ningún push ni pull.
+   En ambos casos no se hace ningún push ni pull. Además, si **cualquier** etapa posterior recibe
+   un error de sesión (`PGRST301`, 401 o `/jwt/i`), el ciclo se corta en esa etapa y devuelve
+   `sesion` (R2/R3).
 1. `pushCategorias`: **solo** las de `creadoPor === usuario actual` (R4).
 2. `pushInsumos`: sin cambios, pero su `{ error }` ahora se registra.
 3. `pushCambiosInsumo`: **solo** los de `usuarioId === usuario actual` (R4).
 4. Los pulls de catálogo y la reproyección no cambian.
 5. `pushLotes` y `pushItemsCompra`: sin cambios, pero su `{ error }` ahora se registra.
 6. `pushConfiguracionAlertas` y `pushConfiguracionClinica`: solo si `sincronizado === false` **y**
-   el rol es `administrador`. Marcan `sincronizado: true` si no hubo error (R5).
-7. `pushMovimientos`: sin cambios.
-8. Los pulls de configuración **no** pisan una fila local con `sincronizado: false` y escriben
-   `sincronizado: true`.
+   el rol es `administrador`. Marcan `sincronizado: true` si no hubo error. Si el servidor rechaza
+   por permisos, descartan el cambio local (`sincronizado: true`, sin error); cualquier otro error
+   deja `false` (R5).
+7. `pushMovimientos`: sin cambios de lógica, pero un rechazo de fila **sí** se registra como
+   error (los movimientos no tienen `rechazadoEn`, R1).
+8. Los pulls de configuración escriben `sincronizado: true`. **No** pisan una fila local con
+   `sincronizado: false` solo si el usuario actual es administrador (R5).
 9. **Nuevo**: al final, clasifica el resultado (R2). Si es `ok`, escribe
    `estadoSync.ultimaExitosaEn`. Siempre actualiza `syncStore`.
 
 Invariantes que se mantienen:
 - `runSyncBatch` nunca lanza (Constitución I).
-- Una fila solo se marca `sincronizado: true` si el servidor la aceptó.
+- Un movimiento, cambio de insumo o categoría solo se marca `sincronizado: true` si el servidor lo
+  aceptó. La única excepción es la configuración global rechazada por permisos, que se descarta a
+  favor del valor del servidor (R5).
 
 ## Guardián de ciclo (`src/lib/sync/index.ts`)
 

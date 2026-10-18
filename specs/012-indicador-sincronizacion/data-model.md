@@ -47,7 +47,7 @@ Fila única `id: 'local'`.
 | Campo | Tipo | Regla |
 |---|---|---|
 | `horasAvisoPendientes` | `number?` | Entero de 1 a 168. Si falta, vale `HORAS_AVISO_PENDIENTES_POR_DEFECTO = 24`. Al subir se **omite** si es `undefined` (R6) |
-| `sincronizado` | `boolean` | Solo local. `false` al guardar desde Ajustes; `true` tras un push sin error o tras un pull (R5) |
+| `sincronizado` | `boolean` | Solo local. `false` al guardar desde Ajustes. `true` tras un push sin error, tras un push rechazado por permisos (el cambio se descarta) o tras un pull. El pull respeta un `false` solo si el usuario actual es administrador (R5) |
 
 `actualizarNivelesAviso` y el nuevo `actualizarHorasAvisoPendientes` conservan el otro campo de
 la fila y escriben `sincronizado: false`. La validación del umbral es: entero, `1 ≤ h ≤ 168`, y
