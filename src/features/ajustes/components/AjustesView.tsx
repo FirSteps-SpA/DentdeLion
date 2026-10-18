@@ -20,8 +20,11 @@ export function AjustesView() {
 
   return (
     <div className="flex w-full flex-col gap-6 text-left">
-      <PerfilSection />
-      <NotificacionesSection />
+      {/* Spec 013 FR-011: perfil y notificaciones en 2 columnas desde tablet. */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start">
+        <PerfilSection />
+        <NotificacionesSection />
+      </div>
 
       {esAdministrador && (
         <>

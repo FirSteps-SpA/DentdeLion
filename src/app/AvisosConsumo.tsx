@@ -1,6 +1,5 @@
 import { useAvisosStore, type Aviso } from '../stores/avisosStore'
-import { AlertTriangle, Check, Undo } from '../components/icons'
-import { TouchButton } from '../components/ui/TouchButton'
+import { AlertTriangle, CircleCheck, Undo } from '../components/icons'
 
 function textoAviso(aviso: Aviso): string {
   if (aviso.tipo === 'cambio-rechazado') {
@@ -23,7 +22,9 @@ function textoAviso(aviso: Aviso): string {
  * Pila de avisos temporales (spec 007 FR-006/FR-009/FR-021b), montada una
  * sola vez en `App.tsx` fuera de las vistas para que sobreviva a la
  * navegación entre secciones. Máx. 3 avisos (avisosStore); "Deshacer" solo
- * en avisos de consumo pendientes.
+ * en avisos de consumo pendientes. Estilo del toast del DS §37 (spec 013):
+ * fondo oscuro, texto blanco, ícono de éxito verde y radio 10; en móvil, por
+ * encima de la barra inferior.
  */
 export function AvisosConsumo() {
   const avisos = useAvisosStore((s) => s.avisos)
@@ -33,31 +34,30 @@ export function AvisosConsumo() {
     <div
       role="status"
       aria-live="polite"
-      className="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex flex-col items-center gap-2 px-4"
+      className="pointer-events-none fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-40 flex flex-col items-center gap-2 px-4 md:bottom-6"
     >
       {avisos.map((aviso) => (
         <div
           key={aviso.id}
-          className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-[14px] bg-text px-3.5 py-1.5 text-left text-sm text-white shadow-lg"
+          className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-md bg-text px-3.5 py-1.5 text-left text-sm font-semibold text-white shadow-dropdown"
         >
           {aviso.tipo === 'cambio-rechazado' ||
           aviso.tipo === 'categoria-rechazada' ? (
-            <AlertTriangle size={18} className="shrink-0" />
+            <AlertTriangle size={18} className="shrink-0 text-warning-30-bg" />
           ) : (
-            <Check size={18} className="shrink-0" />
+            <CircleCheck size={18} className="shrink-0 text-success" />
           )}
           <span className="flex-1 py-2">{textoAviso(aviso)}</span>
           {aviso.tipo === 'consumo' && aviso.estado === 'pendiente' && (
-            <TouchButton
+            <button
               type="button"
-              variant="ghost"
               onClick={() => void deshacer(aviso.id).catch(() => undefined)}
               aria-label={`Deshacer consumo de ${aviso.insumoNombre}`}
-              className="shrink-0 border-white/30 bg-transparent text-white"
+              className="touch-target flex shrink-0 items-center justify-center gap-2 rounded-md border border-white/30 px-3.5 text-sm font-bold text-white hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-brand"
             >
               <Undo size={16} />
               Deshacer
-            </TouchButton>
+            </button>
           )}
         </div>
       ))}

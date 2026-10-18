@@ -74,7 +74,7 @@ Props: `onNavegar(vista: Vista)`.
 5. **Tarjeta "¿Qué necesitas comprar?"**, solo si `paraComprar > 0`: "Te faltan {n} productos"
    y botón primario "Ver lista de compra", que lleva a `compras`.
 
-Disposición: en móvil todo en una columna. En tablet, las KPI en una grilla de 2 × 2 y las listas
+Disposición: en móvil y tablet, las KPI en una grilla de 2 × 2 y las listas
 apiladas. En desktop, las 4 KPI en una fila y las dos listas lado a lado, con la tarjeta de compra
 debajo.
 

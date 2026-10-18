@@ -36,7 +36,7 @@ export function InsumoDetalle({
       <div className="flex items-center justify-between gap-2">
         <div className="flex flex-col gap-0.5">
           <span className="text-xs text-text-muted">{insumo.categoria}</span>
-          <h3 className="text-base font-extrabold text-text">{insumo.nombre}</h3>
+          <h3 className="text-h3 text-text">{insumo.nombre}</h3>
         </div>
         <button
           type="button"

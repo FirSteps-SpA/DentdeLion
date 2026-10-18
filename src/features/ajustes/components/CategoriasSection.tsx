@@ -83,7 +83,7 @@ export function CategoriasSection() {
   return (
     <section className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2 text-base font-extrabold text-text">
+        <h2 className="flex items-center gap-2 text-h3 text-text">
           <Tag size={18} className="text-primary" />
           Categorías
         </h2>
@@ -168,7 +168,7 @@ export function CategoriasSection() {
               value={nombreInput}
               onChange={(event) => setNombreInput(event.target.value)}
               maxLength={40}
-              className="h-full w-full border-none bg-transparent text-[15px] text-text outline-none"
+              className="h-full w-full border-none bg-transparent text-sm text-text outline-none"
             />
           </IconField>
           <TouchButton

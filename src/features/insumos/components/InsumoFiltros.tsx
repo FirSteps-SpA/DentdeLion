@@ -1,5 +1,5 @@
 import type { Estado } from '../lib/estado'
-import { AlertTriangle, PackageMinus, Check, Search } from '../../../components/icons'
+import { AlertTriangle, CircleAlert, CircleCheck, Clock, Search } from '../../../components/icons'
 import { IconField } from '../../../components/ui/IconField'
 
 export interface InsumoFiltrosProps {
@@ -12,12 +12,21 @@ export interface InsumoFiltrosProps {
   onEstadoChange: (valor: Estado[]) => void
 }
 
-const ESTADOS: { estado: Estado; label: string; Icon: typeof Check }[] = [
-  { estado: 'ok', label: 'Ok', Icon: Check },
-  { estado: 'bajo-stock', label: 'Bajo Stock', Icon: PackageMinus },
-  { estado: 'proximo-a-caducar', label: 'Próximo a caducar', Icon: AlertTriangle },
-  { estado: 'caducado', label: 'Caducado', Icon: AlertTriangle },
+const ESTADOS: { estado: Estado; label: string; Icon: typeof CircleCheck }[] = [
+  { estado: 'ok', label: 'Ok', Icon: CircleCheck },
+  { estado: 'bajo-stock', label: 'Bajo Stock', Icon: AlertTriangle },
+  { estado: 'proximo-a-caducar', label: 'Próximo a caducar', Icon: Clock },
+  { estado: 'caducado', label: 'Caducado', Icon: CircleAlert },
 ]
+
+/** Chip de filtro del DS (radio pill): activo en menta, inactivo outline. */
+function claseChip(activo: boolean): string {
+  return `touch-target flex shrink-0 items-center gap-1.5 rounded-pill px-4 text-sm font-bold focus-visible:outline-2 focus-visible:outline-brand ${
+    activo
+      ? 'bg-primary-soft text-primary-text'
+      : 'border border-border-input bg-surface text-text-muted'
+  }`
+}
 
 /**
  * Búsqueda + filtros del listado (spec 006 FR-005..FR-008). La búsqueda solo
@@ -58,7 +67,7 @@ export function InsumoFiltros({
               value={texto}
               onChange={(event) => onTextoChange(event.target.value)}
               placeholder="Nombre del insumo"
-              className="h-full w-full border-none bg-transparent text-[15px] text-text outline-none"
+              className="h-full w-full border-none bg-transparent text-sm text-text outline-none"
             />
           </IconField>
         </div>
@@ -70,11 +79,7 @@ export function InsumoFiltros({
             type="button"
             onClick={() => onCategoriaChange('')}
             aria-pressed={categoria === ''}
-            className={`touch-target shrink-0 rounded-full px-4 text-sm font-bold ${
-              categoria === ''
-                ? 'bg-primary text-white'
-                : 'border border-border text-text-muted'
-            }`}
+            className={claseChip(categoria === '')}
           >
             Todas
           </button>
@@ -84,11 +89,7 @@ export function InsumoFiltros({
               type="button"
               onClick={() => onCategoriaChange(c)}
               aria-pressed={categoria === c}
-              className={`touch-target shrink-0 rounded-full px-4 text-sm font-bold ${
-                categoria === c
-                  ? 'bg-primary text-white'
-                  : 'border border-border text-text-muted'
-              }`}
+              className={claseChip(categoria === c)}
             >
               {c}
             </button>
@@ -103,11 +104,7 @@ export function InsumoFiltros({
             type="button"
             onClick={() => toggleEstado(valor)}
             aria-pressed={estadoActivo === valor}
-            className={`touch-target flex shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-bold ${
-              estadoActivo === valor
-                ? 'bg-primary text-white'
-                : 'border border-border text-text-muted'
-            }`}
+            className={claseChip(estadoActivo === valor)}
           >
             <Icon size={14} />
             {label}

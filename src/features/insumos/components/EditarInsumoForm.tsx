@@ -75,7 +75,7 @@ export function EscanearCodigo({ onCodigo }: { onCodigo: (codigo: string) => voi
             ref={videoRef}
             muted
             playsInline
-            className="w-full rounded-[10px]"
+            className="w-full rounded-md"
           />
           <TouchButton
             type="button"
@@ -216,7 +216,7 @@ export function EditarInsumoForm({
           <select
             value={categoria}
             onChange={(event) => setCategoria(event.target.value)}
-            className="touch-target rounded-xl border border-border bg-surface px-3.5 text-[15px] font-normal text-text"
+            className="touch-target rounded-md border border-border bg-surface px-3.5 text-[15px] font-normal text-text"
             {...errorProps('categoria')}
           >
             {catalogo.map((c) => (
@@ -235,7 +235,7 @@ export function EditarInsumoForm({
           <select
             value={unidadMedida}
             onChange={(event) => setUnidadMedida(event.target.value)}
-            className="touch-target rounded-xl border border-border bg-surface px-3.5 text-[15px] font-normal text-text"
+            className="touch-target rounded-md border border-border bg-surface px-3.5 text-[15px] font-normal text-text"
             {...errorProps('unidadMedida')}
           >
             {UNIDADES_MEDIDA.map((u) => (
@@ -269,7 +269,7 @@ export function EditarInsumoForm({
           >
             <Minus size={16} />
           </TouchButton>
-          <div className="touch-target flex flex-1 items-center justify-center rounded-xl border border-border bg-surface">
+          <div className="touch-target flex flex-1 items-center justify-center rounded-md border border-border bg-surface">
             <input
               id="editar-stock-minimo"
               type="number"

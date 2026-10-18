@@ -61,8 +61,8 @@ Etiqueta, ícono y tono que se muestran para un `EstadoInsumo` (FR-007, aclaraci
 | `caducado` | cualquiera | Caducado | `CircleAlert` | danger |
 | `proximo-a-caducar` | cualquiera | Próximo a caducar | `Clock` | warning-30 |
 | `bajo-stock` u `ok` | `0` | **Stock crítico** | `CircleAlert` | danger |
-| `bajo-stock` | > 0 | Stock bajo | `TriangleAlert` | warning-30 |
-| `ok` | > 0 | Stock suficiente | `CircleCheck` | success |
+| `bajo-stock` | > 0 | Bajo Stock (etiqueta actual) | `TriangleAlert` | warning-30 |
+| `ok` | > 0 | Ok (etiqueta actual) | `CircleCheck` | success |
 
 ## Tokens de diseño (`src/styles/index.css`, `@theme`)
 

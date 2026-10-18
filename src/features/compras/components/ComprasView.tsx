@@ -107,7 +107,7 @@ export function ComprasView() {
   return (
     <div className="flex w-full flex-col gap-4 text-left">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-lg font-extrabold text-text">Compras</h1>
+        <h1 className="text-h2 text-text">Compras</h1>
         <TouchButton
           type="button"
           variant="secondary"
@@ -137,8 +137,10 @@ export function ComprasView() {
         </Card>
       )}
 
+      {/* Spec 013 FR-011: sugeridos y manuales lado a lado en desktop. */}
+      <div className="grid grid-cols-1 gap-4 desk:grid-cols-2 desk:items-start desk:gap-6">
       <section className="flex flex-col gap-2">
-        <h2 className="text-xs font-bold uppercase tracking-wide text-text-faint">
+        <h2 className="text-xs font-bold uppercase tracking-wide text-text-muted">
           Sugeridos por el Sistema
         </h2>
         {sugeridos.length === 0 ? (
@@ -164,7 +166,7 @@ export function ComprasView() {
 
       <section className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-xs font-bold uppercase tracking-wide text-text-faint">
+          <h2 className="text-xs font-bold uppercase tracking-wide text-text-muted">
             Agregados Manualmente
           </h2>
           <TouchButton
@@ -196,6 +198,7 @@ export function ComprasView() {
           </ul>
         )}
       </section>
+      </div>
 
       {overlay?.tipo === 'recibir' && insumoOverlay && (
         <RecibirItemForm

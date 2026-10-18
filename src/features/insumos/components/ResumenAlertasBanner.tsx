@@ -1,4 +1,4 @@
-import { AlertTriangle, PackageMinus, Check } from '../../../components/icons'
+import { AlertTriangle, CircleCheck, Clock } from '../../../components/icons'
 import { Card } from '../../../components/ui/Card'
 
 export interface ResumenAlertasBannerProps {
@@ -24,7 +24,7 @@ export function ResumenAlertasBanner({
   if (totalCaducidad === 0 && totalStockBajo === 0) {
     return (
       <Card className="flex items-center gap-2.5 bg-success-bg px-3.5 py-3">
-        <Check size={20} className="shrink-0 text-success-text" />
+        <CircleCheck size={20} className="shrink-0 text-success-text" />
         <p className="text-sm font-bold text-success-text">
           El inventario está en buen estado
         </p>
@@ -38,26 +38,26 @@ export function ResumenAlertasBanner({
         as="button"
         type="button"
         onClick={onFiltrarCaducidad}
-        className="touch-target flex flex-col items-start gap-1 bg-danger-bg px-3.5 py-2.5 text-left"
+        className="touch-target flex flex-col items-start gap-1 px-3.5 py-2.5 text-left hover:border-brand"
       >
         <span className="flex items-center gap-1.5 text-danger">
-          <AlertTriangle size={16} />
-          <span className="text-xs font-bold">Caducados/Próximos</span>
+          <Clock size={16} />
+          <span className="text-caption font-bold">Caducados/Próximos</span>
         </span>
-        <span className="text-xl font-extrabold text-danger">{totalCaducidad}</span>
+        <span className="text-h2 font-extrabold text-danger">{totalCaducidad}</span>
       </Card>
 
       <Card
         as="button"
         type="button"
         onClick={onFiltrarStockBajo}
-        className="touch-target flex flex-col items-start gap-1 bg-warning-30-bg px-3.5 py-2.5 text-left"
+        className="touch-target flex flex-col items-start gap-1 px-3.5 py-2.5 text-left hover:border-brand"
       >
         <span className="flex items-center gap-1.5 text-warning-30-text">
-          <PackageMinus size={16} />
-          <span className="text-xs font-bold">Bajo Stock</span>
+          <AlertTriangle size={16} />
+          <span className="text-caption font-bold">Bajo Stock</span>
         </span>
-        <span className="text-xl font-extrabold text-warning-30-text">
+        <span className="text-h2 font-extrabold text-warning-30-text">
           {totalStockBajo}
         </span>
       </Card>

@@ -23,7 +23,7 @@ export function ClinicaSection() {
 
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="flex items-center gap-2 text-base font-extrabold text-text">
+      <h2 className="flex items-center gap-2 text-h3 text-text">
         <Building size={18} className="text-primary" />
         Clínica
       </h2>
@@ -42,7 +42,7 @@ export function ClinicaSection() {
           placeholder="Gabinete"
           onBlur={(event) => void handleChange(event.target.value)}
           aria-label="Nombre de la clínica o gabinete"
-          className="h-full w-full border-none bg-transparent text-[15px] text-text outline-none"
+          className="h-full w-full border-none bg-transparent text-sm text-text outline-none"
         />
       </IconField>
     </section>

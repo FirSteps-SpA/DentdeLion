@@ -1,24 +1,15 @@
-import { useState } from 'react'
 import { useAuthStore } from '../stores/authStore'
 import { useClinicaStore } from '../stores/clinicaStore'
 import { APP_NAME } from '../lib/branding'
 import { Tooth } from '../components/icons'
 import { SyncIndicator } from './SyncIndicator'
 import { SyncSheet } from './SyncSheet'
-import { useIndicadorSync } from './useIndicadorSync'
-
-function iniciales(nombre: string): string {
-  return nombre
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((parte) => parte[0]?.toUpperCase() ?? '')
-    .join('')
-}
+import { iniciales } from './iniciales'
+import { usePanelSync } from './usePanelSync'
 
 /**
- * Shared authenticated-shell header (feature 005, FR-004, contracts/design-system.md):
- * logo mark, a pill showing the configured clinic name (spec 010 FR-020,
+ * Encabezado del teléfono (feature 005, FR-004; DS §1 en la spec 013: diente
+ * outline turquesa y "Dentdelion" en Deep Teal): logo mark, a pill showing the configured clinic name (spec 010 FR-020,
  * `useClinicaStore` — falls back to "Gabinete" until one is set), the sync
  * indicator and an avatar-initials chip. Identical on every authenticated
  * screen.
@@ -35,31 +26,28 @@ function iniciales(nombre: string): string {
 export function AppHeader() {
   const usuario = useAuthStore((s) => s.usuario)
   const nombreClinica = useClinicaStore((s) => s.nombreClinica)
-  const indicador = useIndicadorSync()
-  const [panelAbierto, setPanelAbierto] = useState(false)
+  const { indicador, abierto: panelAbierto, abrir, cerrar } = usePanelSync()
 
   return (
-    <div className="flex w-full items-center gap-2.5 rounded-2xl border border-border bg-surface px-4 py-3">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-gradient-to-br from-primary to-primary-dark">
-        <Tooth size={20} className="text-white" />
-      </div>
-      <div className="flex flex-col gap-0.5">
-        <span className="text-[15px] font-extrabold tracking-tight text-text">
+    <div className="flex w-full items-center gap-2.5 rounded-lg border border-border bg-surface px-4 py-3 shadow-card">
+      <Tooth size={32} className="shrink-0 text-brand" />
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span className="text-[22px] leading-7 font-extrabold tracking-tight text-teal-dark">
           {APP_NAME}
         </span>
-        <span className="inline-flex w-fit items-center rounded-full border border-primary bg-primary-soft px-2 py-px text-[10px] font-bold text-primary">
+        <span className="inline-flex w-fit max-w-full items-center truncate rounded-pill bg-primary-soft px-2 py-px text-[11px] font-bold text-primary-text">
           {nombreClinica ?? 'Gabinete'}
         </span>
       </div>
       <div className="flex-1" />
-      <SyncIndicator indicador={indicador} onClick={() => setPanelAbierto(true)} />
+      <SyncIndicator indicador={indicador} onClick={abrir} />
       {usuario && (
-        <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-bold text-primary">
+        <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-bold text-primary-text">
           {iniciales(usuario.nombre)}
         </div>
       )}
       {panelAbierto && (
-        <SyncSheet indicador={indicador} onClose={() => setPanelAbierto(false)} />
+        <SyncSheet indicador={indicador} onClose={cerrar} />
       )}
     </div>
   )

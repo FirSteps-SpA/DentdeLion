@@ -30,7 +30,7 @@ export interface AltaMaterialViewProps {
 }
 
 const INPUT_CLASS =
-  'h-full w-full border-none bg-transparent text-[15px] text-text outline-none'
+  'h-full w-full border-none bg-transparent text-sm text-text outline-none'
 
 const SENTINEL_NUEVA = '__nueva-categoria__'
 
@@ -219,7 +219,7 @@ export function AltaMaterialView({
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-bg">
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
-        <h1 className="text-base font-extrabold text-text">Nuevo Material</h1>
+        <h1 className="text-h3 text-text">Nuevo Material</h1>
         <TouchButton
           type="button"
           variant="ghost"
@@ -259,7 +259,7 @@ export function AltaMaterialView({
 
           {sugerencias.length > 0 && (
             <div className="flex flex-col gap-1.5">
-              <p className="text-xs font-bold uppercase tracking-wide text-text-faint">
+              <p className="text-xs font-bold uppercase tracking-wide text-text-muted">
                 Ya existen materiales parecidos
               </p>
               <ul className="flex flex-col gap-1.5">
@@ -290,7 +290,7 @@ export function AltaMaterialView({
                     id="alta-categoria"
                     value={datos.categoria}
                     onChange={onCategoriaChange}
-                    className="touch-target rounded-xl border border-border bg-surface px-3.5 text-[15px] font-normal text-text"
+                    className="touch-target rounded-md border border-border bg-surface px-3.5 text-[15px] font-normal text-text"
                     {...errorProps('categoria')}
                   >
                     <option value="" disabled>
@@ -314,7 +314,7 @@ export function AltaMaterialView({
                   </select>
                 </label>
                 {categoriaHint && (
-                  <p className="text-xs text-text-faint">{categoriaHint}</p>
+                  <p className="text-xs text-text-muted">{categoriaHint}</p>
                 )}
               </>
             ) : (
@@ -522,7 +522,7 @@ export function AltaMaterialView({
             role="switch"
             aria-checked={datos.caduca}
             onClick={toggleCaduca}
-            className="touch-target flex w-full items-center justify-between rounded-xl border border-border bg-surface px-3.5 text-left text-sm font-bold text-text"
+            className="touch-target flex w-full items-center justify-between rounded-md border border-border bg-surface px-3.5 text-left text-sm font-bold text-text"
           >
             Sujeto a caducidad
             <span className="text-text-muted">{datos.caduca ? 'Sí' : 'No'}</span>

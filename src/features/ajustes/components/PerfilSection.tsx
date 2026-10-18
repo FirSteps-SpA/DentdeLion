@@ -17,7 +17,7 @@ export function PerfilSection() {
 
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="flex items-center gap-2 text-base font-extrabold text-text">
+      <h2 className="flex items-center gap-2 text-h3 text-text">
         <User size={18} className="text-primary" />
         Perfil
       </h2>
@@ -25,7 +25,7 @@ export function PerfilSection() {
         <div className="flex flex-col gap-0.5">
           <span className="text-sm font-bold text-text">{usuario.nombre}</span>
           <span className="text-sm text-text-muted">{usuario.email}</span>
-          <span className="text-xs font-semibold uppercase tracking-wide text-text-faint">
+          <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">
             {usuario.rol}
           </span>
         </div>

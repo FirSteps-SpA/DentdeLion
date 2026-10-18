@@ -18,6 +18,8 @@ import {
 } from '../lib/consumoRapido'
 import { darDeBajaInsumo } from '../lib/catalogo'
 import { categoriasEnUso } from '../lib/categorias'
+import { useDisposicion } from '../../../app/useDisposicion'
+import { InventarioTabla } from './InventarioTabla'
 import { posiblesDuplicados } from '../lib/alta'
 import { ResumenAlertasBanner } from './ResumenAlertasBanner'
 import { InsumoFiltros } from './InsumoFiltros'
@@ -113,6 +115,15 @@ export function InventarioView() {
   const duplicados =
     rol === 'administrador' ? posiblesDuplicados(insumos) : new Set<string>()
 
+  const disposicion = useDisposicion()
+  const filas = resultados.map((estadoInsumo) => ({
+    estadoInsumo,
+    disponibilidad: selectLoteConsumoRapido(
+      lotesConStockDeInsumo(estadoInsumo.insumo.id, lotes, movimientos),
+    ),
+    posibleDuplicado: duplicados.has(estadoInsumo.insumo.id),
+  }))
+
   function limpiarFiltros() {
     setTexto('')
     setCategoria('')
@@ -181,26 +192,32 @@ export function InventarioView() {
         </Card>
       )}
 
-      <ul className="flex flex-col gap-2">
-        {resultados.map((estadoInsumo) => (
-          <li key={estadoInsumo.insumo.id}>
-            <InsumoCard
-              estadoInsumo={estadoInsumo}
-              disponibilidad={selectLoteConsumoRapido(
-                lotesConStockDeInsumo(
-                  estadoInsumo.insumo.id,
-                  lotes,
-                  movimientos,
-                ),
-              )}
-              posibleDuplicado={duplicados.has(estadoInsumo.insumo.id)}
-              onOpen={setInsumoSeleccionadoId}
-              onConsumirUno={(id) => void handleConsumirUno(id)}
-              onAbrirMenu={(id) => setOverlay({ tipo: 'menu', insumoId: id })}
-            />
-          </li>
-        ))}
-      </ul>
+      {/* Spec 013 US5: misma información y acciones; tabla en desktop, tarjetas en el resto. */}
+      {disposicion === 'desktop' ? (
+        resultados.length > 0 && (
+          <InventarioTabla
+            filas={filas}
+            onOpen={setInsumoSeleccionadoId}
+            onConsumirUno={(id) => void handleConsumirUno(id)}
+            onAbrirMenu={(id) => setOverlay({ tipo: 'menu', insumoId: id })}
+          />
+        )
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {filas.map(({ estadoInsumo, disponibilidad, posibleDuplicado }) => (
+            <li key={estadoInsumo.insumo.id}>
+              <InsumoCard
+                estadoInsumo={estadoInsumo}
+                disponibilidad={disponibilidad}
+                posibleDuplicado={posibleDuplicado}
+                onOpen={setInsumoSeleccionadoId}
+                onConsumirUno={(id) => void handleConsumirUno(id)}
+                onAbrirMenu={(id) => setOverlay({ tipo: 'menu', insumoId: id })}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
 
       {resultados.length === 0 && insumos.length === 0 && (
         <Card className="flex flex-col gap-2 px-3.5 py-3">

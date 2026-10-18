@@ -7,42 +7,145 @@
  * precached font payload small. */
 @import '@fontsource/manrope/latin-400.css';
 @import '@fontsource/manrope/latin-500.css';
+@import '@fontsource/manrope/latin-600.css';
 @import '@fontsource/manrope/latin-700.css';
 @import '@fontsource/manrope/latin-800.css';
 
-/* Feature 005 design tokens (contracts/design-system.md) — Tailwind v4
- * generates bg-, text-, and border- utilities directly from these. */
+/* Design tokens — spec 013 (Design System v1.0 de la clienta, "DS"), sobre los
+ * nombres semánticos de la spec 005 para que las clases existentes sigan
+ * resolviendo. Valores del DS con ajustes AA dentro de cada familia de color
+ * (research.md R2); los pares texto/fondo que se usan están verificados por
+ * tests/unit/contraste.test.ts (contracts/design-tokens.md). Tailwind v4
+ * generates bg-, text-, border-, etc. utilities directly from these. */
 @theme {
-  /* Neutral */
-  --color-bg: #F5F8FA;
+  /* Neutral (DS §2) */
+  --color-bg: #F8FCFC;
+  --color-bg-secondary: #EFFAF8;
   --color-surface: #FFFFFF;
-  --color-border: #E2E8F0;
-  --color-text: #0F172A;
-  --color-text-muted: #64748B;
-  --color-text-faint: #94A3B8;
+  --color-border: #E7F0F1;
+  --color-border-input: #DCEBEC;
+  --color-text: #17363D;
+  /* DS #668087, oscurecido a AA (4,5:1) sobre blanco, bg y bg-secondary. */
+  --color-text-muted: #5A7177;
+  /* Solo controles deshabilitados (exentos de contraste). */
+  --color-text-faint: #8CA0A5;
 
-  /* Primary (brand) */
-  --color-primary: #0E5C73;
-  --color-primary-dark: #0A4757;
-  --color-primary-soft: #E6F4F3;
+  /* Brand */
+  /* Fondo con texto blanco: el "active" del DS (#067F7A, 4,86:1). */
+  --color-primary: #067F7A;
+  --color-primary-dark: #056C68;
+  --color-primary-active: #04605C;
+  /* Menta (DS #D8F3EF) y su texto AA. */
+  --color-primary-soft: #D8F3EF;
+  --color-primary-text: #06706C;
+  --color-secondary-bg: #E7F7F5;
+  /* Turquesa del DS: logo, foco y rellenos, nunca con texto encima. */
+  --color-brand: #12B8AE;
+  /* Íconos activos (≥ 3:1). */
+  --color-brand-icon: #07958F;
+  --color-teal-dark: #0D5360;
+  --color-disabled-bg: #B7DCD9;
 
-  /* Alert semantics (spec 004's states). Every *-text token is verified
-   * >=4.5:1 WCAG AA against its paired *-bg — research.md's "Verifying
-   * alert color contrast" decision. */
-  --color-success-dot: #22A559;
-  --color-success-text: #15803D;
-  --color-success-bg: #E7F6EC;
-  --color-warning-30-text: #92400E;
-  --color-warning-30-bg: #FFF4E0;
-  --color-urgent-7-text: #9A3412;
-  --color-urgent-7-bg: #FFE8D2;
-  --color-urgent-1-text: #991B1B;
-  --color-urgent-1-bg: #FEE2E2;
-  --color-danger: #C4291D;
-  --color-danger-dot: #E5484D;
-  --color-danger-bg: #FDEAEA;
+  /* Estados (DS §2.4 y §21). Every *-text token is verified >=4.5:1 against
+   * its paired *-bg; *-icon tokens >=3:1 against surface. */
+  --color-success: #35B779;
+  --color-success-dot: #35B779;
+  --color-success-text: #1F7E54;
+  --color-success-bg: #E8F8F0;
+  --color-success-icon: #2B9A65;
+  --color-warning-30-text: #986712;
+  --color-warning-30-bg: #FFF6E3;
+  --color-warning-icon: #A87A22;
+  --color-urgent-7-text: #8A5410;
+  --color-urgent-7-bg: #FDE7C2;
+  --color-urgent-1-text: #A23838;
+  --color-urgent-1-bg: #FBE3E0;
+  --color-danger: #B84040;
+  --color-danger-dot: #E96767;
+  --color-danger-bg: #FDEEEE;
+  --color-info-bg: #EDF7FD;
+  --color-info-icon: #3F8BC2;
+
+  /* Radios (DS §10) */
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+
+  /* Sombras (DS §11) */
+  --shadow-card: 0 2px 8px rgba(13, 83, 96, 0.04);
+  --shadow-modal: 0 12px 40px rgba(13, 83, 96, 0.12);
+  --shadow-dropdown: 0 8px 24px rgba(13, 83, 96, 0.1);
+  --shadow-fab: 0 6px 16px rgba(18, 184, 174, 0.25);
+
+  /* Desktop desde 1200 px (DS §38); md (768) separa móvil de tablet. */
+  --breakpoint-desk: 75rem;
 
   --font-sans: "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* Escala tipográfica del DS §5 (contracts/design-tokens.md). */
+@utility text-display {
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: 800;
+  letter-spacing: -0.6px;
+}
+@utility text-h1 {
+  font-size: 28px;
+  line-height: 36px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+}
+@utility text-h2 {
+  font-size: 22px;
+  line-height: 30px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+@utility text-h3 {
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 700;
+}
+@utility text-body-lg {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+}
+@utility text-body {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+}
+@utility text-body-sm {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 400;
+}
+@utility text-caption {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+}
+@utility text-num {
+  font-size: 26px;
+  line-height: 32px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+/* Entrada de los paneles y modales (spec 013); solo con motion-safe. */
+@keyframes entrada-sheet {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /*
@@ -57,9 +160,12 @@
 }
 
 :root {
-  color-scheme: light dark;
+  /* Sin modo oscuro (spec 013 R12): controles nativos siempre claros. */
+  color-scheme: light;
 }
 
 body {
   margin: 0;
+  background-color: var(--color-bg);
+  color: var(--color-text);
 }
