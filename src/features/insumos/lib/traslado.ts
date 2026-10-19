@@ -1,9 +1,9 @@
 import { db, type Insumo, type Lugar, type Movimiento } from '../../../lib/db'
 import { tenantActualOFallar } from '../../../stores/authStore'
 import { lugaresActivos } from '../../../stores/lugarStore'
-import { crearMovimiento } from './movements'
+import { crearMovimiento, unidadDeConsumoDelLote } from './movements'
 import { validateQuantity } from './quantity'
-import { stockLoteEnLugar } from './stock'
+import { movimientosNormalizadosDeLote, stockLoteEnLugar } from './stock'
 
 /**
  * Traslados entre lugares (spec 014 US6, FR-022–FR-024, research.md R4): un
@@ -46,10 +46,12 @@ async function lugaresDelTenant(): Promise<Lugar[]> {
 }
 
 async function escribirPar(
-  input: TrasladoInput,
+  input: TrasladoInput & { unidad?: string },
   movimientoOrigenId?: string,
 ): Promise<[Movimiento, Movimiento]> {
   const trasladoId = crypto.randomUUID()
+  // Spec 015: ambas mitades en la misma unidad (el servidor lo exige).
+  const unidad = input.unidad ?? (await unidadDeConsumoDelLote(input.loteId))
   const salida = await crearMovimiento({
     tipo: 'traslado_salida',
     loteId: input.loteId,
@@ -57,6 +59,7 @@ async function escribirPar(
     lugarId: input.origenId,
     trasladoId,
     movimientoOrigenId,
+    unidad,
   })
   const entrada = await crearMovimiento({
     tipo: 'traslado_entrada',
@@ -65,6 +68,7 @@ async function escribirPar(
     lugarId: input.destinoId,
     trasladoId,
     movimientoOrigenId,
+    unidad,
   })
   return [salida, entrada]
 }
@@ -77,16 +81,20 @@ export async function trasladar(
   insumo: Insumo,
   input: TrasladoInput,
 ): Promise<[Movimiento, Movimiento]> {
-  return db.transaction('rw', db.movimientos, db.lugares, async () => {
-    const movimientos = await db.movimientos.where('loteId').equals(input.loteId).toArray()
+  return db.transaction(
+    'rw',
+    [db.movimientos, db.lugares, db.lotes, db.insumos, db.cambiosInsumo],
+    async () => {
+    const movimientos = await movimientosNormalizadosDeLote(input.loteId)
     const error = validarTraslado(input, {
       insumo,
       lugares: await lugaresDelTenant(),
       movimientos,
     })
     if (error) throw new Error(error)
-    return escribirPar(input)
-  })
+    return escribirPar({ ...input, unidad: insumo.unidadMedida })
+    },
+  )
 }
 
 /**
@@ -97,16 +105,21 @@ export async function trasladar(
 export async function deshacerTraslado(
   salidaId: string,
 ): Promise<[Movimiento, Movimiento] | null> {
-  return db.transaction('rw', db.movimientos, async () => {
+  return db.transaction(
+    'rw',
+    [db.movimientos, db.lotes, db.insumos, db.cambiosInsumo],
+    async () => {
     const salida = await db.movimientos.get(salidaId)
     if (!salida || salida.tipo !== 'traslado_salida' || !salida.trasladoId) return null
-    const delLote = await db.movimientos.where('loteId').equals(salida.loteId).toArray()
+    const delLote = await movimientosNormalizadosDeLote(salida.loteId)
     if (delLote.some((m) => m.movimientoOrigenId === salida.id)) return null
     const entrada = delLote.find(
       (m) => m.trasladoId === salida.trasladoId && m.tipo === 'traslado_entrada',
     )
     if (!entrada) return null
-    if (stockLoteEnLugar(delLote, salida.loteId, entrada.lugarId) < salida.cantidad) {
+    // Spec 015: el stock va en la unidad actual; la salida, en la suya.
+    const cantidadActual = delLote.find((m) => m.id === salida.id)?.cantidad ?? salida.cantidad
+    if (stockLoteEnLugar(delLote, salida.loteId, entrada.lugarId) < cantidadActual) {
       throw new Error('No se puede deshacer: ya se usó parte del stock en el destino.')
     }
     return escribirPar(
@@ -115,8 +128,10 @@ export async function deshacerTraslado(
         origenId: entrada.lugarId,
         destinoId: salida.lugarId,
         cantidad: salida.cantidad,
+        unidad: salida.unidad,
       },
       salida.id,
     )
-  })
+    },
+  )
 }

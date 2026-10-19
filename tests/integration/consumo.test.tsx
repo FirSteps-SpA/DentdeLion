@@ -18,6 +18,8 @@ vi.mock('../../src/lib/db', () => ({
       }),
       add: (...args: [Movimiento]) => movimientosAdd(...args),
     },
+    // Spec 015: sin lote conocido, los movimientos se leen sin convertir.
+    lotes: { get: async () => undefined },
   },
 }))
 
@@ -32,6 +34,8 @@ import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
 import { usarLugar1 } from '../helpers/lugarFalso'
 
 const insumo: Insumo = {
+  unidadCompra: 'mL',
+  contenido: 1,
   tenantId: TENANT_1,
   id: 'insumo-1',
   nombre: 'Anestesia local',
@@ -48,6 +52,11 @@ const insumo: Insumo = {
 }
 
 const loteProximo: Lote = {
+  cantidadIngresada: null,
+  unidadIngresada: null,
+  contenido: 1,
+  unidadConsumo: 'unidad',
+  precioCompra: null,
   tenantId: TENANT_1,
   lugarId: LUGAR_1,
   id: 'lote-proximo',
@@ -61,6 +70,11 @@ const loteProximo: Lote = {
 }
 
 const loteLejano: Lote = {
+  cantidadIngresada: null,
+  unidadIngresada: null,
+  contenido: 1,
+  unidadConsumo: 'unidad',
+  precioCompra: null,
   tenantId: TENANT_1,
   lugarId: LUGAR_1,
   id: 'lote-lejano',
@@ -75,6 +89,7 @@ const loteLejano: Lote = {
 
 function ingreso(loteId: string, cantidad: number): Movimiento {
   return {
+    unidad: 'unidad',
     tenantId: TENANT_1,
     lugarId: LUGAR_1,
     trasladoId: null,

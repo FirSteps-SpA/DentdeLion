@@ -73,6 +73,7 @@ import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
 const movimientosT = db.movimientos as unknown as MemoryTable<Movimiento>
 
 const movimiento = (id: string, creadoEn: string): Movimiento => ({
+  unidad: 'unidad',
   id,
   tenantId: TENANT_1,
   lugarId: LUGAR_1,
@@ -87,6 +88,11 @@ const movimiento = (id: string, creadoEn: string): Movimiento => ({
 })
 
 const lote: Lote = {
+  cantidadIngresada: null,
+  unidadIngresada: null,
+  contenido: 1,
+  unidadConsumo: 'unidad',
+  precioCompra: null,
   id: 'l1',
   tenantId: TENANT_1,
   lugarId: LUGAR_1,

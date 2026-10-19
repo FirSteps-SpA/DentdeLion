@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import type { Insumo } from '../../../lib/db'
 import { mesesRestantes } from '../../../lib/dateMath'
-import { permiteDecimales } from '../../insumos/lib/quantity'
 import {
+  ingresoDe,
   recibirEnInsumo,
   validarRecepcion,
   type CampoRecepcion,
@@ -12,9 +12,11 @@ import { Hash, Truck, Calendar } from '../../../components/icons'
 import { BottomSheet } from '../../../components/ui/BottomSheet'
 import { Card } from '../../../components/ui/Card'
 import { IconField } from '../../../components/ui/IconField'
-import { Stepper } from '../../../components/ui/Stepper'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { ConfirmarLoteCaducadoDialog } from '../../insumos/components/ConfirmarLoteCaducadoDialog'
+import { CantidadIngresoField } from '../../insumos/components/CantidadIngresoField'
+import { PrecioIngresoField } from '../../insumos/components/PrecioIngresoField'
+import { convertirIngreso } from '../../insumos/lib/ingreso'
 
 export interface RecibirItemFormProps {
   insumo: Insumo
@@ -24,6 +26,11 @@ export interface RecibirItemFormProps {
   itemCompraId: string | null
   /** Spec 014 FR-014 — lugar donde se recibe (desde "Todos"); sin él, el activo. */
   lugarId?: string
+  /**
+   * Spec 015 (FR-020, UI §6) — presentaciones sugeridas para salir del stock
+   * bajo; se proponen como cantidad en unidad de compra.
+   */
+  cantidadSugerida?: number
   onRecibido: () => void
   onCancelar: () => void
 }
@@ -46,16 +53,21 @@ export function RecibirItemForm({
   insumo,
   itemCompraId,
   lugarId,
+  cantidadSugerida,
   onRecibido,
   onCancelar,
 }: RecibirItemFormProps) {
-  const [datos, setDatos] = useState<RecepcionInput>(ENTRADA_VACIA)
+  // Spec 015 FR-009: por defecto, en unidad de compra.
+  const [datos, setDatos] = useState<RecepcionInput>(() => ({
+    ...ENTRADA_VACIA,
+    cantidad: cantidadSugerida ?? ENTRADA_VACIA.cantidad,
+    unidadIngreso: insumo.unidadCompra,
+  }))
   const [errores, setErrores] = useState<Partial<Record<CampoRecepcion, string>>>({})
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
   const [mostrarDialogoCaducado, setMostrarDialogoCaducado] = useState(false)
 
-  const permiteDecimalesUnidad = permiteDecimales(insumo.unidadMedida)
   const vidaUtil = insumo.caduca ? mesesRestantes(datos.fechaCaducidad) : null
 
   async function intentarGuardar(datosParaGuardar: RecepcionInput) {
@@ -98,20 +110,30 @@ export function RecibirItemForm({
         }}
         className="flex flex-col gap-4"
       >
-        <Stepper
+        <CantidadIngresoField
           id="recepcion-cantidad"
-          label={`Cantidad (${insumo.unidadMedida})`}
-          value={datos.cantidad}
-          onChange={(v) => setDatos({ ...datos, cantidad: v ?? 0 })}
-          min={0}
-          permiteDecimales={permiteDecimalesUnidad}
-          aria-invalid={Boolean(errores.cantidad)}
+          label="Cantidad"
+          presentacion={insumo}
+          cantidad={datos.cantidad}
+          unidad={datos.unidadIngreso ?? insumo.unidadCompra}
+          onChange={(cambio) =>
+            setDatos({
+              ...datos,
+              ...(cambio.cantidad !== undefined ? { cantidad: cambio.cantidad } : {}),
+              ...(cambio.unidad !== undefined ? { unidadIngreso: cambio.unidad } : {}),
+            })
+          }
+          error={errores.cantidad}
         />
-        {errores.cantidad && (
-          <p role="alert" className="text-xs text-danger">
-            {errores.cantidad}
-          </p>
-        )}
+
+        <PrecioIngresoField
+          id="recepcion-precio"
+          presentacion={insumo}
+          presentaciones={convertirIngreso(insumo, ingresoDe(datos, insumo)).presentaciones}
+          precio={datos.precio ?? null}
+          onChange={(precio) => setDatos({ ...datos, precio })}
+          error={errores.precio}
+        />
 
         <IconField
           label="Número de lote"

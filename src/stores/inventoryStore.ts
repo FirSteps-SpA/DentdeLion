@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { liveQuery } from 'dexie'
 import {
   type CambioInsumo,
+  type CambioLote,
   type Categoria,
   type Insumo,
   type ItemCompra,
@@ -12,6 +13,10 @@ import {
 import { delTenant } from '../lib/tenancy'
 import type { Estado, EstadoInsumo } from '../features/insumos/lib/estado'
 import { claveCategoria } from '../features/insumos/lib/categorias'
+import {
+  normalizarMovimientos,
+  type MovimientoNormalizado,
+} from '../features/insumos/lib/stock'
 
 /**
  * Reactive in-memory cache of the insumo/lote catalog (Constitution II),
@@ -39,8 +44,15 @@ interface InventoryState {
   /** Feature 010 (FR-022) — insumos con baja lógica activa, para "Ajustes" ▸ "Insumos dados de baja". */
   insumosDadosDeBaja: Insumo[]
   lotes: Lote[]
-  movimientos: Movimiento[]
+  /**
+   * Spec 015 (research.md R4) — con `cantidad` ya convertida a la unidad de
+   * consumo actual de su insumo; la original queda en `cantidadOriginal` y
+   * `unidad`. Así ninguna función de stock tiene que saber de conversiones.
+   */
+  movimientos: MovimientoNormalizado[]
   cambiosInsumo: CambioInsumo[]
+  /** Spec 015 (R6) — correcciones de precio de lotes del tenant. */
+  cambiosLote: CambioLote[]
   categorias: Categoria[]
   itemsCompra: ItemCompra[]
   /** Spec 014 FR-007 — mínimos por lugar del tenant. */
@@ -55,27 +67,53 @@ export const useInventoryStore = create<InventoryState>((set) => ({
   lotes: [],
   movimientos: [],
   cambiosInsumo: [],
+  cambiosLote: [],
   categorias: [],
   itemsCompra: [],
   minimosLugar: [],
   isReady: false,
   subscribe: () => {
+    // Spec 015 (R4): fuentes crudas de la normalización de movimientos, que se
+    // recalcula cuando cambia cualquiera de ellas.
+    let fuentes: {
+      insumos: Insumo[]
+      lotes: Lote[]
+      movimientos: Movimiento[]
+      cambiosInsumo: CambioInsumo[]
+    } = { insumos: [], lotes: [], movimientos: [], cambiosInsumo: [] }
+    const actualizar = (cambio: Partial<typeof fuentes>) => {
+      fuentes = { ...fuentes, ...cambio }
+      return normalizarMovimientos(
+        fuentes.movimientos,
+        fuentes.lotes,
+        fuentes.insumos,
+        fuentes.cambiosInsumo,
+      )
+    }
+
     const insumosSub = liveQuery(() => delTenant('insumos')).subscribe({
       next: (insumos) =>
         set({
           insumos: insumos.filter((insumo) => !insumo.dadoDeBajaEn),
           insumosDadosDeBaja: insumos.filter((insumo) => !!insumo.dadoDeBajaEn),
+          movimientos: actualizar({ insumos }),
           isReady: true,
         }),
     })
     const lotesSub = liveQuery(() => delTenant('lotes')).subscribe({
-      next: (lotes) => set({ lotes, isReady: true }),
+      next: (lotes) =>
+        set({ lotes, movimientos: actualizar({ lotes }), isReady: true }),
     })
     const movimientosSub = liveQuery(() => delTenant('movimientos')).subscribe({
-      next: (movimientos) => set({ movimientos, isReady: true }),
+      next: (movimientos) =>
+        set({ movimientos: actualizar({ movimientos }), isReady: true }),
     })
     const cambiosSub = liveQuery(() => delTenant('cambiosInsumo')).subscribe({
-      next: (cambiosInsumo) => set({ cambiosInsumo }),
+      next: (cambiosInsumo) =>
+        set({ cambiosInsumo, movimientos: actualizar({ cambiosInsumo }) }),
+    })
+    const cambiosLoteSub = liveQuery(() => delTenant('cambiosLote')).subscribe({
+      next: (cambiosLote) => set({ cambiosLote }),
     })
     const categoriasSub = liveQuery(() => delTenant('categorias')).subscribe({
       next: (categorias) => set({ categorias }),
@@ -89,6 +127,7 @@ export const useInventoryStore = create<InventoryState>((set) => ({
     return () => {
       minimosSub.unsubscribe()
       cambiosSub.unsubscribe()
+      cambiosLoteSub.unsubscribe()
       insumosSub.unsubscribe()
       lotesSub.unsubscribe()
       movimientosSub.unsubscribe()

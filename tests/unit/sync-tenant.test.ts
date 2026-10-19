@@ -62,6 +62,7 @@ const movimientosT = db.movimientos as unknown as MemoryTable<Movimiento>
 
 function movimiento(overrides: Partial<Movimiento>): Movimiento {
   return {
+    unidad: 'unidad',
     id: crypto.randomUUID(),
     tenantId: TENANT_1,
     lugarId: LUGAR_1,
@@ -79,6 +80,11 @@ function movimiento(overrides: Partial<Movimiento>): Movimiento {
 
 function lote(overrides: Partial<Lote>): Lote {
   return {
+    cantidadIngresada: null,
+    unidadIngresada: null,
+    contenido: 1,
+    unidadConsumo: 'unidad',
+    precioCompra: null,
     id: crypto.randomUUID(),
     tenantId: TENANT_1,
     lugarId: LUGAR_1,

@@ -6,6 +6,10 @@ import { MoreVertical } from '../../../components/icons'
 import { Badge } from '../../../components/ui/Badge'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { MOTIVO_DESHABILITADO } from './InsumoCard'
+import { formatearPresentacion } from '../lib/presentacion'
+import { etiquetaUnidad, formatearEquivalente } from '../../../lib/unidades'
+import { formatearCLP } from '../lib/precio'
+import { useCostosUnitarios } from '../lib/useCostosUnitarios'
 
 export interface FilaInventario {
   estadoInsumo: EstadoInsumo
@@ -25,8 +29,10 @@ export interface InventarioTablaProps {
 const COLUMNAS = [
   'Producto',
   'Categoría',
+  'Presentación',
   'Stock',
   'Stock mínimo',
+  'Costo unitario',
   'Vencimiento',
   'Estado',
   'Acciones',
@@ -35,8 +41,8 @@ const COLUMNAS = [
 /**
  * Inventario en tabla para desktop (spec 013 US5, DS §22): mismas filas,
  * acciones, permisos y filtros que las tarjetas (`InsumoCard`) — solo cambia
- * la disposición. Columnas con datos de hoy; Presentación y Costo unitario
- * llegan con la spec 015.
+ * la disposición. Presentación y Costo unitario (spec 015 FR-005/FR-017) en
+ * el orden del DS §22.
  */
 export function InventarioTabla({
   filas,
@@ -44,6 +50,7 @@ export function InventarioTabla({
   onConsumirUno,
   onAbrirMenu,
 }: InventarioTablaProps) {
+  const costos = useCostosUnitarios()
   return (
     <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-card">
       <table className="w-full border-collapse text-left">
@@ -79,7 +86,7 @@ export function InventarioTabla({
                       {insumo.nombre}
                     </span>
                     <span className="text-caption text-text-muted">
-                      {insumo.unidadMedida}
+                      {etiquetaUnidad(insumo.unidadMedida)}
                     </span>
                     {posibleDuplicado && (
                       <Badge variant="warning-30">Posible duplicado</Badge>
@@ -90,13 +97,29 @@ export function InventarioTabla({
                   {insumo.categoria}
                 </td>
                 <td className="px-4 py-2 text-sm font-medium whitespace-nowrap text-text">
+                  {formatearPresentacion(insumo)}
+                </td>
+                <td className="px-4 py-2 text-sm font-medium whitespace-nowrap text-text">
                   {stockTotal} {insumo.unidadMedida}
+                  {formatearEquivalente(stockTotal, insumo) && (
+                    // Spec 015 FR-021: equivalente en unidades de compra.
+                    <span className="block text-xs font-normal text-text-muted">
+                      {formatearEquivalente(stockTotal, insumo)}
+                    </span>
+                  )}
                   {desglose && (
                     <span className="block text-xs font-normal text-text-muted">{desglose}</span>
                   )}
                 </td>
                 <td className="px-4 py-2 text-sm font-medium text-text">
                   {insumo.stockMinimo ?? '—'}
+                </td>
+                <td className="px-4 py-2 text-sm font-medium whitespace-nowrap text-text">
+                  {costos.has(insumo.id) ? (
+                    formatearCLP(costos.get(insumo.id)!.costo)
+                  ) : (
+                    <span className="text-text-muted">Sin precio</span>
+                  )}
                 </td>
                 <td className="px-4 py-2 text-sm font-medium whitespace-nowrap text-text">
                   {loteMasProximoAVencer?.fechaCaducidad ?? '—'}

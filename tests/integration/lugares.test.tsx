@@ -17,6 +17,8 @@ import { LUGAR_1, LUGAR_2, TENANT_1 } from '../helpers/tenancy'
  * memoria, `fake-indexeddb`).
  */
 const insumo: Insumo = {
+  unidadCompra: 'cartucho',
+  contenido: 1,
   id: 'insumo-1',
   tenantId: TENANT_1,
   nombre: 'Anestesia local',
@@ -33,6 +35,11 @@ const insumo: Insumo = {
 }
 
 const lote = (id: string, lugarId: string): Lote => ({
+  cantidadIngresada: null,
+  unidadIngresada: null,
+  contenido: 1,
+  unidadConsumo: 'unidad',
+  precioCompra: null,
   id,
   tenantId: TENANT_1,
   lugarId,
@@ -46,6 +53,7 @@ const lote = (id: string, lugarId: string): Lote => ({
 })
 
 const ingreso = (loteId: string, lugarId: string, cantidad: number): Movimiento => ({
+  unidad: 'unidad',
   id: crypto.randomUUID(),
   tenantId: TENANT_1,
   lugarId,

@@ -1,5 +1,5 @@
 import type { ItemCompra } from '../../../lib/db'
-import type { ItemSugerido } from './sugeridos'
+import { textoPedido, type ItemSugerido } from './sugeridos'
 
 /**
  * Un renglón por ítem pendiente (sugeridos primero, luego manuales), con su
@@ -10,8 +10,10 @@ export function construirTextoCompartir(
   manuales: ItemCompra[],
 ): string {
   const lineas: string[] = []
-  for (const { insumo } of sugeridos) {
-    lineas.push(`- ${insumo.nombre} (Sugerido)`)
+  for (const item of sugeridos) {
+    // Spec 015 FR-020: con la cantidad sugerida en unidades de compra.
+    const pedido = textoPedido(item)
+    lineas.push(`- ${item.insumo.nombre}${pedido ? ` — ${pedido.toLocaleLowerCase('es')}` : ''} (Sugerido)`)
   }
   for (const item of manuales) {
     const cantidad = item.cantidad !== null ? ` x${item.cantidad}` : ''

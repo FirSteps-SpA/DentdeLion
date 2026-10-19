@@ -22,6 +22,7 @@ vi.mock('../../src/lib/db', async () => {
       lotes: new MemoryTable(),
       movimientos: new MemoryTable(),
       cambiosInsumo: new MemoryTable(),
+      cambiosLote: new MemoryTable(),
       configuracionAlertas: new MemoryTable(),
       categorias: new MemoryTable(),
       usuarioActual: new MemoryTable(),
@@ -60,6 +61,8 @@ const prefNotifT = db.preferenciasNotificaciones as unknown as MemoryTable<{
 
 function insumo(id: string, nombre: string, overrides: Partial<Insumo> = {}): Insumo {
   return {
+    unidadCompra: 'caja',
+    contenido: 1,
     tenantId: TENANT_1,
     id,
     nombre,
@@ -321,6 +324,11 @@ describe('Ajustes — Lugares de trabajo (spec 014 US4)', () => {
     lugaresT.seed([lugar1, { ...lugar1, id: 'box', nombre: 'Box', creadoEn: '2026-03-01T00:00:00.000Z' }])
     lotesT.seed([
       {
+        cantidadIngresada: null,
+        unidadIngresada: null,
+        contenido: 1,
+        unidadConsumo: 'unidad',
+        precioCompra: null,
         id: 'l1',
         tenantId: TENANT_1,
         lugarId: 'box',
@@ -335,6 +343,7 @@ describe('Ajustes — Lugares de trabajo (spec 014 US4)', () => {
     ])
     movimientosT.seed([
       {
+        unidad: 'unidad',
         id: 'm1',
         tenantId: TENANT_1,
         lugarId: 'box',

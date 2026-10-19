@@ -33,6 +33,7 @@ export const usePendientesStore = create<PendientesState>((set) => ({
         await delTenant('movimientos'),
         await delTenant('cambiosInsumo'),
         await delTenant('categorias'),
+        await delTenant('cambiosLote'),
       ),
     ).subscribe({
       next: (pendientes) => set({ pendientes, ahora: Date.now() }),

@@ -8,6 +8,11 @@ import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
 
 function makeLote(overrides: Partial<Lote>): Lote {
   return {
+    cantidadIngresada: null,
+    unidadIngresada: null,
+    contenido: 1,
+    unidadConsumo: 'unidad',
+    precioCompra: null,
     tenantId: TENANT_1,
     lugarId: LUGAR_1,
     id: crypto.randomUUID(),

@@ -15,6 +15,7 @@ vi.mock('../../../src/lib/db', async () => {
       movimientos: new MemoryTable(),
       borradores: new MemoryTable(),
       cambiosInsumo: new MemoryTable(),
+      cambiosLote: new MemoryTable(),
       configuracionAlertas: new MemoryTable(),
       configuracionClinica: new MemoryTable(),
       itemsCompra: new MemoryTable(),
@@ -44,6 +45,8 @@ const itemsCompraT = db.itemsCompra as unknown as MemoryTable<ItemCompra>
 
 function insumo(overrides: Partial<Insumo>): Insumo {
   return {
+    unidadCompra: 'cartucho',
+    contenido: 1,
     tenantId: TENANT_1,
     id: 'i1',
     nombre: 'Anestesia X',
@@ -242,5 +245,50 @@ describe('recibirEnInsumo', () => {
     await expect(runSyncBatch()).resolves.toMatchObject({ estado: 'sin-red' })
 
     expect(movimientosT.all()[0].sincronizado).toBe(false)
+  })
+})
+
+describe('recepción en unidad de compra (spec 015 US2, FR-009/FR-010)', () => {
+  const articaina = () =>
+    insumo({ unidadMedida: 'cartucho', unidadCompra: 'caja', contenido: 50 })
+
+  it('2 cajas suman 100 cartuchos y el lote guarda el snapshot', async () => {
+    await recibirEnInsumo(articaina(), inputBase({ cantidad: 2 }), null)
+
+    expect(lotesT.all()[0]).toMatchObject({
+      cantidadIngresada: 2,
+      unidadIngresada: 'caja',
+      contenido: 50,
+      unidadConsumo: 'cartucho',
+      precioCompra: null,
+    })
+    expect(movimientosT.all()[0]).toMatchObject({
+      tipo: 'ingreso',
+      cantidad: 100,
+      unidad: 'cartucho',
+      sincronizado: false,
+    })
+  })
+
+  it('en unidad de consumo suma tal cual (US2-2)', async () => {
+    await recibirEnInsumo(articaina(), inputBase({ cantidad: 30, unidadIngreso: 'cartucho' }), null)
+    expect(movimientosT.all()[0]).toMatchObject({ cantidad: 30, unidad: 'cartucho' })
+    expect(lotesT.all()[0]).toMatchObject({ cantidadIngresada: 30, unidadIngresada: 'cartucho' })
+  })
+
+  it('rechaza una conversión no entera (US2-4)', () => {
+    const resultado = validarRecepcion(
+      inputBase({ cantidad: 0.5 }),
+      insumo({ unidadMedida: 'cartucho', unidadCompra: 'caja', contenido: 25 }),
+      '2026-06-01',
+    )
+    expect(resultado.valido).toBe(false)
+    expect(resultado.valido ? null : resultado.errores.cantidad).toMatch(/no admite/)
+  })
+
+  it('sin red, la recepción en cajas queda pendiente y se sube después (US2-5)', async () => {
+    await recibirEnInsumo(articaina(), inputBase({ cantidad: 2 }), null)
+    await expect(runSyncBatch()).resolves.toMatchObject({ estado: 'sin-red' })
+    expect(movimientosT.all()[0]).toMatchObject({ cantidad: 100, sincronizado: false })
   })
 })

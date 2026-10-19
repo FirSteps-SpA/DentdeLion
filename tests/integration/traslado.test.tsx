@@ -34,6 +34,8 @@ const lotesT = db.lotes as unknown as MemoryTable<Lote>
 const movimientosT = db.movimientos as unknown as MemoryTable<Movimiento>
 
 const insumo: Insumo = {
+  unidadCompra: 'cartucho',
+  contenido: 1,
   id: 'i1',
   tenantId: TENANT_1,
   nombre: 'Anestesia',
@@ -50,6 +52,11 @@ const insumo: Insumo = {
 }
 
 const lote = (id: string, lugarId: string): Lote => ({
+  cantidadIngresada: null,
+  unidadIngresada: null,
+  contenido: 1,
+  unidadConsumo: 'unidad',
+  precioCompra: null,
   id,
   tenantId: TENANT_1,
   lugarId,
@@ -63,6 +70,7 @@ const lote = (id: string, lugarId: string): Lote => ({
 })
 
 const ingreso = (loteId: string, lugarId: string, cantidad: number): Movimiento => ({
+  unidad: 'unidad',
   id: crypto.randomUUID(),
   tenantId: TENANT_1,
   lugarId,

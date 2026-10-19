@@ -6,6 +6,10 @@ import { MoreVertical } from '../../../components/icons'
 import { Badge } from '../../../components/ui/Badge'
 import { Card } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
+import { formatearPresentacion } from '../lib/presentacion'
+import { formatearEquivalente } from '../../../lib/unidades'
+import { formatearCLP } from '../lib/precio'
+import { useCostosUnitarios } from '../lib/useCostosUnitarios'
 
 export interface InsumoCardProps {
   estadoInsumo: EstadoInsumo
@@ -48,6 +52,7 @@ export function InsumoCard({
   const { insumo, stockTotal, loteMasProximoAVencer } = estadoInsumo
   const visual = estadoVisual(estadoInsumo)
   const longPress = useLongPress(() => onAbrirMenu(insumo.id))
+  const costo = useCostosUnitarios().get(insumo.id)
 
   return (
     <Card className="flex w-full items-center gap-2 py-1.5 pr-1.5 pl-0">
@@ -69,6 +74,10 @@ export function InsumoCard({
         <span className="text-[15px] leading-5 font-bold text-text">
           {insumo.nombre}
         </span>
+        {insumo.unidadCompra !== insumo.unidadMedida && (
+          // Spec 015 FR-005 (UI §3): "Caja × 50 cartuchos".
+          <span className="text-xs text-text-muted">{formatearPresentacion(insumo)}</span>
+        )}
         {loteMasProximoAVencer?.fechaCaducidad && (
           <span className="text-xs text-text-muted">
             Lote {loteMasProximoAVencer.numeroLote} — vence{' '}
@@ -77,6 +86,17 @@ export function InsumoCard({
         )}
         <span className="text-sm font-bold text-text-muted">
           {stockTotal} {insumo.unidadMedida}
+          {formatearEquivalente(stockTotal, insumo) && (
+            // Spec 015 FR-021.
+            <span className="font-normal"> {formatearEquivalente(stockTotal, insumo)}</span>
+          )}
+          {costo && (
+            // Spec 015 FR-017 (UI §3): costo unitario junto al stock.
+            <span className="font-normal">
+              {' · '}
+              {formatearCLP(costo.costo)} c/u
+            </span>
+          )}
         </span>
         {desglose && <span className="text-xs text-text-muted">{desglose}</span>}
       </button>

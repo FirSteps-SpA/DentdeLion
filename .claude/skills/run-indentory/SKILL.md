@@ -79,6 +79,9 @@ Driver commands:
 | `seed-user <administrador\|personal> <nombre...>` | Writes a `usuarioActual` row (tenant 1) and lugar 1 directly into the app's Dexie/IndexedDB — the only way to reach the authenticated shell without a real Supabase project. **Call `reload` right after.** |
 | `seed-insumo <id> <nombre...>` | Writes one demo `Insumo` (categoría "Protección", unidad "caja", `stockMinimo: 10`) so Registrar/Consumir/Alertas have something to show |
 | `seed-lote <insumoId> <loteId> <días\|none> <cantidad> [lugarId]` | Writes one `Lote` expiring in `<días>` (negative = already expired, `none` = no expiry) plus an `ingreso` of `<cantidad>` in `lugarId` (default: lugar 1), so the insumo has stock for "Consumir 1" |
+| `seed-presentacion <insumoId> <unidadConsumo> <unidadCompra> <contenido>` | Spec 015: sets a purchase presentation directly on the insumo row (e.g. `seed-presentacion art cartucho caja 50`). Call it **before** `seed-lote`, which records the ingreso in the insumo's consumption unit. Screenshot-only shortcut: it bypasses the `cambiosInsumo` ledger |
+| `wait <ms>` | Pause (e.g. `wait 400` so a modal's fade-in finishes before `screenshot`) |
+| `viewport <ancho> [alto]` | Resize the page (375 = móvil, 768 = tablet, 1440 = desktop) |
 | `seed-lugar <id> <nombre...>` | Spec 014: writes another lugar de trabajo of tenant 1, so the selector, "Todos" and "Trasladar" show up. **Call `reload` right after.** |
 | `reload` | Reload the page (picks up seeded IndexedDB data on boot) |
 | `console [--errors]` | Dump captured console/page-error messages (`--errors` filters to just errors) |

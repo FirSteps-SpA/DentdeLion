@@ -12,6 +12,7 @@ const haceHoras = (h: number) => new Date(AHORA - h * 3_600_000).toISOString()
 
 function movimiento(id: string, usuarioId: string, creadoEn = haceHoras(1), sincronizado = false): Movimiento {
   return {
+    unidad: 'unidad',
     tenantId: TENANT_1,
     lugarId: LUGAR_1,
     trasladoId: null,
@@ -28,6 +29,7 @@ function movimiento(id: string, usuarioId: string, creadoEn = haceHoras(1), sinc
 
 function cambio(id: string, usuarioId: string, rechazadoEn: string | null = null): CambioInsumo {
   return {
+    factor: null,
     tenantId: TENANT_1,
     id,
     insumoId: 'i1',

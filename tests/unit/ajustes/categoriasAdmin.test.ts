@@ -13,6 +13,7 @@ vi.mock('../../../src/lib/db', async () => {
       insumos: new MemoryTable(),
       categorias: new MemoryTable(),
       cambiosInsumo: new MemoryTable(),
+      cambiosLote: new MemoryTable(),
     }),
   }
 })
@@ -32,6 +33,8 @@ const categoriasT = db.categorias as unknown as MemoryTable<Categoria>
 
 function insumo(id: string, categoria: string, overrides: Partial<Insumo> = {}): Insumo {
   return {
+    unidadCompra: 'caja',
+    contenido: 1,
     tenantId: TENANT_1,
     id,
     nombre: `Insumo ${id}`,

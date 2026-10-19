@@ -9,6 +9,8 @@ export const ALTA_VACIA: AltaMaterialInput = {
   categoria: '',
   categoriaNueva: false,
   unidadMedida: 'caja',
+  unidadCompra: null,
+  contenido: null,
   codigoFabricante: '',
   stockMinimo: null,
   caduca: true,

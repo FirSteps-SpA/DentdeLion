@@ -163,6 +163,9 @@ async function runCommand(line) {
                 nombre,
                 categoria: 'Protección',
                 unidadMedida: 'caja',
+                // Spec 015 (Dexie v11): sin presentación distinta.
+                unidadCompra: 'caja',
+                contenido: 1,
                 permiteDecimales: false,
                 caduca: true,
                 codigoFabricante: null,
@@ -170,6 +173,7 @@ async function runCommand(line) {
                 stockMinimo: 10,
                 dadoDeBajaEn: null,
                 dadoDeBajaPor: null,
+                creadoPor: null,
               })
               tx.oncomplete = () => resolve(undefined)
               tx.onerror = () => reject(tx.error)
@@ -203,9 +207,14 @@ async function runCommand(line) {
             const req = indexedDB.open('inDENToryDB')
             req.onsuccess = () => {
               const db = req.result
-              const tx = db.transaction(['lotes', 'movimientos'], 'readwrite')
+              const tx = db.transaction(['insumos', 'lotes', 'movimientos'], 'readwrite')
               const ahora = new Date().toISOString()
               const tenantId = '00000000-0000-4000-8000-000000000001'
+              // Spec 015 (Dexie v11): el lote y el ingreso en la unidad de consumo del insumo.
+              const getInsumo = tx.objectStore('insumos').get(insumoId)
+              getInsumo.onsuccess = () => {
+              const unidad = getInsumo.result?.unidadMedida ?? 'caja'
+              const contenido = getInsumo.result?.contenido ?? 1
               tx.objectStore('lotes').put({
                 id: loteId,
                 tenantId,
@@ -217,6 +226,11 @@ async function runCommand(line) {
                 codigoFabricante: null,
                 estado: 'activo',
                 creadoEn: ahora,
+                cantidadIngresada: Number(cantidad),
+                unidadIngresada: unidad,
+                contenido,
+                unidadConsumo: unidad,
+                precioCompra: null,
               })
               tx.objectStore('movimientos').put({
                 id: `ingreso-${loteId}`,
@@ -226,11 +240,13 @@ async function runCommand(line) {
                 tipo: 'ingreso',
                 loteId,
                 cantidad: Number(cantidad),
+                unidad,
                 usuarioId: 'driver-seed-user',
                 movimientoOrigenId: null,
                 creadoEn: ahora,
                 sincronizado: true,
               })
+              }
               tx.oncomplete = () => resolve(undefined)
               tx.onerror = () => reject(tx.error)
             }
@@ -239,6 +255,49 @@ async function runCommand(line) {
         { insumoId, loteId, dias, cantidad, lugarId },
       )
       console.log(`ok: seeded lote ${loteId} for ${insumoId} (${cantidad} u.)`)
+      break
+    }
+
+    case 'wait': {
+      // wait <ms> — p. ej. para que termine la animación de entrada de un modal antes de la captura.
+      await page.waitForTimeout(Number(arg) || 300)
+      console.log(`ok: waited ${Number(arg) || 300}ms`)
+      break
+    }
+
+    case 'viewport': {
+      // viewport <ancho> <alto> — p. ej. 375 812 (móvil), 768 1024 (tablet), 1440 900 (desktop).
+      const [ancho, alto] = rest.map(Number)
+      await page.setViewportSize({ width: ancho, height: alto || 900 })
+      console.log(`ok: viewport ${ancho}x${alto || 900}`)
+      break
+    }
+
+    case 'seed-presentacion': {
+      // Spec 015: seed-presentacion <insumoId> <unidadConsumo> <unidadCompra> <contenido>
+      // — escribe la presentación directo en la fila (solo para capturas: sin ledger).
+      const [id, unidadMedida, unidadCompra, contenido] = rest
+      await page.evaluate(
+        ({ id, unidadMedida, unidadCompra, contenido }) =>
+          new Promise((resolve, reject) => {
+            const req = indexedDB.open('inDENToryDB')
+            req.onsuccess = () => {
+              const tx = req.result.transaction('insumos', 'readwrite')
+              const store = tx.objectStore('insumos')
+              const get = store.get(id)
+              get.onsuccess = () => {
+                if (get.result) {
+                  store.put({ ...get.result, unidadMedida, unidadCompra, contenido: Number(contenido) })
+                }
+              }
+              tx.oncomplete = () => resolve(undefined)
+              tx.onerror = () => reject(tx.error)
+            }
+            req.onerror = () => reject(req.error)
+          }),
+        { id, unidadMedida, unidadCompra, contenido },
+      )
+      console.log(`ok: presentación de ${id}: ${unidadCompra} × ${contenido} ${unidadMedida} — seed-lote después`)
       break
     }
 

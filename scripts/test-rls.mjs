@@ -684,6 +684,192 @@ check(
   `HTTP ${r.status}`,
 )
 
+// ---------------------------------------------------------------------------
+// Spec 015 — unidades y costo unitario (contracts/supabase-schema.md §8)
+// ---------------------------------------------------------------------------
+
+const [loteSinColumnas] = await leer(`lotes?id=eq.${lote}&select=unidad_consumo,contenido,precio_compra`)
+check(
+  'un lote de un cliente 2.3.0 recibe la unidad de consumo del insumo',
+  loteSinColumnas?.unidad_consumo === 'cartucho' &&
+    Number(loteSinColumnas?.contenido) === 1 &&
+    loteSinColumnas?.precio_compra === null,
+)
+
+const loteConPrecio = randomUUID()
+r = await http('POST', '/rest/v1/lotes', {
+  token: per.token,
+  body: {
+    id: loteConPrecio,
+    insumo_id: insumo,
+    numero_lote: 'P1',
+    proveedor: 'P',
+    cantidad_ingresada: 2,
+    unidad_ingresada: 'caja',
+    contenido: 50,
+    unidad_consumo: 'cartucho',
+    precio_compra: 32500,
+  },
+})
+check('personal crea un lote con precio', r.status === 201, `HTTP ${r.status}`)
+
+const cambioLote = (usuario_id, valor_nuevo = 30000) => ({
+  id: randomUUID(),
+  lote_id: loteConPrecio,
+  campo: 'precioCompra',
+  valor_anterior: 32500,
+  valor_nuevo,
+  usuario_id,
+  creado_en: new Date().toISOString(),
+})
+
+// 2. Cualquier miembro corrige precios, como sí mismo (Q3).
+r = await http('POST', '/rest/v1/cambios_lote', { token: per.token, body: cambioLote(per.id) })
+check('personal inserta una corrección de precio como sí mismo', r.status === 201, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/cambios_lote', { token: per.token, body: cambioLote(adm.id) })
+check('personal no inserta una corrección a nombre de otro', r.status >= 400, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/cambios_lote', {
+  token: per.token,
+  body: cambioLote(per.id, -5),
+})
+check('un precio negativo se rechaza', r.status >= 400, `HTTP ${r.status}`)
+
+// 1. Aislamiento entre tenants.
+r = await http('GET', `/rest/v1/cambios_lote?lote_id=eq.${loteConPrecio}`, { token: admB.token })
+check(
+  'otro tenant no lee las correcciones de precio',
+  Array.isArray(r.data) && r.data.length === 0,
+  `HTTP ${r.status}`,
+)
+r = await http('POST', '/rest/v1/cambios_lote', { token: admB.token, body: cambioLote(admB.id) })
+check('otro tenant no corrige precios de lotes ajenos', r.status >= 400, `HTTP ${r.status}`)
+
+// 3. El precio y el snapshot del lote son inmutables.
+r = await http('PATCH', `/rest/v1/lotes?id=eq.${loteConPrecio}`, {
+  token: adm.token,
+  body: { precio_compra: 1, contenido: 10, cantidad_ingresada: 9 },
+})
+const [loteTrasPatch] = await leer(
+  `lotes?id=eq.${loteConPrecio}&select=precio_compra,contenido,cantidad_ingresada`,
+)
+check(
+  'ni administración cambia el precio ni el snapshot de un lote',
+  Number(loteTrasPatch?.precio_compra) === 32500 &&
+    Number(loteTrasPatch?.contenido) === 50 &&
+    Number(loteTrasPatch?.cantidad_ingresada) === 2,
+  `HTTP ${r.status}`,
+)
+
+// 4. Presentación: solo administración.
+await http('PATCH', `/rest/v1/insumos?id=eq.${insumo}`, {
+  token: per.token,
+  body: { unidad_compra: 'caja', contenido: 50 },
+})
+let [presentacion] = await leer(`insumos?id=eq.${insumo}&select=unidad_compra,contenido`)
+check(
+  'personal no cambia la presentación de un insumo',
+  presentacion?.unidad_compra === 'cartucho' && Number(presentacion?.contenido) === 1,
+)
+await http('PATCH', `/rest/v1/insumos?id=eq.${insumo}`, {
+  token: adm.token,
+  body: { unidad_compra: 'caja', contenido: 50 },
+})
+;[presentacion] = await leer(`insumos?id=eq.${insumo}&select=unidad_compra,contenido`)
+check(
+  'administración cambia la presentación de un insumo',
+  presentacion?.unidad_compra === 'caja' && Number(presentacion?.contenido) === 50,
+)
+
+// 5. Un movimiento sin unidad (cliente 2.3.0) toma la del insumo.
+const movSinUnidad = randomUUID()
+r = await http('POST', '/rest/v1/movimientos', {
+  token: per.token,
+  body: {
+    id: movSinUnidad,
+    tipo: 'ingreso',
+    lote_id: loteConPrecio,
+    cantidad: 100,
+    usuario_id: per.id,
+    creado_en: new Date().toISOString(),
+  },
+})
+const [movLeido] = await leer(`movimientos?id=eq.${movSinUnidad}&select=unidad`)
+check(
+  'un movimiento sin unidad recibe la del insumo',
+  r.status === 201 && movLeido?.unidad === 'cartucho',
+  `HTTP ${r.status}`,
+)
+
+// 6. Un traslado con unidades distintas en sus mitades se rechaza.
+const trasladoId015 = randomUUID()
+const mitadConUnidad = (tipo, lugar_id, unidad) => ({
+  id: randomUUID(),
+  tipo,
+  lote_id: loteConPrecio,
+  cantidad: 1,
+  unidad,
+  lugar_id,
+  traslado_id: trasladoId015,
+  usuario_id: per.id,
+  creado_en: new Date().toISOString(),
+})
+r = await http('POST', '/rest/v1/movimientos', {
+  token: per.token,
+  body: [
+    mitadConUnidad('traslado_salida', LUGAR_1, 'cartucho'),
+    mitadConUnidad('traslado_entrada', LUGAR_A2, 'caja'),
+  ],
+})
+check('un traslado con unidades distintas se rechaza', r.status >= 400, `HTTP ${r.status}`)
+
+// 7. `pieza` se normaliza a `unidad` (clientes 2.3.0).
+const insumoPieza = randomUUID()
+await http('POST', '/rest/v1/insumos', {
+  token: adm.token,
+  body: {
+    id: insumoPieza,
+    nombre: `Fresa ${run}`,
+    categoria: 'Fresas',
+    unidad_medida: 'pieza',
+    permite_decimales: false,
+  },
+})
+const [pieza] = await leer(`insumos?id=eq.${insumoPieza}&select=unidad_medida,unidad_compra`)
+check(
+  'un insumo en pieza queda en unidad, también como unidad de compra',
+  pieza?.unidad_medida === 'unidad' && pieza?.unidad_compra === 'unidad',
+)
+
+// 8. El factor solo va en un cambio de unidad de consumo.
+r = await http('POST', '/rest/v1/cambios_insumo', {
+  token: adm.token,
+  body: {
+    id: randomUUID(),
+    insumo_id: insumo,
+    campo: 'nombre',
+    valor_anterior: 'Anestesia',
+    valor_nuevo: 'Anestesia B',
+    factor: 2,
+    usuario_id: adm.id,
+    creado_en: new Date().toISOString(),
+  },
+})
+check('un factor fuera de un cambio de unidad se rechaza', r.status >= 400, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/cambios_insumo', {
+  token: adm.token,
+  body: {
+    id: randomUUID(),
+    insumo_id: insumo,
+    campo: 'unidadMedida',
+    valor_anterior: 'cartucho',
+    valor_nuevo: 'mL',
+    factor: 1.8,
+    usuario_id: adm.id,
+    creado_en: new Date().toISOString(),
+  },
+})
+check('administración registra una conversión con factor', r.status === 201, `HTTP ${r.status}`)
+
 r = await http('GET', '/rest/v1/insumos?select=id')
 check(
   'sin sesión no se lee el inventario',

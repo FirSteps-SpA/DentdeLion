@@ -6,18 +6,17 @@ import {
   editarInsumo,
   validarEdicionInsumo,
   validarStockMinimo,
-  ETIQUETAS_UNIDAD,
-  UNIDADES_MEDIDA,
   type CambiosInsumoInput,
 } from '../lib/catalogo'
 import { catalogoCategorias, resolverCategoria } from '../lib/categorias'
-import { permiteDecimales } from '../lib/quantity'
 import { Minus, Plus, Scan } from '../../../components/icons'
 import { Card } from '../../../components/ui/Card'
 import { IconField } from '../../../components/ui/IconField'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { hayVariosLugares, nombreLugar, useLugarStore } from '../../../stores/lugarStore'
 import { guardarMinimoLugar } from '../lib/minimos'
+import { PresentacionFields } from './PresentacionFields'
+import { ConvertirUnidadDialog } from './ConvertirUnidadDialog'
 
 export interface EditarInsumoFormProps {
   insumo: Insumo
@@ -150,6 +149,12 @@ export function EditarInsumoForm({
     () => resolverCategoria(insumo.categoria, catalogo) ?? insumo.categoria,
   )
   const [unidadMedida, setUnidadMedida] = useState(insumo.unidadMedida)
+  // Spec 015 (FR-006): `null` = "igual que la de consumo".
+  const [unidadCompra, setUnidadCompra] = useState<string | null>(
+    insumo.unidadCompra === insumo.unidadMedida ? null : insumo.unidadCompra,
+  )
+  const [contenido, setContenido] = useState<number | null>(insumo.contenido)
+  const [convirtiendo, setConvirtiendo] = useState(false)
   const [stockMinimo, setStockMinimo] = useState(
     insumo.stockMinimo === null ? '' : String(insumo.stockMinimo),
   )
@@ -165,10 +170,14 @@ export function EditarInsumoForm({
 
   const stockMinimoValor =
     stockMinimo.trim() === '' ? null : Number(stockMinimo)
+  const unidadCompraFinal = unidadCompra ?? unidadMedida
+  const contenidoFinal = unidadCompraFinal === unidadMedida ? 1 : (contenido ?? Number.NaN)
   const cambios: CambiosInsumoInput = {
     nombre,
     categoria,
     unidadMedida,
+    unidadCompra: unidadCompraFinal,
+    contenido: contenidoFinal,
     stockMinimo: stockMinimoValor,
     codigoFabricante: codigoFabricante.trim() || null,
     caduca,
@@ -177,6 +186,8 @@ export function EditarInsumoForm({
     nombre.trim() !== insumo.nombre ||
     categoria !== insumo.categoria ||
     unidadMedida !== insumo.unidadMedida ||
+    unidadCompraFinal !== insumo.unidadCompra ||
+    contenidoFinal !== insumo.contenido ||
     stockMinimoValor !== insumo.stockMinimo ||
     (codigoFabricante.trim() || null) !== insumo.codigoFabricante ||
     caduca !== insumo.caduca
@@ -260,32 +271,33 @@ export function EditarInsumoForm({
         <ErrorCampo id="error-categoria" mensaje={errores.categoria} />
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label className="flex flex-col gap-1.5 text-sm font-bold text-text">
-          Unidad de medida
-          <select
-            value={unidadMedida}
-            onChange={(event) => setUnidadMedida(event.target.value)}
-            className="touch-target rounded-md border border-border bg-surface px-3.5 text-[15px] font-normal text-text"
-            {...errorProps('unidadMedida')}
-          >
-            {UNIDADES_MEDIDA.map((u) => (
-              <option key={u} value={u}>
-                {ETIQUETAS_UNIDAD[u]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <p className="text-xs text-text-muted">
-          Admite decimales: {permiteDecimales(unidadMedida) ? 'Sí' : 'No'}
-        </p>
-        {unidadMedida !== insumo.unidadMedida && (
-          <p role="note" className="text-xs font-bold text-warning-30-text">
-            Las cantidades ya registradas no se convierten a la nueva unidad.
-          </p>
-        )}
-        <ErrorCampo id="error-unidadMedida" mensaje={errores.unidadMedida} />
-      </div>
+      <PresentacionFields
+        idPrefix="editar"
+        valor={{ unidadMedida, unidadCompra, contenido }}
+        onChange={(cambio) => {
+          if (cambio.unidadMedida !== undefined) setUnidadMedida(cambio.unidadMedida)
+          if (cambio.unidadCompra !== undefined) setUnidadCompra(cambio.unidadCompra)
+          if (cambio.contenido !== undefined) setContenido(cambio.contenido)
+        }}
+        errores={{
+          unidadMedida: errores.unidadMedida,
+          unidadCompra: errores.unidadCompra,
+          contenido: errores.contenido,
+        }}
+        accionUnidadConsumo={
+          tieneLotes ? (
+            // Spec 015 FR-007a: con movimientos, la unidad se cambia por conversión.
+            <TouchButton
+              type="button"
+              variant="ghost"
+              onClick={() => setConvirtiendo(true)}
+              className="shrink-0 px-3"
+            >
+              Convertir unidad
+            </TouchButton>
+          ) : undefined
+        }
+      />
 
       <div className="flex flex-col gap-1.5 text-sm font-bold text-text">
         <label htmlFor="editar-stock-minimo">
@@ -407,6 +419,14 @@ export function EditarInsumoForm({
           {isPending ? 'Guardando…' : 'Guardar'}
         </TouchButton>
       </div>
+      {convirtiendo && (
+        <ConvertirUnidadDialog
+          insumo={insumo}
+          onClose={() => setConvirtiendo(false)}
+          // El formulario quedó con la unidad anterior: se cierra tras convertir.
+          onConvertido={onGuardado}
+        />
+      )}
     </form>
   )
 }
