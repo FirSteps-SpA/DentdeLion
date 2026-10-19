@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { computeAlertasCaducidad } from '../../../src/features/alertas/lib/caducidad'
 import type { Insumo, Lote, Movimiento } from '../../../src/lib/db'
+import { LUGAR_1, TENANT_1 } from '../../helpers/tenancy'
 
 const HOY = new Date('2026-09-09T12:00:00Z')
 
@@ -12,6 +13,7 @@ function fechaEnDias(dias: number): string {
 
 function makeInsumo(overrides: Partial<Insumo>): Insumo {
   return {
+    tenantId: TENANT_1,
     id: 'insumo-1',
     nombre: 'Anestesia local',
     categoria: 'Farmacia',
@@ -30,6 +32,8 @@ function makeInsumo(overrides: Partial<Insumo>): Insumo {
 
 function makeLote(overrides: Partial<Lote>): Lote {
   return {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
     id: crypto.randomUUID(),
     insumoId: 'insumo-1',
     numeroLote: 'L1',
@@ -44,6 +48,9 @@ function makeLote(overrides: Partial<Lote>): Lote {
 
 function makeIngreso(loteId: string, cantidad: number): Movimiento {
   return {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
+    trasladoId: null,
     id: crypto.randomUUID(),
     tipo: 'ingreso',
     loteId,
@@ -150,6 +157,9 @@ describe('computeAlertasCaducidad', () => {
       makeIngreso(lote.id, 10),
       {
         id: crypto.randomUUID(),
+        tenantId: TENANT_1,
+        lugarId: LUGAR_1,
+        trasladoId: null,
         tipo: 'consumo' as const,
         loteId: lote.id,
         cantidad: 10,

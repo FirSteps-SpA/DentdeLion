@@ -13,6 +13,9 @@ vi.mock('../../src/lib/db', async () => {
   const { tablasMemoria } = await import('../helpers/tablasMemoria')
   return {
     db: createMemoryDb({
+      lugares: new MemoryTable(),
+      minimosLugar: new MemoryTable(),
+      lugarActivo: new MemoryTable(),
       ...Object.fromEntries(tablasMemoria.map((t) => [t, new MemoryTable()])),
       borradores: new MemoryTable(),
       preferenciasNotificaciones: new MemoryTable(),
@@ -42,6 +45,8 @@ import { useAuthStore } from '../../src/stores/authStore'
 import { useInventoryStore } from '../../src/stores/inventoryStore'
 import { usePendientesStore } from '../../src/stores/pendientesStore'
 import { useSyncStore } from '../../src/stores/syncStore'
+import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
+import { usarLugar1 } from '../helpers/lugarFalso'
 
 const movimientosT = db.movimientos as unknown as MemoryTable<Movimiento>
 
@@ -84,6 +89,9 @@ const haceHoras = (h: number) => new Date(Date.now() - h * 3_600_000).toISOStrin
 
 function consumo(id: string, usuarioId = 'B', creadoEn = new Date().toISOString()): Movimiento {
   return {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
+    trasladoId: null,
     id,
     tipo: 'consumo',
     loteId: 'l1',
@@ -96,7 +104,7 @@ function consumo(id: string, usuarioId = 'B', creadoEn = new Date().toISOString(
 }
 
 function usuario(rol: UsuarioActual['rol'] = 'personal'): UsuarioActual {
-  return { id: 'B', email: 'b@x.cl', nombre: 'Bea', rol, autenticadoEn: 'x' }
+  return { tenantId: TENANT_1, desactivadoEn: null, id: 'B', email: 'b@x.cl', nombre: 'Bea', rol, autenticadoEn: 'x' }
 }
 
 const indicador = () => screen.getByRole('button', { name: /Estado de sincronización/ })
@@ -150,6 +158,9 @@ afterEach(() => {
   detener = null
   onMemoryDbChange(null)
 })
+
+// Spec 014: un tenant de un solo lugar, como la clínica original.
+beforeEach(usarLugar1)
 
 describe('US1 — ver si hay cambios sin subir', () => {
   it('(1) sin pendientes y ciclo ok: Sincronizado', async () => {
@@ -221,6 +232,8 @@ describe('US2 — última sincronización exitosa', () => {
 
     estado.errorUpsert.lotes = { message: 'Failed to fetch' }
     await db.lotes.put({
+      tenantId: TENANT_1,
+      lugarId: LUGAR_1,
       id: 'l1',
       insumoId: 'i1',
       numeroLote: 'A',
@@ -239,6 +252,7 @@ describe('US2 — última sincronización exitosa', () => {
     await db.movimientos.add(consumo('m1'))
     await db.movimientos.add(consumo('m2'))
     await db.cambiosInsumo.add({
+      tenantId: TENANT_1,
       id: 'c1',
       insumoId: 'i1',
       campo: 'nombre',
@@ -260,6 +274,7 @@ describe('US2 — última sincronización exitosa', () => {
 
   it('(e) abrir y cerrar el panel conserva lo escrito en el formulario de consumo', async () => {
     const insumo: Insumo = {
+      tenantId: TENANT_1,
       id: 'i1',
       nombre: 'Anestesia local',
       categoria: 'Farmacia',

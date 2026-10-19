@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { getSupabaseStatus } from '../../lib/supabase'
 import { fetchPerfilPropio } from '../../lib/supabase/perfiles'
+import { aislarDatosLocales, descargarLugares } from '../../lib/tenancy'
 import { useAuthStore } from '../../stores/authStore'
 
 /**
@@ -42,12 +43,18 @@ export function useLogin() {
         return
       }
 
+      // Spec 014 FR-004: lo sincronizado de otro tenant no queda en este
+      // dispositivo; sus pendientes se conservan, ocultos.
+      await aislarDatosLocales(perfil.tenant_id)
+      await descargarLugares(client)
       await login({
         id: data.user.id,
         email: data.user.email ?? email,
         nombre: perfil.nombre,
         rol: perfil.rol,
         autenticadoEn: new Date().toISOString(),
+        tenantId: perfil.tenant_id,
+        desactivadoEn: perfil.desactivado_en,
       })
     } finally {
       setIsPending(false)

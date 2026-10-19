@@ -22,6 +22,8 @@ export interface RecibirItemFormProps {
    *  vinculado) que se marca `'comprado'` al confirmar; `null` si no viene
    *  de ningún ítem de Compras. */
   itemCompraId: string | null
+  /** Spec 014 FR-014 — lugar donde se recibe (desde "Todos"); sin él, el activo. */
+  lugarId?: string
   onRecibido: () => void
   onCancelar: () => void
 }
@@ -43,6 +45,7 @@ const ENTRADA_VACIA: RecepcionInput = {
 export function RecibirItemForm({
   insumo,
   itemCompraId,
+  lugarId,
   onRecibido,
   onCancelar,
 }: RecibirItemFormProps) {
@@ -72,7 +75,7 @@ export function RecibirItemForm({
     setIsPending(true)
     setErrorGeneral(null)
     try {
-      await recibirEnInsumo(insumo, datosParaGuardar, itemCompraId)
+      await recibirEnInsumo(insumo, datosParaGuardar, itemCompraId, { lugarId })
       onRecibido()
     } catch (error) {
       setErrorGeneral(error instanceof Error ? error.message : 'No se pudo guardar.')

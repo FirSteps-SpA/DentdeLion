@@ -1,18 +1,18 @@
 import { useAuthStore } from '../stores/authStore'
-import { useClinicaStore } from '../stores/clinicaStore'
 import { APP_NAME } from '../lib/branding'
 import { Tooth } from '../components/icons'
 import { SyncIndicator } from './SyncIndicator'
+import { SelectorLugar } from './SelectorLugar'
 import { SyncSheet } from './SyncSheet'
 import { iniciales } from './iniciales'
 import { usePanelSync } from './usePanelSync'
 
 /**
  * Encabezado del teléfono (feature 005, FR-004; DS §1 en la spec 013: diente
- * outline turquesa y "Dentdelion" en Deep Teal): logo mark, a pill showing the configured clinic name (spec 010 FR-020,
- * `useClinicaStore` — falls back to "Gabinete" until one is set), the sync
- * indicator and an avatar-initials chip. Identical on every authenticated
- * screen.
+ * outline turquesa y "Dentdelion" en Deep Teal): logo mark, the lugar de
+ * trabajo selector (spec 014 FR-008 — a plain pill with the lugar's name when
+ * the tenant has only one), the sync indicator and an avatar-initials chip.
+ * Identical on every authenticated screen.
  *
  * El indicador (spec 012) cuenta los cambios pendientes reales y el resultado
  * del último ciclo — reemplaza el indicador binario de conexión de la spec
@@ -25,7 +25,6 @@ import { usePanelSync } from './usePanelSync'
  */
 export function AppHeader() {
   const usuario = useAuthStore((s) => s.usuario)
-  const nombreClinica = useClinicaStore((s) => s.nombreClinica)
   const { indicador, abierto: panelAbierto, abrir, cerrar } = usePanelSync()
 
   return (
@@ -35,9 +34,7 @@ export function AppHeader() {
         <span className="text-[22px] leading-7 font-extrabold tracking-tight text-teal-dark">
           {APP_NAME}
         </span>
-        <span className="inline-flex w-fit max-w-full items-center truncate rounded-pill bg-primary-soft px-2 py-px text-[11px] font-bold text-primary-text">
-          {nombreClinica ?? 'Gabinete'}
-        </span>
+        <SelectorLugar compacto />
       </div>
       <div className="flex-1" />
       <SyncIndicator indicador={indicador} onClick={abrir} />

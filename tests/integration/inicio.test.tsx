@@ -30,6 +30,7 @@ import { ComprasView } from '../../src/features/compras/components/ComprasView'
 import { useInventoryStore } from '../../src/stores/inventoryStore'
 import { useAuthStore } from '../../src/stores/authStore'
 import { useAlertasStore } from '../../src/stores/alertasStore'
+import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
 
 const enDias = (d: number) => {
   const hoy = new Date()
@@ -45,6 +46,7 @@ function insumo(
   extra: Partial<Insumo> = {},
 ): Insumo {
   return {
+    tenantId: TENANT_1,
     id,
     nombre,
     categoria: 'General',
@@ -61,6 +63,8 @@ function insumo(
   }
 }
 const lote = (id: string, insumoId: string, fecha: string | null): Lote => ({
+  tenantId: TENANT_1,
+  lugarId: LUGAR_1,
   id,
   insumoId,
   numeroLote: id.toUpperCase(),
@@ -71,6 +75,9 @@ const lote = (id: string, insumoId: string, fecha: string | null): Lote => ({
   creadoEn: 'x',
 })
 const ingreso = (loteId: string, cantidad: number): Movimiento => ({
+  tenantId: TENANT_1,
+  lugarId: LUGAR_1,
+  trasladoId: null,
   id: `m-${loteId}`,
   tipo: 'ingreso',
   loteId,
@@ -81,6 +88,8 @@ const ingreso = (loteId: string, cantidad: number): Movimiento => ({
   sincronizado: true,
 })
 const item: ItemCompra = {
+  tenantId: TENANT_1,
+  lugarId: LUGAR_1,
   id: 'c1',
   nombre: 'Microbrush',
   cantidad: 2,
@@ -132,6 +141,8 @@ function sembrar() {
 beforeEach(() => {
   useAuthStore.setState({
     usuario: {
+      tenantId: TENANT_1,
+      desactivadoEn: null,
       id: 'u1',
       email: 's@x.cl',
       nombre: 'Sofía León',

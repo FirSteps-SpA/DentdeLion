@@ -27,6 +27,7 @@ vi.mock('../../src/lib/supabase', () => ({
 import { db } from '../../src/lib/db'
 import { runSyncBatch } from '../../src/lib/sync'
 import { useAuthStore } from '../../src/stores/authStore'
+import { TENANT_1 } from '../helpers/tenancy'
 
 const cambiosT = db.cambiosInsumo as unknown as MemoryTable<CambioInsumo>
 const categoriasT = db.categorias as unknown as MemoryTable<Categoria>
@@ -38,6 +39,7 @@ const rlsComoAutor = (campo: string) => (fila: Record<string, unknown>) =>
 
 function cambio(id: string, usuarioId: string): CambioInsumo {
   return {
+    tenantId: TENANT_1,
     id,
     insumoId: 'i1',
     campo: 'nombre',
@@ -52,6 +54,7 @@ function cambio(id: string, usuarioId: string): CambioInsumo {
 
 function categoria(id: string, creadoPor: string): Categoria {
   return {
+    tenantId: TENANT_1,
     id,
     nombre: `Cat ${id}`,
     creadoPor,
@@ -70,6 +73,8 @@ beforeEach(() => {
   categoriasT.seed([categoria('kA', 'A'), categoria('kB', 'B')])
   useAuthStore.setState({
     usuario: {
+      tenantId: TENANT_1,
+      desactivadoEn: null,
       id: 'B',
       email: 'b@x.cl',
       nombre: 'Bea',

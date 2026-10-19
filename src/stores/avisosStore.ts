@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { deshacerConsumo } from '../features/insumos/lib/consumoRapido'
+import { deshacerTraslado } from '../features/insumos/lib/traslado'
 
 export const DURACION_AVISO_MS = 8000
 export const DURACION_MATERIAL_CREADO_MS = 4000
@@ -9,11 +10,19 @@ export const MAX_AVISOS = 3
 /** data-model.md's "Aviso" — transient UI state, never persisted. */
 export interface Aviso {
   id: string
-  tipo: 'consumo' | 'cambio-rechazado' | 'material-creado' | 'categoria-rechazada'
+  tipo:
+    | 'consumo'
+    | 'traslado'
+    | 'cambio-rechazado'
+    | 'material-creado'
+    | 'categoria-rechazada'
+  /** Consumo: el movimiento de consumo. Traslado (spec 014): la salida del par. */
   movimientoId: string | null
   loteId: string | null
   insumoNombre: string
   unidadMedida: string | null
+  /** Spec 014 — texto del aviso de traslado ("Trasladado 4 cajas a Las Condes"). */
+  detalle?: string
   estado: 'pendiente' | 'revertido'
   expiraEn: number
 }
@@ -90,7 +99,8 @@ export const useAvisosStore = create<AvisosState>((set, get) => ({
 
     marcar('revertido')
     try {
-      await deshacerConsumo(aviso.movimientoId)
+      if (aviso.tipo === 'traslado') await deshacerTraslado(aviso.movimientoId)
+      else await deshacerConsumo(aviso.movimientoId)
     } catch (error) {
       marcar('pendiente')
       throw error

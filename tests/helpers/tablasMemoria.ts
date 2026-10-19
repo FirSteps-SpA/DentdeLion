@@ -16,4 +16,7 @@ export const tablasMemoria = [
   'usuarioActual',
   'estadoSync',
   'usuariosConocidos',
+  'lugares',
+  'minimosLugar',
+  'lugarActivo',
 ] as const

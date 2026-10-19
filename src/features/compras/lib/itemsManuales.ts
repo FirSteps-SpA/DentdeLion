@@ -1,5 +1,6 @@
 import { db, type Insumo, type ItemCompra } from '../../../lib/db'
-import { getUsuarioActualId } from '../../../stores/authStore'
+import { getUsuarioActualId, tenantActualOFallar } from '../../../stores/authStore'
+import { lugarParaEscribirOFallar } from '../../../stores/lugarStore'
 
 /** Formulario "+ Añadir Ítem Manual" (spec 009 contracts/ui-contracts.md). */
 export interface ItemManualInput {
@@ -28,7 +29,11 @@ export function validarItemManual(input: ItemManualInput): ValidacionItemManual 
  * autenticado, sin guard de rol — recibir mercadería o pedir algo puntual no
  * es gestión de catálogo (Assumptions).
  */
-export async function agregarItemManual(input: ItemManualInput): Promise<ItemCompra> {
+export async function agregarItemManual(
+  input: ItemManualInput,
+  /** Spec 014 FR-006/FR-014 — la lista es por lugar; desde "Todos" se elige. */
+  opciones: { lugarId?: string } = {},
+): Promise<ItemCompra> {
   const usuarioId = getUsuarioActualId()
   if (!usuarioId) {
     throw new Error(
@@ -42,6 +47,8 @@ export async function agregarItemManual(input: ItemManualInput): Promise<ItemCom
 
   const item: ItemCompra = {
     id: crypto.randomUUID(),
+    tenantId: tenantActualOFallar(),
+    lugarId: lugarParaEscribirOFallar(opciones.lugarId),
     nombre: input.nombre.trim(),
     cantidad: input.cantidad,
     nota: input.nota.trim() || null,

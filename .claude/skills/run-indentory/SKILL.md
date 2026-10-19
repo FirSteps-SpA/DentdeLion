@@ -76,9 +76,10 @@ Driver commands:
 | `click <text-or-selector>` | Tries as visible text first, then as a CSS selector |
 | `fill <selector> <value>` | Fill an input by CSS selector (e.g. `fill #buscar-insumo Guantes`) |
 | `screenshot [name]` | Saves to `screenshots/<name or shot-N>.png` |
-| `seed-user <administrador\|personal> <nombre...>` | Writes a `usuarioActual` row directly into the app's Dexie/IndexedDB — the only way to reach the authenticated shell without a real Supabase project. **Call `reload` right after.** |
+| `seed-user <administrador\|personal> <nombre...>` | Writes a `usuarioActual` row (tenant 1) and lugar 1 directly into the app's Dexie/IndexedDB — the only way to reach the authenticated shell without a real Supabase project. **Call `reload` right after.** |
 | `seed-insumo <id> <nombre...>` | Writes one demo `Insumo` (categoría "Protección", unidad "caja", `stockMinimo: 10`) so Registrar/Consumir/Alertas have something to show |
-| `seed-lote <insumoId> <loteId> <días\|none> <cantidad>` | Writes one `Lote` expiring in `<días>` (negative = already expired, `none` = no expiry) plus an `ingreso` of `<cantidad>`, so the insumo has stock for "Consumir 1" |
+| `seed-lote <insumoId> <loteId> <días\|none> <cantidad> [lugarId]` | Writes one `Lote` expiring in `<días>` (negative = already expired, `none` = no expiry) plus an `ingreso` of `<cantidad>` in `lugarId` (default: lugar 1), so the insumo has stock for "Consumir 1" |
+| `seed-lugar <id> <nombre...>` | Spec 014: writes another lugar de trabajo of tenant 1, so the selector, "Todos" and "Trasladar" show up. **Call `reload` right after.** |
 | `reload` | Reload the page (picks up seeded IndexedDB data on boot) |
 | `console [--errors]` | Dump captured console/page-error messages (`--errors` filters to just errors) |
 | `quit` / `exit` | Close the browser and exit |

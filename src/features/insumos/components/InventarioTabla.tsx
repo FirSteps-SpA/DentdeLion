@@ -11,6 +11,8 @@ export interface FilaInventario {
   estadoInsumo: EstadoInsumo
   disponibilidad: DisponibilidadConsumoRapido
   posibleDuplicado: boolean
+  /** Spec 014 — en "Todos", el stock de cada lugar. */
+  desglose?: string
 }
 
 export interface InventarioTablaProps {
@@ -59,7 +61,7 @@ export function InventarioTabla({
           </tr>
         </thead>
         <tbody>
-          {filas.map(({ estadoInsumo, disponibilidad, posibleDuplicado }) => {
+          {filas.map(({ estadoInsumo, disponibilidad, posibleDuplicado, desglose }) => {
             const { insumo, stockTotal, loteMasProximoAVencer } = estadoInsumo
             const visual = estadoVisual(estadoInsumo)
             return (
@@ -89,6 +91,9 @@ export function InventarioTabla({
                 </td>
                 <td className="px-4 py-2 text-sm font-medium whitespace-nowrap text-text">
                   {stockTotal} {insumo.unidadMedida}
+                  {desglose && (
+                    <span className="block text-xs font-normal text-text-muted">{desglose}</span>
+                  )}
                 </td>
                 <td className="px-4 py-2 text-sm font-medium text-text">
                   {insumo.stockMinimo ?? '—'}

@@ -1,4 +1,5 @@
 import { db, type Categoria } from '../../../lib/db'
+import { tenantActualOFallar } from '../../../stores/authStore'
 import { exigirAdministrador, nuevoCambio } from '../../insumos/lib/catalogo'
 import { reproyectarEnTransaccion } from '../../insumos/lib/proyeccion'
 import {
@@ -39,6 +40,7 @@ export async function crearCategoriaDesdeAjustes(nombre: string): Promise<void> 
 
     const nueva: Categoria = {
       id: crypto.randomUUID(),
+      tenantId: tenantActualOFallar(),
       nombre: limpio,
       creadoPor: usuarioId,
       creadoEn: new Date().toISOString(),

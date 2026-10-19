@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { liveQuery } from 'dexie'
 import { db, type UsuarioConocido } from '../lib/db'
+import { delTenant } from '../lib/tenancy'
 import {
   agruparPendientes,
   type PendientesPorAutor,
@@ -27,10 +28,11 @@ export const usePendientesStore = create<PendientesState>((set) => ({
   ahora: Date.now(),
   subscribe: () => {
     const subPendientes = liveQuery(async () =>
+      // Spec 014 FR-004: los pendientes de otro tenant no se cuentan ni se nombran.
       agruparPendientes(
-        await db.movimientos.toArray(),
-        await db.cambiosInsumo.toArray(),
-        await db.categorias.toArray(),
+        await delTenant('movimientos'),
+        await delTenant('cambiosInsumo'),
+        await delTenant('categorias'),
       ),
     ).subscribe({
       next: (pendientes) => set({ pendientes, ahora: Date.now() }),

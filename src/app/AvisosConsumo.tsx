@@ -11,6 +11,9 @@ function textoAviso(aviso: Aviso): string {
   if (aviso.tipo === 'categoria-rechazada') {
     return `La categoría «${aviso.insumoNombre}» no se guardó: ya no tienes permisos de administrador.`
   }
+  if (aviso.tipo === 'traslado') {
+    return aviso.estado === 'revertido' ? 'Traslado revertido' : (aviso.detalle ?? 'Traslado registrado')
+  }
   if (aviso.estado === 'revertido') return 'Consumo revertido'
   return `Consumido 1 ${aviso.unidadMedida ?? ''} de ${aviso.insumoNombre}`.replace(
     '  ',
@@ -48,7 +51,7 @@ export function AvisosConsumo() {
             <CircleCheck size={18} className="shrink-0 text-success" />
           )}
           <span className="flex-1 py-2">{textoAviso(aviso)}</span>
-          {aviso.tipo === 'consumo' && aviso.estado === 'pendiente' && (
+          {(aviso.tipo === 'consumo' || aviso.tipo === 'traslado') && aviso.estado === 'pendiente' && (
             <button
               type="button"
               onClick={() => void deshacer(aviso.id).catch(() => undefined)}

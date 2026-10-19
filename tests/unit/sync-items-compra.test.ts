@@ -7,6 +7,9 @@ vi.mock('../../src/lib/db', async () => {
   const { createMemoryDb, MemoryTable } = await import('../helpers/memoryDb')
   return {
     db: createMemoryDb({
+      lugares: new MemoryTable(),
+      minimosLugar: new MemoryTable(),
+      lugarActivo: new MemoryTable(),
       insumos: new MemoryTable(),
       lotes: new MemoryTable(),
       movimientos: new MemoryTable(),
@@ -71,12 +74,16 @@ vi.mock('../../src/lib/supabase/perfiles', () => ({
 import { db } from '../../src/lib/db'
 import { runSyncBatch } from '../../src/lib/sync'
 import { useAuthStore } from '../../src/stores/authStore'
+import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
+import { usarLugar1 } from '../helpers/lugarFalso'
 
 const itemsCompraT = db.itemsCompra as unknown as MemoryTable<ItemCompra>
 const categoriasT = db.categorias as unknown as MemoryTable<Categoria>
 
 function itemCompra(overrides: Partial<ItemCompra>): ItemCompra {
   return {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
     id: crypto.randomUUID(),
     nombre: 'Guantes M',
     cantidad: null,
@@ -92,6 +99,8 @@ function itemCompra(overrides: Partial<ItemCompra>): ItemCompra {
 }
 
 const usuario: UsuarioActual = {
+  tenantId: TENANT_1,
+  desactivadoEn: null,
   id: 'user-1',
   email: 'u@x.cl',
   nombre: 'Usuario',
@@ -106,6 +115,9 @@ beforeEach(() => {
   categoriasT.seed([])
   useAuthStore.setState({ usuario, isReady: true })
 })
+
+// Spec 014: un tenant de un solo lugar, como la clínica original.
+beforeEach(usarLugar1)
 
 describe('pushItemsCompra / pullItemsCompra (research.md R2)', () => {
   it('pushes a new local row and it lands on the remote table', async () => {

@@ -26,9 +26,11 @@ vi.mock('../../src/lib/supabase', () => ({
 import { db } from '../../src/lib/db'
 import { runSyncBatch } from '../../src/lib/sync'
 import { useAuthStore } from '../../src/stores/authStore'
+import { TENANT_1 } from '../helpers/tenancy'
+import { usarLugar1 } from '../helpers/lugarFalso'
 
 function usuario(rol: UsuarioActual['rol']): UsuarioActual {
-  return { id: 'u1', email: 'u@x.cl', nombre: 'U', rol, autenticadoEn: 'x' }
+  return { tenantId: TENANT_1, desactivadoEn: null, id: 'u1', email: 'u@x.cl', nombre: 'U', rol, autenticadoEn: 'x' }
 }
 
 const rechazoRls = {
@@ -36,36 +38,32 @@ const rechazoRls = {
   message: 'new row violates row-level security policy',
 }
 
-/** Las dos filas de configuración global comparten el contrato (research.md R5). */
+/**
+ * Filas de configuración global con el contrato de research.md R5. La de
+ * `configuracionClinica` ya no se sincroniza desde la spec 014 (la reemplazan
+ * los lugares de trabajo).
+ */
 const casos = [
   {
     nombre: 'configuracionAlertas',
     tablaRemota: 'configuracion_alertas',
     local: (sincronizado: boolean) => ({
       id: 'global' as const,
+      tenantId: TENANT_1,
       nivelesAvisoDias: [10],
       horasAvisoPendientes: 6,
       sincronizado,
     }),
-    remota: { id: 'global', niveles_aviso_dias: [30], horas_aviso_pendientes: 48 },
+    remota: {
+      id: 'global',
+      tenant_id: TENANT_1,
+      niveles_aviso_dias: [30],
+      horas_aviso_pendientes: 48,
+    },
     leer: () => db.configuracionAlertas.get('global'),
     escribir: (fila: object) => db.configuracionAlertas.put(fila as never),
     valorLocal: { nivelesAvisoDias: [10] },
     valorRemoto: { nivelesAvisoDias: [30], horasAvisoPendientes: 48 },
-  },
-  {
-    nombre: 'configuracionClinica',
-    tablaRemota: 'configuracion_clinica',
-    local: (sincronizado: boolean) => ({
-      id: 'global' as const,
-      nombre: 'Local',
-      sincronizado,
-    }),
-    remota: { id: 'global', nombre: 'Remota' },
-    leer: () => db.configuracionClinica.get('global'),
-    escribir: (fila: object) => db.configuracionClinica.put(fila as never),
-    valorLocal: { nombre: 'Local' },
-    valorRemoto: { nombre: 'Remota' },
   },
 ]
 
@@ -74,7 +72,6 @@ const upsertsDe = (tabla: string) => estado.upserts.filter((u) => u.tabla === ta
 beforeEach(async () => {
   reiniciar(estado)
   await db.configuracionAlertas.clear()
-  await db.configuracionClinica.clear()
 })
 
 describe.each(casos)('$nombre: subir solo si cambió y lo cambió un administrador (R5)', (caso) => {
@@ -153,10 +150,14 @@ describe.each(casos)('$nombre: subir solo si cambió y lo cambió un administrad
   })
 })
 
+// Spec 014: un tenant de un solo lugar, como la clínica original.
+beforeEach(usarLugar1)
+
 describe('horas_aviso_pendientes (R6)', () => {
   it('(f) no se envía la clave si el valor local es indefinido', async () => {
     useAuthStore.setState({ usuario: usuario('administrador'), isReady: true })
     await db.configuracionAlertas.put({
+      tenantId: TENANT_1,
       id: 'global',
       nivelesAvisoDias: [30, 7, 1],
       sincronizado: false,
@@ -171,6 +172,7 @@ describe('horas_aviso_pendientes (R6)', () => {
   it('se envía y se baja cuando está definido', async () => {
     useAuthStore.setState({ usuario: usuario('administrador'), isReady: true })
     await db.configuracionAlertas.put({
+      tenantId: TENANT_1,
       id: 'global',
       nivelesAvisoDias: [30, 7, 1],
       horasAvisoPendientes: 12,

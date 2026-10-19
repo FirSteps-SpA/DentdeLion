@@ -32,5 +32,11 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: latest
-      - run: supabase start -x realtime,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+      # edge-runtime queda encendido: test:rls llama a la Edge Function
+      # aceptar-invitacion (spec 014).
+      - run: supabase start -x realtime,imgproxy,mailpit,postgres-meta,studio,logflare,vector,supavisor
+      # La Edge Function solo se sirve con `functions serve` (spec 014).
+      - run: |
+          supabase functions serve --no-verify-jwt > functions.log 2>&1 &
+          timeout 120 bash -c 'until curl -s -X POST http://127.0.0.1:54321/functions/v1/aceptar-invitacion -H "Content-Type: application/json" -d "{}" | grep -q codigo; do sleep 2; done'
       - run: npm run test:rls

@@ -12,6 +12,9 @@ vi.mock('../../../src/lib/db', async () => {
   const { createMemoryDb, MemoryTable } = await import('../../helpers/memoryDb')
   return {
     db: createMemoryDb({
+      lugares: new MemoryTable(),
+      minimosLugar: new MemoryTable(),
+      lugarActivo: new MemoryTable(),
       insumos: new MemoryTable(),
       cambiosInsumo: new MemoryTable(),
       lotes: new MemoryTable(),
@@ -31,6 +34,7 @@ import {
   validarEdicionInsumo,
 } from '../../../src/features/insumos/lib/catalogo'
 import { catalogoCategorias } from '../../../src/features/insumos/lib/categorias'
+import { TENANT_1 } from '../../helpers/tenancy'
 
 const insumosT = db.insumos as unknown as MemoryTable<Insumo>
 const cambiosT = db.cambiosInsumo as unknown as MemoryTable<CambioInsumo>
@@ -39,6 +43,7 @@ const categoriasT = db.categorias as unknown as MemoryTable<Categoria>
 
 function insumo(overrides: Partial<Insumo>): Insumo {
   return {
+    tenantId: TENANT_1,
     id: 'i1',
     nombre: 'Anestesia',
     categoria: 'Cirugía',
@@ -56,6 +61,8 @@ function insumo(overrides: Partial<Insumo>): Insumo {
 }
 
 const admin: UsuarioActual = {
+  tenantId: TENANT_1,
+  desactivadoEn: null,
   id: 'admin-1',
   email: 'a@x.cl',
   nombre: 'Admin',
@@ -127,6 +134,7 @@ describe('validarEdicionInsumo (FR-014)', () => {
     const catalogoConOrtodoncia = catalogoCategorias(
       [
         {
+          tenantId: TENANT_1,
           id: 'cat-1',
           nombre: 'Ortodoncia',
           creadoPor: 'admin-1',
@@ -198,6 +206,7 @@ describe('editarInsumo (FR-012/FR-013/FR-015)', () => {
   it('succeeds when the categoría is a created Categoria row', async () => {
     categoriasT.seed([
       {
+        tenantId: TENANT_1,
         id: 'cat-1',
         nombre: 'Ortodoncia',
         creadoPor: 'admin-1',

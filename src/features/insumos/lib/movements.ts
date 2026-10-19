@@ -1,11 +1,19 @@
 import { db, type Movimiento } from '../../../lib/db'
-import { getUsuarioActualId } from '../../../stores/authStore'
+import { getUsuarioActualId, tenantActualOFallar } from '../../../stores/authStore'
+import { lugarParaEscribirOFallar } from '../../../stores/lugarStore'
 
 export interface CrearMovimientoInput {
   tipo: Movimiento['tipo']
   loteId: string
   cantidad: number
   movimientoOrigenId?: string
+  /**
+   * Spec 014 FR-010/FR-014 — lugar del movimiento. Sin él, el lugar activo;
+   * en "Todos" hay que pasarlo (lo elige "¿En qué lugar?").
+   */
+  lugarId?: string
+  /** Spec 014 (research.md R4) — solo para las dos mitades de un traslado. */
+  trasladoId?: string
 }
 
 /**
@@ -26,6 +34,9 @@ export async function crearMovimiento(
 
   const movimiento: Movimiento = {
     id: crypto.randomUUID(),
+    tenantId: tenantActualOFallar(),
+    lugarId: lugarParaEscribirOFallar(input.lugarId),
+    trasladoId: input.trasladoId ?? null,
     tipo: input.tipo,
     loteId: input.loteId,
     cantidad: input.cantidad,

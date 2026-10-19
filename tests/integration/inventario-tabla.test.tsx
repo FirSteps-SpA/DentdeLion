@@ -14,6 +14,9 @@ vi.mock('../../src/lib/db', async () => {
   const { createMemoryDb, MemoryTable } = await import('../helpers/memoryDb')
   return {
     db: createMemoryDb({
+      lugares: new MemoryTable(),
+      minimosLugar: new MemoryTable(),
+      lugarActivo: new MemoryTable(),
       insumos: new MemoryTable(),
       lotes: new MemoryTable(),
       movimientos: new MemoryTable(),
@@ -30,6 +33,8 @@ import { onMemoryDbChange } from '../helpers/memoryDb'
 import { InventarioView } from '../../src/features/insumos/components/InventarioView'
 import { useInventoryStore } from '../../src/stores/inventoryStore'
 import { useAuthStore } from '../../src/stores/authStore'
+import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
+import { usarLugar1 } from '../helpers/lugarFalso'
 
 const movimientosT = db.movimientos as unknown as MemoryTable<Movimiento>
 const lotesT = db.lotes as unknown as MemoryTable<Lote>
@@ -40,6 +45,7 @@ function insumo(
   extra: Partial<Insumo> = {},
 ): Insumo {
   return {
+    tenantId: TENANT_1,
     id,
     nombre,
     categoria: 'Protección',
@@ -61,6 +67,8 @@ const insumos = [
 ]
 const lotes: Lote[] = [
   {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
     id: 'l1',
     insumoId: 'i1',
     numeroLote: 'G1',
@@ -73,6 +81,9 @@ const lotes: Lote[] = [
 ]
 const movimientos: Movimiento[] = [
   {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
+    trasladoId: null,
     id: 'm1',
     tipo: 'ingreso',
     loteId: 'l1',
@@ -102,6 +113,8 @@ beforeEach(async () => {
   })
   useAuthStore.setState({
     usuario: {
+      tenantId: TENANT_1,
+      desactivadoEn: null,
       id: 'u1',
       email: 'a@x.cl',
       nombre: 'Ana',
@@ -120,6 +133,9 @@ afterEach(() => {
 
 const fila = (nombre: string) =>
   screen.getByRole('row', { name: new RegExp(nombre) })
+
+// Spec 014: un tenant de un solo lugar, como la clínica original.
+beforeEach(usarLugar1)
 
 describe('inventario en tabla (spec 013 US5)', () => {
   it('muestra una tabla con las columnas del DS y una fila por insumo', () => {

@@ -4,11 +4,16 @@ export interface Perfil {
   id: string
   nombre: string
   rol: 'administrador' | 'personal'
+  /** Spec 014 FR-001. */
+  tenant_id: string
+  /** Spec 014 FR-021 — con fecha, el usuario está desactivado. */
+  desactivado_en: string | null
 }
 
 /**
  * Reads the caller's own `perfiles` row (contracts/supabase-schema.md — RLS
- * restricts reads to `id = auth.uid()`). Returns `null` on any failure so
+ * always lets a user read `id = auth.uid()`, even when deactivated, so the
+ * app can tell "acceso desactivado" apart, spec 014 FR-021). Returns `null` on any failure so
  * callers can fold it into the single generic login error (spec FR-005)
  * without distinguishing the reason.
  */
@@ -18,7 +23,7 @@ export async function fetchPerfilPropio(
 ): Promise<Perfil | null> {
   const { data, error } = await client
     .from('perfiles')
-    .select('id, nombre, rol')
+    .select('id, nombre, rol, tenant_id, desactivado_en')
     .eq('id', userId)
     .single()
 

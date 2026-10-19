@@ -1,5 +1,10 @@
 import { db, type Categoria, type Insumo, type Lote } from '../../../lib/db'
-import { getUsuarioActualId, useAuthStore } from '../../../stores/authStore'
+import {
+  getUsuarioActualId,
+  tenantActualOFallar,
+  useAuthStore,
+} from '../../../stores/authStore'
+import { lugarParaEscribirOFallar } from '../../../stores/lugarStore'
 import { claveNombre, validarStockMinimo, UNIDADES_MEDIDA, type UnidadMedida } from './catalogo'
 import {
   SIN_CATEGORIA,
@@ -130,6 +135,7 @@ export function validarAltaMaterial(
  */
 export async function darDeAltaMaterial(
   input: AltaMaterialInput,
+  opciones: { lugarId?: string } = {},
 ): Promise<{ insumo: Insumo; conLoteInicial: boolean }> {
   const usuarioId = getUsuarioActualId()
   if (!usuarioId) {
@@ -144,6 +150,11 @@ export async function darDeAltaMaterial(
     throw new Error('Solo un administrador puede crear categorías.')
   }
 
+  const tenantId = tenantActualOFallar()
+  // Spec 014 FR-010: el lote inicial queda en el lugar activo (o el elegido
+  // desde "Todos"). Sin stock inicial no hay lote, así que no hace falta lugar.
+  const lugarId =
+    input.stockInicial > 0 ? lugarParaEscribirOFallar(opciones.lugarId) : null
   const nombre = input.nombre.trim()
   const codigoFabricante = input.codigoFabricante.trim() || null
   const hoy = new Date().toISOString().slice(0, 10)
@@ -180,6 +191,7 @@ export async function darDeAltaMaterial(
         } else {
           const nuevaCategoria: Categoria = {
             id: crypto.randomUUID(),
+            tenantId,
             nombre: input.categoria.trim(),
             creadoPor: usuarioId,
             creadoEn: new Date().toISOString(),
@@ -197,6 +209,7 @@ export async function darDeAltaMaterial(
 
       const insumo: Insumo = {
         id: crypto.randomUUID(),
+        tenantId,
         nombre,
         categoria: categoriaNombre,
         unidadMedida: input.unidadMedida,
@@ -212,9 +225,11 @@ export async function darDeAltaMaterial(
       await db.insumos.add(insumo)
 
       let conLoteInicial = false
-      if (input.stockInicial > 0) {
+      if (input.stockInicial > 0 && lugarId) {
         const lote: Lote = {
           id: crypto.randomUUID(),
+          tenantId,
+          lugarId,
           insumoId: insumo.id,
           numeroLote: input.lote.numeroLote.trim(),
           proveedor: input.lote.proveedor.trim(),
@@ -228,6 +243,7 @@ export async function darDeAltaMaterial(
           tipo: 'ingreso',
           loteId: lote.id,
           cantidad: input.stockInicial,
+          lugarId,
         })
         conLoteInicial = true
       }

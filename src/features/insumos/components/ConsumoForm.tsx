@@ -14,6 +14,7 @@ import { Badge } from '../../../components/ui/Badge'
 import { Card } from '../../../components/ui/Card'
 import { IconField } from '../../../components/ui/IconField'
 import { TouchButton } from '../../../components/ui/TouchButton'
+import { useLugarStore } from '../../../stores/lugarStore'
 
 /**
  * User Story 2 (P2): busca un insumo y confirma una cantidad de consumo,
@@ -30,10 +31,16 @@ import { TouchButton } from '../../../components/ui/TouchButton'
 export interface ConsumoFormProps {
   insumoInicial?: Insumo
   onDone?: () => void
+  /** Spec 014 FR-014 — lugar elegido desde "Todos"; sin él, el lugar activo. */
+  lugarId?: string
 }
 
-export function ConsumoForm({ insumoInicial, onDone }: ConsumoFormProps = {}) {
+export function ConsumoForm({ insumoInicial, onDone, lugarId: lugarElegido }: ConsumoFormProps = {}) {
   const lotesCache = useInventoryStore((s) => s.lotes)
+  const lugarActivoId = useLugarStore((s) => s.lugarActivoId)
+  // Spec 014 FR-010: el stock disponible es el del lote en este lugar.
+  const lugarId =
+    lugarElegido ?? (lugarActivoId && lugarActivoId !== 'todos' ? lugarActivoId : null)
   const [insumo, setInsumo] = useState<Insumo | null>(insumoInicial ?? null)
   const [lotesConStock, setLotesConStock] = useState<LoteConStock[]>([])
   // Only set by a user action (manual override in the <select>, or a scan
@@ -53,10 +60,9 @@ export function ConsumoForm({ insumoInicial, onDone }: ConsumoFormProps = {}) {
       const lotesDelInsumo = lotesDeInsumo(lotesCache, insumo!.id)
       const conStock = await Promise.all(
         lotesDelInsumo.map(async (lote) => {
-          const movimientos = await db.movimientos
-            .where('loteId')
-            .equals(lote.id)
-            .toArray()
+          const movimientos = (
+            await db.movimientos.where('loteId').equals(lote.id).toArray()
+          ).filter((movimiento) => !lugarId || movimiento.lugarId === lugarId)
           return { lote, stockDisponible: computeStockLote(movimientos) }
         }),
       )
@@ -67,7 +73,7 @@ export function ConsumoForm({ insumoInicial, onDone }: ConsumoFormProps = {}) {
     return () => {
       cancelado = true
     }
-  }, [insumo, lotesCache])
+  }, [insumo, lotesCache, lugarId])
 
   const cantidadNumerica = Number(cantidad) || 0
   const loteSeleccionado = loteOverrideId
@@ -126,6 +132,7 @@ export function ConsumoForm({ insumoInicial, onDone }: ConsumoFormProps = {}) {
         tipo: 'consumo',
         loteId: loteSeleccionado.lote.id,
         cantidad: cantidadNumerica,
+        lugarId: lugarId ?? undefined,
       })
       setMensajeExito(`Consumo de "${insumo.nombre}" registrado.`)
       reiniciar()

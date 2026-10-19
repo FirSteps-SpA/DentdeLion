@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { Insumo, Lote, Movimiento } from '../../src/lib/db'
 
@@ -22,13 +22,17 @@ vi.mock('../../src/lib/db', () => ({
 }))
 
 vi.mock('../../src/stores/authStore', () => ({
-  getUsuarioActualId: () => 'user-1',
+  getUsuarioActualId: () => 'user-1',  // Spec 014: tenant de la clínica original (literal: el factory se iza).
+  tenantActualOFallar: () => '00000000-0000-4000-8000-000000000001',
 }))
 
 import { ConsumoForm } from '../../src/features/insumos/components/ConsumoForm'
 import { useInventoryStore } from '../../src/stores/inventoryStore'
+import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
+import { usarLugar1 } from '../helpers/lugarFalso'
 
 const insumo: Insumo = {
+  tenantId: TENANT_1,
   id: 'insumo-1',
   nombre: 'Anestesia local',
   categoria: 'Farmacia',
@@ -44,6 +48,8 @@ const insumo: Insumo = {
 }
 
 const loteProximo: Lote = {
+  tenantId: TENANT_1,
+  lugarId: LUGAR_1,
   id: 'lote-proximo',
   insumoId: insumo.id,
   numeroLote: 'A-1',
@@ -55,6 +61,8 @@ const loteProximo: Lote = {
 }
 
 const loteLejano: Lote = {
+  tenantId: TENANT_1,
+  lugarId: LUGAR_1,
   id: 'lote-lejano',
   insumoId: insumo.id,
   numeroLote: 'A-2',
@@ -67,6 +75,9 @@ const loteLejano: Lote = {
 
 function ingreso(loteId: string, cantidad: number): Movimiento {
   return {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
+    trasladoId: null,
     id: crypto.randomUUID(),
     tipo: 'ingreso',
     loteId,
@@ -92,6 +103,9 @@ async function seleccionarInsumo() {
   fireEvent.click(screen.getByRole('button', { name: /Anestesia local/ }))
   await screen.findByLabelText(/Lote/)
 }
+
+// Spec 014: un tenant de un solo lugar, como la clínica original.
+beforeEach(usarLugar1)
 
 describe('ConsumoForm (User Story 2, quickstart Scenarios 2-3)', () => {
   it('descuenta por defecto del lote con fecha de caducidad más próxima (FR-006)', async () => {

@@ -14,8 +14,9 @@ import { Card, KpiCard } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { useAlertasStore } from '../../../stores/alertasStore'
 import { useAuthStore } from '../../../stores/authStore'
-import { useInventoryStore } from '../../../stores/inventoryStore'
-import { resumenInicio, type AlertaInicio } from '../lib/resumenInicio'
+import { resumenInicioPorLugares, type AlertaInicio } from '../lib/resumenInicio'
+import { useVistasDeLugar } from '../../insumos/lib/vistaLugar'
+import { ChipLugar } from '../../../app/ChipLugar'
 
 export interface InicioViewProps {
   onNavegar: (vista: Vista) => void
@@ -34,8 +35,9 @@ function textoDias(dias: number): string {
   return `vence en ${dias} ${dias === 1 ? 'día' : 'días'}`
 }
 
-function FilaAlerta({ alerta }: { alerta: AlertaInicio }) {
-  const { insumo, tipo, lote, diasRestantes, stockActual } = alerta
+function FilaAlerta({ alerta, conLugar }: { alerta: AlertaInicio; conLugar: boolean }) {
+  const { insumo, tipo, lote, diasRestantes, stockActual, lugar } = alerta
+  const chip = conLugar && lugar ? <ChipLugar nombre={lugar.nombre} /> : null
   if (tipo === 'stock-bajo') {
     const critico = stockActual === 0
     return (
@@ -50,7 +52,7 @@ function FilaAlerta({ alerta }: { alerta: AlertaInicio }) {
             {insumo.nombre}
           </span>
           <span className="text-caption text-text-muted">
-            Stock: {stockActual} (mínimo {insumo.stockMinimo})
+            Stock: {stockActual} (mínimo {insumo.stockMinimo}) {chip}
           </span>
         </span>
         <Badge variant={critico ? 'danger' : 'warning-30'}>
@@ -72,7 +74,7 @@ function FilaAlerta({ alerta }: { alerta: AlertaInicio }) {
           {insumo.nombre}
         </span>
         <span className="text-caption text-text-muted">
-          Lote {lote?.numeroLote} · {textoDias(diasRestantes ?? 0)}
+          Lote {lote?.numeroLote} · {textoDias(diasRestantes ?? 0)} {chip}
         </span>
       </span>
       <Badge variant={caducado ? 'danger' : 'urgent-7'}>
@@ -96,25 +98,19 @@ function puntoVencimiento(dias: number): string {
  */
 export function InicioView({ onNavegar }: InicioViewProps) {
   const usuario = useAuthStore((s) => s.usuario)
-  const insumos = useInventoryStore((s) => s.insumos)
-  const lotes = useInventoryStore((s) => s.lotes)
-  const movimientos = useInventoryStore((s) => s.movimientos)
-  const itemsCompra = useInventoryStore((s) => s.itemsCompra)
+  // Spec 014: el lugar activo; en "Todos", la suma de los lugares (FR-013).
+  const { vistas, esTodos } = useVistasDeLugar()
   const nivelesAvisoDias = useAlertasStore((s) => s.nivelesAvisoDias)
   const preferenciaStockBajo = useAlertasStore((s) => s.preferenciaStockBajo)
   const preferenciaCaducidad = useAlertasStore((s) => s.preferenciaCaducidad)
 
-  const resumen = resumenInicio({
-    insumos,
-    lotes,
-    movimientos,
-    itemsCompra,
-    nivelesAvisoDias,
-    preferencias: {
-      stockBajo: preferenciaStockBajo,
-      caducidad: preferenciaCaducidad,
-    },
-  })
+  const preferencias = {
+    stockBajo: preferenciaStockBajo,
+    caducidad: preferenciaCaducidad,
+  }
+  const resumen = resumenInicioPorLugares(
+    vistas.map(({ lugar, datos }) => ({ ...datos, nivelesAvisoDias, preferencias, lugar })),
+  )
   const primerNombre = usuario?.nombre.trim().split(/\s+/)[0] ?? ''
   const hoy = fecha.format(new Date())
 
@@ -206,8 +202,9 @@ export function InicioView({ onNavegar }: InicioViewProps) {
             <ul className="flex flex-col divide-y divide-border">
               {resumen.listaAlertas.map((alerta) => (
                 <FilaAlerta
-                  key={`${alerta.tipo}-${alerta.lote?.id ?? alerta.insumo.id}`}
+                  key={`${alerta.lugar?.id ?? ''}-${alerta.tipo}-${alerta.lote?.id ?? alerta.insumo.id}`}
                   alerta={alerta}
+                  conLugar={esTodos}
                 />
               ))}
             </ul>
@@ -239,8 +236,8 @@ export function InicioView({ onNavegar }: InicioViewProps) {
           ) : (
             <ul className="flex flex-col divide-y divide-border">
               {resumen.proximosVencimientos.map(
-                ({ insumo, lote, diasRestantes }) => (
-                  <li key={lote.id} className="flex items-center gap-3 py-2.5">
+                ({ insumo, lote, diasRestantes, lugar }) => (
+                  <li key={`${lugar?.id ?? ''}-${lote.id}`} className="flex items-center gap-3 py-2.5">
                     <span
                       aria-hidden="true"
                       className={`h-2.5 w-2.5 shrink-0 rounded-full ${puntoVencimiento(diasRestantes)}`}
@@ -250,7 +247,8 @@ export function InicioView({ onNavegar }: InicioViewProps) {
                         {insumo.nombre}
                       </span>
                       <span className="text-caption text-text-muted">
-                        Lote {lote.numeroLote} · {textoDias(diasRestantes)}
+                        Lote {lote.numeroLote} · {textoDias(diasRestantes)}{' '}
+                        {esTodos && lugar && <ChipLugar nombre={lugar.nombre} />}
                       </span>
                     </span>
                   </li>

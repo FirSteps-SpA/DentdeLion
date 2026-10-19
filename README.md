@@ -80,19 +80,30 @@ La fuente de verdad del esquema es `supabase/migrations/`; los archivos
 - Si accidentalmente commiteaste una clave real, rota la clave en el panel de Supabase de
   inmediato (no basta con borrarla del historial).
 
-## Cuentas de personal clínico (desarrollo)
+## Clientes y cuentas (desarrollo)
 
-No existe una pantalla de autorregistro ni de alta de usuarios en la app (spec
-`003-login-personal-clinico`, FR-009) — las cuentas se crean manualmente en el Supabase
-local:
+Desde la spec 014 la app atiende a varios clientes (tenants) aislados, cada uno con sus lugares de
+trabajo. No hay autorregistro: First Steps da de alta cada cliente y su administradora, y ella
+invita a su equipo desde **Ajustes → Equipo** con un enlace (correo, WhatsApp o copiar).
 
-1. Con Supabase local corriendo, abre Studio (`http://127.0.0.1:54323`).
-2. En **Authentication → Users**, crea un usuario de prueba (correo + contraseña) por cada rol
-   que quieras probar.
-3. Para cada usuario creado, inserta su fila correspondiente en `perfiles` (mismo `id` que el
-   usuario de Auth, `rol` en `'administrador'` o `'personal'`).
-4. Inicia sesión en la app local con esas credenciales para verificar el flujo de
-   [`quickstart.md`](specs/003-login-personal-clinico/quickstart.md).
+1. Con Supabase local corriendo, sirve la Edge Function de invitaciones en otra terminal:
+
+   ```sh
+   supabase functions serve --no-verify-jwt
+   ```
+
+2. Da de alta un cliente de prueba; el script imprime el enlace de invitación de su
+   administradora:
+
+   ```sh
+   npm run alta-tenant -- --nombre "Clínica X" --lugar "Sede Centro" --admin admin@test.local
+   ```
+
+3. Abre el enlace con `npm run dev` corriendo, define nombre y contraseña, y entra.
+
+Los datos que ya existían quedan en el tenant 1 / lugar 1 (UUID fijos de la migración
+`20261020000000_multi_tenant.sql`). El procedimiento de producción está en
+`1stDocs/004-operacion/alta-tenant.md`.
 
 ## Verificaciones de calidad
 
@@ -101,7 +112,8 @@ Antes de proponer un cambio, corre localmente:
 ```sh
 npm run lint    # orden de código (ESLint)
 npm run test    # pruebas (Vitest)
-npm run test:rls  # RLS y triggers contra Supabase local (requiere supabase start)
+npm run test:rls  # RLS, triggers e invitaciones contra Supabase local
+                  # (requiere supabase start y supabase functions serve)
 npm run build   # compilación (tsc + Vite)
 ```
 

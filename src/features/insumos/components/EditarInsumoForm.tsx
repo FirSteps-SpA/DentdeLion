@@ -5,6 +5,7 @@ import { lotesDeInsumo, useInventoryStore } from '../../../stores/inventoryStore
 import {
   editarInsumo,
   validarEdicionInsumo,
+  validarStockMinimo,
   ETIQUETAS_UNIDAD,
   UNIDADES_MEDIDA,
   type CambiosInsumoInput,
@@ -15,6 +16,8 @@ import { Minus, Plus, Scan } from '../../../components/icons'
 import { Card } from '../../../components/ui/Card'
 import { IconField } from '../../../components/ui/IconField'
 import { TouchButton } from '../../../components/ui/TouchButton'
+import { hayVariosLugares, nombreLugar, useLugarStore } from '../../../stores/lugarStore'
+import { guardarMinimoLugar } from '../lib/minimos'
 
 export interface EditarInsumoFormProps {
   insumo: Insumo
@@ -114,14 +117,34 @@ function ErrorCampo({ id, mensaje }: { id: string; mensaje?: string }) {
  * cada campo sin borrar lo escrito; "Cancelar" no escribe nada.
  */
 export function EditarInsumoForm({
-  insumo,
+  insumo: insumoMostrado,
   onGuardado,
   onCancelar,
 }: EditarInsumoFormProps) {
   const insumos = useInventoryStore((s) => s.insumos)
   const lotes = useInventoryStore((s) => s.lotes)
   const categoriasRows = useInventoryStore((s) => s.categorias)
+  const minimosLugar = useInventoryStore((s) => s.minimosLugar)
+  const lugares = useLugarStore((s) => s.lugares)
+  const lugarActivoId = useLugarStore((s) => s.lugarActivoId)
+  // Spec 014: la lista entrega el insumo con el mínimo del lugar activo; aquí
+  // se edita el del catálogo, así que se parte de la fila del catálogo.
+  const insumo = insumos.find((i) => i.id === insumoMostrado.id) ?? insumoMostrado
   const catalogo = catalogoCategorias(categoriasRows, insumos)
+  // Spec 014 FR-007: con varios lugares, el mínimo del lugar activo aparte.
+  const lugarMinimo =
+    hayVariosLugares(lugares) && lugarActivoId && lugarActivoId !== 'todos'
+      ? lugarActivoId
+      : null
+  const minimoLugarActual = lugarMinimo
+    ? (minimosLugar.find((m) => m.insumoId === insumo.id && m.lugarId === lugarMinimo)
+        ?.stockMinimo ?? null)
+    : null
+  const [minimoLugar, setMinimoLugar] = useState(
+    minimoLugarActual === null ? '' : String(minimoLugarActual),
+  )
+  const minimoLugarValor = minimoLugar.trim() === '' ? null : Number(minimoLugar)
+  const [errorMinimoLugar, setErrorMinimoLugar] = useState<string | null>(null)
   const [nombre, setNombre] = useState(insumo.nombre)
   const [categoria, setCategoria] = useState(
     () => resolverCategoria(insumo.categoria, catalogo) ?? insumo.categoria,
@@ -157,6 +180,7 @@ export function EditarInsumoForm({
     stockMinimoValor !== insumo.stockMinimo ||
     (codigoFabricante.trim() || null) !== insumo.codigoFabricante ||
     caduca !== insumo.caduca
+  const cambiaMinimoLugar = lugarMinimo !== null && minimoLugarValor !== minimoLugarActual
   const tieneLotes = lotesDeInsumo(lotes, insumo.id).length > 0
 
   function ajustarMinimo(delta: number) {
@@ -168,14 +192,21 @@ export function EditarInsumoForm({
     event.preventDefault()
     setErrorGeneral(null)
     const validacion = validarEdicionInsumo(insumo, cambios, insumos, catalogo)
-    if (!validacion.valido) {
-      setErrores(validacion.errores)
+    const errorLugar = cambiaMinimoLugar
+      ? validarStockMinimo(minimoLugarValor, unidadMedida)
+      : null
+    setErrorMinimoLugar(errorLugar)
+    if (!validacion.valido || errorLugar) {
+      setErrores(validacion.valido ? {} : validacion.errores)
       return
     }
     setErrores({})
     setIsPending(true)
     try {
-      await editarInsumo(insumo.id, cambios)
+      if (hayCambios) await editarInsumo(insumo.id, cambios)
+      if (cambiaMinimoLugar && lugarMinimo) {
+        await guardarMinimoLugar(insumo, lugarMinimo, minimoLugarValor)
+      }
       onGuardado()
     } catch (error) {
       setErrorGeneral(
@@ -258,7 +289,7 @@ export function EditarInsumoForm({
 
       <div className="flex flex-col gap-1.5 text-sm font-bold text-text">
         <label htmlFor="editar-stock-minimo">
-          Stock mínimo (vacío = sin alerta)
+          {lugarMinimo ? 'Stock mínimo del catálogo' : 'Stock mínimo'} (vacío = sin alerta)
         </label>
         <div className="flex items-stretch gap-2">
           <TouchButton
@@ -292,6 +323,33 @@ export function EditarInsumoForm({
         </div>
         <ErrorCampo id="error-stockMinimo" mensaje={errores.stockMinimo} />
       </div>
+
+      {lugarMinimo && (
+        <div className="flex flex-col gap-1.5 text-sm font-bold text-text">
+          <label htmlFor="editar-minimo-lugar">
+            Stock mínimo en {nombreLugar(lugares, lugarMinimo)}
+          </label>
+          <div className="touch-target flex items-center rounded-md border border-border bg-surface px-3.5">
+            <input
+              id="editar-minimo-lugar"
+              type="number"
+              step="any"
+              min={0}
+              value={minimoLugar}
+              placeholder={`Usar el del catálogo (${stockMinimoValor ?? 'sin alerta'})`}
+              onChange={(event) => setMinimoLugar(event.target.value)}
+              className="w-full border-none bg-transparent text-[15px] font-normal text-text outline-none"
+              {...(errorMinimoLugar
+                ? { 'aria-invalid': true, 'aria-describedby': 'error-minimo-lugar' }
+                : {})}
+            />
+          </div>
+          <p className="text-xs font-normal text-text-muted">
+            Vacío = usar el mínimo del catálogo en este lugar.
+          </p>
+          <ErrorCampo id="error-minimo-lugar" mensaje={errorMinimoLugar ?? undefined} />
+        </div>
+      )}
 
       <div className="flex flex-col gap-2">
         <IconField
@@ -343,7 +401,7 @@ export function EditarInsumoForm({
         </TouchButton>
         <TouchButton
           type="submit"
-          disabled={!hayCambios || isPending}
+          disabled={!(hayCambios || cambiaMinimoLugar) || isPending}
           className="flex-1"
         >
           {isPending ? 'Guardando…' : 'Guardar'}

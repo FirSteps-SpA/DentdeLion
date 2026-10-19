@@ -5,12 +5,16 @@ import {
   calcularIndicador,
   type EntradaIndicador,
 } from '../../src/lib/sync/indicador'
+import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
 
 const AHORA = Date.parse('2026-10-18T12:00:00.000Z')
 const haceHoras = (h: number) => new Date(AHORA - h * 3_600_000).toISOString()
 
 function movimiento(id: string, usuarioId: string, creadoEn = haceHoras(1), sincronizado = false): Movimiento {
   return {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
+    trasladoId: null,
     id,
     tipo: 'consumo',
     loteId: 'l1',
@@ -24,6 +28,7 @@ function movimiento(id: string, usuarioId: string, creadoEn = haceHoras(1), sinc
 
 function cambio(id: string, usuarioId: string, rechazadoEn: string | null = null): CambioInsumo {
   return {
+    tenantId: TENANT_1,
     id,
     insumoId: 'i1',
     campo: 'nombre',
@@ -38,6 +43,7 @@ function cambio(id: string, usuarioId: string, rechazadoEn: string | null = null
 
 function categoria(id: string, creadoPor: string): Categoria {
   return {
+    tenantId: TENANT_1,
     id,
     nombre: id,
     creadoPor,

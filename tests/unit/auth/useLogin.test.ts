@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 import { useAuthStore } from '../../../src/stores/authStore'
 
@@ -16,7 +16,18 @@ vi.mock('../../../src/lib/supabase/perfiles', () => ({
     id: userId,
     nombre: 'Ana Pérez',
     rol: 'personal',
+    tenant_id: '00000000-0000-4000-8000-000000000001',
+    desactivado_en: null,
   })),
+}))
+
+// Spec 014: el aislamiento local usa Dexie; aquí basta con que se llame.
+const aislarDatosLocales = vi.fn<(tenantId: string) => Promise<void>>(
+  async () => undefined,
+)
+vi.mock('../../../src/lib/tenancy', () => ({
+  aislarDatosLocales: (tenantId: string) => aislarDatosLocales(tenantId),
+  descargarLugares: async () => undefined,
 }))
 
 vi.mock('../../../src/lib/db', () => {
@@ -39,11 +50,15 @@ vi.mock('../../../src/lib/db', () => {
 
 import { useLogin } from '../../../src/features/auth/useLogin'
 import { fetchPerfilPropio } from '../../../src/lib/supabase/perfiles'
+import { usarLugar1 } from '../../helpers/lugarFalso'
 
 afterEach(() => {
   vi.clearAllMocks()
   useAuthStore.setState({ usuario: null, isReady: false })
 })
+
+// Spec 014: un tenant de un solo lugar, como la clínica original.
+beforeEach(usarLugar1)
 
 describe('useLogin', () => {
   it('persists UsuarioActual and updates authStore on success', async () => {
@@ -63,7 +78,13 @@ describe('useLogin', () => {
       email: 'ana@example.com',
       nombre: 'Ana Pérez',
       rol: 'personal',
+      tenantId: '00000000-0000-4000-8000-000000000001',
+      desactivadoEn: null,
     })
+    // Spec 014 FR-004: aísla los datos locales del tenant antes de entrar.
+    expect(aislarDatosLocales).toHaveBeenCalledWith(
+      '00000000-0000-4000-8000-000000000001',
+    )
     expect(result.current.error).toBeNull()
   })
 
