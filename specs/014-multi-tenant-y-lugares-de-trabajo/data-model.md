@@ -17,7 +17,7 @@ LUGAR_1  = '00000000-0000-4000-8000-000000000011'
 |---|---|---|
 | `tenants` | `id uuid pk`, `nombre text`, `creado_en` | La crea solo service role (alta manual, FR-003). Los usuarios leen su propio tenant |
 | `lugares` | `id uuid pk`, `tenant_id`, `nombre text`, `desactivado_en`, `creado_en`; `unique (id, tenant_id)` para FK compuestas; índice único `(tenant_id, lower(trim(nombre)))` | Lee el tenant y escribe solo el administrador. No se puede desactivar el último lugar activo (trigger) |
-| `minimos_lugar` | `tenant_id`, `insumo_id`, `lugar_id`, `stock_minimo numeric`; PK `(insumo_id, lugar_id)` | Lee el tenant y escribe solo el administrador |
+| `minimos_lugar` | `tenant_id`, `insumo_id`, `lugar_id`, `stock_minimo numeric`; PK `(insumo_id, lugar_id)`; FK compuestas `(insumo_id, tenant_id)` y `(lugar_id, tenant_id)` | Lee el tenant y escribe solo el administrador |
 | `invitaciones` | `id`, `tenant_id`, `correo`, `rol`, `token_hash`, `invitado_por`, `vence_en` (creación + 7 días), `estado` (`pendiente`/`aceptada`/`revocada`), `aceptada_por`, `creado_en` | Solo el administrador del tenant crea, lee y revoca. Solo la acepta la Edge Function (service role). "Vencida" se deriva de `vence_en < now()` |
 
 ### Columnas nuevas en tablas existentes
@@ -25,10 +25,10 @@ LUGAR_1  = '00000000-0000-4000-8000-000000000011'
 | Tabla | Nuevas | Notas |
 |---|---|---|
 | `perfiles` | `tenant_id not null`, `desactivado_en` | Es la membresía (R1). Rol sin cambios |
-| `insumos`, `categorias`, `cambios_insumo` | `tenant_id not null default tenant_actual()` | Catálogo compartido por los lugares del tenant |
-| `lotes` | `tenant_id`, `lugar_id` (lugar de alta) | FK compuesta `(lugar_id, tenant_id)` |
-| `movimientos` | `tenant_id`, `lugar_id not null`, `traslado_id uuid null`; `tipo` admite `traslado_salida` y `traslado_entrada` | El stock por lugar sale de aquí (R3) |
-| `items_compra` | `tenant_id`, `lugar_id not null` | Lista de compras por lugar |
+| `insumos`, `categorias`, `cambios_insumo` | `tenant_id not null default tenant_actual()`; `insumos` con `unique (id, tenant_id)` | Catálogo compartido por los lugares del tenant. `cambios_insumo` con FK compuesta `(insumo_id, tenant_id)`. La categoría del insumo es texto, sin FK |
+| `lotes` | `tenant_id`, `lugar_id` (lugar de alta); `unique (id, tenant_id)` | FK compuestas `(lugar_id, tenant_id)` e `(insumo_id, tenant_id)` |
+| `movimientos` | `tenant_id`, `lugar_id not null`, `traslado_id uuid null`; `tipo` admite `traslado_salida` y `traslado_entrada` | El stock por lugar sale de aquí (R3). FK compuestas `(lugar_id, tenant_id)` y `(lote_id, tenant_id)` |
+| `items_compra` | `tenant_id`, `lugar_id not null` | Lista de compras por lugar. FK compuestas `(lugar_id, tenant_id)` e `(insumo_id, tenant_id)` cuando `insumo_id` no es nulo |
 | `configuracion_alertas` | `tenant_id` (nueva PK); se quita el check singleton | Una fila por tenant |
 | `configuracion_clinica` | `tenant_id` | Se conserva una versión solo por compatibilidad (R7) |
 
@@ -43,6 +43,15 @@ LUGAR_1  = '00000000-0000-4000-8000-000000000011'
 | `proteger_ultimo_lugar()` | Impide desactivar el último lugar activo del tenant |
 | `proteger_ultimo_admin()` | Impide desactivar o degradar a la última administradora activa |
 | `crear_invitacion(correo, rol)` / `revocar_invitacion(id)` | RPC `security definer` para administradores: genera el token, guarda su hash y devuelve el token una sola vez |
+| `ver_invitacion(token)` | RPC `security definer` **público** (`anon`): devuelve `{correo, tenant}` solo si el hash coincide con una invitación pendiente y vigente; si no, nada. Es la única función que se puede llamar sin sesión |
+| `consumir_invitacion(token_hash, uid, nombre)` | Solo service role (Edge Function): marca la invitación aceptada y crea o reactiva el perfil |
+| `equipo_tenant` (vista `security definer`, o función que devuelve sus filas) | `id`, `nombre`, `correo` (de `auth.users.email`), `rol`, `desactivado_en` de los perfiles del tenant. Solo devuelve filas si `es_administrador(auth.uid())` |
+| `tenant_del_perfil()` | `tenant_id` del perfil de `auth.uid()` **aunque esté desactivado**, junto con `desactivado_en`. Solo se usa en la política de pendientes previos a la desactivación |
+
+**Pendientes de un usuario desactivado (FR-021)**: una política extra de `insert` en `lotes` y
+`movimientos` acepta filas con `usuario_id = auth.uid()`, `tenant_id` = su tenant y
+`creado_en < desactivado_en`. Todo lo demás le devuelve 0 filas, salvo su propio perfil, que
+siempre puede leer para que la app detecte la desactivación.
 
 ## Dispositivo (Dexie v10)
 

@@ -30,8 +30,9 @@ lugares de trabajo.
 **Language/Version**: TypeScript ~6.0 (React 19), Node.js ^22.22 o ≥24.15. Edge Function en Deno,
 con el runtime de Supabase Edge Functions.
 
-**Primary Dependencies**: sin dependencias npm nuevas. Supabase JS (cliente), `supabase-js` en la
-Edge Function (import de esm), Dexie, Zustand, Tailwind y `lucide-react`.
+**Primary Dependencies**: sin dependencias de producción nuevas. Supabase JS (cliente), `supabase-js`
+en la Edge Function (import de esm), Dexie, Zustand, Tailwind y `lucide-react`. Una devDependency
+nueva, `fake-indexeddb`, solo para probar el upgrade de Dexie v10 con IndexedDB real en Vitest.
 
 **Storage**:
 - Postgres (Supabase): 4 tablas nuevas, columnas `tenant_id`/`lugar_id`/`traslado_id`, funciones,
@@ -150,6 +151,15 @@ tests/integration/{lugares,traslado,equipo-invitacion,vista-todos}.test.tsx
   actualizar.
 - **Invitaciones sin correo automático**: decisión de R5, que cambia la redacción de FR-019. Si más
   adelante se configura un SMTP propio, se puede agregar el envío automático sin cambiar el modelo.
+- **Clientes 2.2.0 con varios lugares**: un cliente 2.2.0 en caché descarga lotes y movimientos de
+  todos los lugares sin filtrarlos, así que mostraría el stock sumado. Además, no entiende los tipos
+  `traslado_*`. Mientras el tenant tenga un solo lugar no pasa nada (el caso de la clienta actual).
+  Por eso, antes de crear el segundo lugar o el primer traslado, todos los dispositivos del tenant
+  deben estar actualizados: el aviso de actualización del service worker y la verificación de
+  versión en el procedimiento de despliegue.
+- **Pendientes de un usuario desactivado**: el servidor acepta sus `lotes` y `movimientos` con
+  `creado_en` anterior a `desactivado_en`. El valor lo pone el cliente, pero la persona era de
+  confianza hasta ese momento, y es preferible a perder consumos clínicos (Constitución I).
 - **Datos de otros tenants en el dispositivo**: se borran las filas sincronizadas de otros tenants al
   cambiar de tenant. Los pendientes ajenos quedan en IndexedDB, ocultos para la app pero accesibles
   con las herramientas del navegador. Es aceptable mientras sean unos pocos registros en un

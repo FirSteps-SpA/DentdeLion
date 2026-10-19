@@ -68,8 +68,13 @@ un solo lugar (plan, Riesgos).
     FK compuesta `(lugar_id, tenant_id) → lugares(id, tenant_id)` y los índices `(tenant_id)` y
     `(lugar_id)` en `lotes`, `movimientos` e `items_compra`.
 
-  Revisar las `unique` actuales que deban pasar a incluir `tenant_id`; por ejemplo, el nombre de
-  categoría único por tenant y no global.
+  Agregar `unique (id, tenant_id)` en `insumos` y `lotes`, y reemplazar las FK simples por FK
+  compuestas para que ninguna referencia cruce tenants:
+  - `(insumo_id, tenant_id) → insumos` en `lotes`, `cambios_insumo`, `items_compra` y
+    `minimos_lugar`;
+  - `(lote_id, tenant_id) → lotes` en `movimientos`.
+
+  El esquema actual no tiene otras restricciones `unique` que migrar (data-model.md).
 - [ ] T006 Bloque 3: agregar `perfiles.tenant_id` (backfill `TENANT_1`, `not null`, FK) y
   `perfiles.desactivado_en timestamptz null`.
 - [ ] T007 Bloque 4: en `configuracion_alertas`, quitar la PK y el check singleton de `id = 'global'`
@@ -85,7 +90,9 @@ un solo lugar (plan, Riesgos).
   - `es_administrador(uid)` redefinida para exigir `desactivado_en is null`;
   - el trigger `lugar_por_defecto()` (`before insert` en `lotes`, `movimientos` e `items_compra`);
   - `proteger_ultimo_lugar()` (`before update` en `lugares`);
-  - `proteger_ultimo_admin()` (`before update` en `perfiles`).
+  - `proteger_ultimo_admin()` (`before update` en `perfiles`);
+  - `tenant_del_perfil()`, que devuelve el tenant aunque el perfil esté desactivado, junto con
+    `desactivado_en`.
 
   Poner `default tenant_actual()` en todas las columnas `tenant_id` de T005.
 - [ ] T010 Bloque 6, traslado: crear `verificar_traslado()` como `constraint trigger ... deferrable
@@ -100,11 +107,22 @@ un solo lugar (plan, Riesgos).
     base64url, guarda `encode(digest(token,'sha256'),'hex')` y devuelve `{id, token, vence_en}`;
   - `revocar_invitacion(id)`.
 
-  Crear también `consumir_invitacion(token_hash, uid)`, ejecutable solo por service role, que marca
-  la invitación como aceptada y crea o reactiva el perfil.
+  Crear también:
+  - `consumir_invitacion(token_hash, uid, nombre)`, ejecutable solo por service role, que en una
+    transacción marca la invitación como aceptada y crea o reactiva el perfil;
+  - `ver_invitacion(token)`, la única función con `grant execute` a `anon`, que devuelve
+    `{correo, tenant}` solo para una invitación pendiente y vigente, y nada en cualquier otro caso;
+  - la vista `equipo_tenant` (`security definer`, o función equivalente):
+    `id, nombre, correo (auth.users.email), rol, desactivado_en` de los perfiles del tenant, con
+    filas solo si `es_administrador(auth.uid())`.
 - [ ] T012 Bloque 7, RLS: eliminar todas las políticas `using (true)` / `with check (true)` y crear
   las de la tabla de políticas del esquema, conservando las reglas actuales de autor = `auth.uid()`
-  y solo administrador. Hacer `revoke` de `execute` a `anon` en las funciones nuevas que no sean
+  y solo administrador. Además:
+  - `perfiles`: el `select` del propio perfil es `id = auth.uid()`, sin depender de
+    `tenant_actual()`, para que un usuario desactivado lea su `desactivado_en` (T018, T056);
+  - `lotes` y `movimientos`: una política extra de `insert` para pendientes previos a la
+    desactivación (`usuario_id = auth.uid()`, `tenant_id = tenant_del_perfil()` y
+    `creado_en < desactivado_en`, FR-021). Hacer `revoke` de `execute` a `anon` en las funciones nuevas que no sean
   públicas.
 - [ ] T013 Correr `supabase db reset` en local y comprobar que la migración aplica sin errores sobre
   la baseline y las dos migraciones anteriores. Correr `npm run test:rls` y ver que los casos
@@ -133,8 +151,12 @@ un solo lugar (plan, Riesgos).
     "Clínica") y `sincronizado: true` (R8).
 - [ ] T016 [P] Escribir `tests/unit/dexie-v10.test.ts`: abrir una base en v9 con datos (insumo, lote,
   movimiento pendiente, ítem de compra y configuración), abrir en v10 y comprobar `tenantId`,
-  `lugarId`, `sincronizado` intacto y la fila de `LUGAR_1`. Seguir el patrón de las pruebas de
-  upgrade previas (`fake-indexeddb`, si ya se usa en el proyecto; si no, sobre `memoryDb`).
+  `lugarId`, `sincronizado` intacto y la fila de `LUGAR_1`.
+  - Agregar `fake-indexeddb` como devDependency (`npm install -D fake-indexeddb`, plan, Primary
+    Dependencies) y usar `import 'fake-indexeddb/auto'` solo en este archivo, porque `memoryDb` no
+    ejecuta los upgrades de Dexie.
+  - Para la base v9, declarar en el test una instancia `Dexie('inDENToryDB')` con el esquema
+    `version(1..9)` de `src/lib/db/index.ts`, cerrarla y luego importar `db`.
 - [ ] T017 Actualizar `tests/helpers/memoryDb.ts` y `tests/helpers/tablasMemoria.ts` con las tablas
   `lugares`, `minimosLugar` y `lugarActivo`. Crear helpers para construir filas con
   `tenantId: TENANT_1` y `lugarId: LUGAR_1` por defecto, y actualizar las fábricas de datos de prueba
@@ -201,10 +223,14 @@ un solo lugar (plan, Riesgos).
   US6 y US5):
   - lectura cruzada con 0 filas en cada tabla;
   - inserción y actualización con `tenant_id` ajeno rechazadas;
-  - FK compuesta con `lugar_id` de B rechazada;
+  - FK compuesta con `lugar_id` de B rechazada, y lote de A con `insumo_id` de B o movimiento de A
+    con `lote_id` de B, también rechazados;
   - personal de A que crea un lugar, rechazado;
   - último lugar y última administradora protegidos;
-  - usuario desactivado con 0 filas;
+  - usuario desactivado con 0 filas salvo su propio perfil;
+  - usuario desactivado que sube un movimiento con `creado_en` anterior a `desactivado_en`
+    (aceptado) y otro posterior (rechazado);
+  - `equipo_tenant` con filas para el administrador y 0 para el personal;
   - inserción "forma 2.2.0" sin `tenant_id` ni `lugar_id`, que cae en su tenant y lugar principal.
 - [ ] T026 [US1] Correr `npm run test:rls` y corregir la migración hasta que todos los casos pasen
   (SC-001).
@@ -398,10 +424,9 @@ lugar.
   `tests/unit/ajustes/invitaciones.test.ts` con `clienteFalso`.
 - [ ] T053 [P] [US5] Crear `src/features/ajustes/lib/equipo.ts` con `listarEquipo()` (perfiles del
   tenant con correo), `cambiarRol(uid, rol)`, `desactivarUsuario(uid)` y `reactivarUsuario(uid)`,
-  traduciendo el error de `proteger_ultimo_admin` a "Debe quedar al menos una administradora". El
-  correo sale de la invitación aceptada o de una vista `security definer` `equipo_tenant` en la
-  migración; si hace falta la vista, agregarla a T011 y a la tabla de políticas del esquema. Pruebas
-  en `tests/unit/ajustes/equipo.test.ts`.
+  traduciendo el error de `proteger_ultimo_admin` a "Debe quedar al menos una administradora".
+  `listarEquipo()` lee la vista `equipo_tenant` (T011), que también da el correo de los usuarios que
+  nunca recibieron invitación. Pruebas en `tests/unit/ajustes/equipo.test.ts`.
 - [ ] T054 [US5] Crear `src/features/ajustes/components/EquipoSection.tsx` según UI, "Equipo":
   - lista de personas, "Cambiar rol" y "Desactivar" / "Reactivar";
   - "+ Invitar" con correo y rol, que al crear muestra el enlace con "Enviar por correo",
@@ -412,8 +437,8 @@ lugar.
   Incluirla en `AjustesView.tsx` solo para administradores (US5-7).
 - [ ] T055 [US5] Crear `src/features/auth/AceptarInvitacion.tsx` según UI, "Pantalla de
   invitación":
-  - el correo y el nombre del tenant salen de un RPC público `ver_invitacion(token)`, que solo
-    devuelve `{correo, tenant}` si la invitación está vigente (agregarlo a T011 y al esquema);
+  - el correo y el nombre del tenant salen del RPC público `ver_invitacion(token)` (T011). Si no
+    devuelve nada, se muestra "Esta invitación ya no es válida";
   - formulario y validación de contraseña con la regla visible;
   - "Unirme" llama a la Edge Function con `supabase.functions.invoke` y, si sale bien, a `useLogin`
     con el correo y la contraseña;
@@ -424,8 +449,14 @@ lugar.
 - [ ] T056 [US5] Crear la pantalla "Tu acceso a Dentdelion está desactivado…" con "Cerrar sesión"
   (UI, "Usuario sin acceso") en `src/features/auth/AccesoDesactivado.tsx`. Mostrarla desde `App.tsx`
   si `accesoDesactivado` (T018) es verdadero o si `lugarStore` no tiene lugares activos. En sync,
-  si `fetchPerfilPropio` devuelve `desactivado_en` durante `validarSesion`, marcar el estado y
-  detener el ciclo sin borrar pendientes (FR-021).
+  si `fetchPerfilPropio` devuelve `desactivado_en` durante `validarSesion`:
+  - marcar el estado;
+  - hacer un último push solo de `lotes` y `movimientos` propios con `creado_en < desactivado_en`;
+  - detener el ciclo sin borrar los pendientes restantes;
+  - mostrar en la pantalla de acceso desactivado "{n} registros no se pudieron subir" si quedan
+    (FR-021, Edge Case "usuario desactivado con pendientes").
+
+  Pruebas en `tests/unit/sync-desactivado.test.ts`.
 - [ ] T057 [P] [US5] Escribir `tests/integration/equipo-invitacion.test.tsx`:
   - la administradora invita y ve los tres botones con el enlace correcto;
   - revocar quita la invitación de pendientes;
@@ -524,7 +555,9 @@ lugar.
 
   Documentar también el orden de despliegue: respaldo, `supabase db push`,
   `supabase functions deploy aceptar-invitacion`, configurar `APP_URL` si hace falta y recién
-  después el front.
+  después el front. Agregar el paso "antes de crear el segundo lugar o el primer traslado de un
+  tenant, confirmar que todos sus dispositivos están en la versión nueva", porque un cliente 2.2.0
+  sumaría el stock de todos los lugares (plan, Riesgos).
 - [ ] T070 [P] Agregar a `README.md` la Edge Function (`supabase functions serve
   aceptar-invitacion` para desarrollo local) y el script `alta-tenant`.
 - [ ] T071 Correr `npm run lint && npm run build && npm test && npm run test:rls`, todo verde.
@@ -537,7 +570,9 @@ lugar.
 - [ ] T073 Descripción del PR:
   - el cambio de RLS (tabla de políticas) y la Edge Function con service role, para revisión de
     seguridad;
-  - el orden de despliegue;
+  - el orden de despliegue y el riesgo de los clientes 2.2.0 con varios lugares;
+  - que la gestión de equipo e invitaciones requiere conexión, una excepción aceptada al Principio
+    I porque no es flujo clínico;
   - el cambio de FR-019;
   - los resultados de T065–T068.
 

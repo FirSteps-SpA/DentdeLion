@@ -41,7 +41,7 @@ autoservicio; acceso de usuarios restringido por lugar (el modelo queda preparad
 
 - Q: ¿Todos los usuarios de un tenant ven todos sus lugares, o el acceso se asigna por lugar? → A: En esta spec, todos los usuarios del tenant ven todos sus lugares; el modelo de datos queda preparado para asignar acceso por lugar más adelante sin rehacer los datos.
 - Q: ¿Se pueden trasladar insumos entre lugares del mismo tenant? → A: Sí, con un movimiento de traslado que descuenta en el lugar de origen y suma en el de destino, por lote, como una sola operación trazable.
-- Q: ¿Cómo se da de alta un cliente nuevo? → A: First Steps crea el tenant, su primer lugar y su administradora de forma manual (procedimiento documentado); la administradora invita por correo a las personas de su equipo, que quedan en su tenant.
+- Q: ¿Cómo se da de alta un cliente nuevo? → A: First Steps crea el tenant, su primer lugar y su administradora de forma manual (procedimiento documentado); la administradora invita a las personas de su equipo con un enlace personal (que envía por correo, WhatsApp o copia), y quedan en su tenant.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -136,7 +136,7 @@ borrar su historial.
 
 ### User Story 5 - Invitar al equipo (Priority: P3)
 
-Como administradora de mi tenant, quiero invitar por correo a las personas de mi equipo (con rol
+Como administradora de mi tenant, quiero invitar con un enlace a las personas de mi equipo (con rol
 administrador o personal) para que entren a mi inventario sin pedírselo a First Steps.
 
 **Why this priority**: Hoy cada usuario lo crea First Steps a mano. Con varios clientes eso no
@@ -187,6 +187,7 @@ muestra el traslado vinculado.
 - **Pendientes offline de otro lugar**: un consumo registrado sin conexión en el lugar 1 sigue perteneciendo al lugar 1 aunque el usuario cambie al lugar 2 antes de sincronizar.
 - **Dispositivo compartido entre tenants**: si en un dispositivo inicia sesión un usuario de otro tenant, no puede ver los datos locales del tenant anterior. Los pendientes del usuario anterior se conservan para cuando esa persona vuelva a entrar (spec 012).
 - **Lugar desactivado con stock**: desactivar un lugar con stock disponible exige confirmación y advierte que su stock deja de verse en el selector.
+- **Usuario desactivado con pendientes**: si una persona registró consumos sin conexión y la desactivan antes de sincronizar, los registrados antes de la desactivación llegan al servidor (no se pierde stock clínico). Lo registrado después se rechaza y la app muestra cuántos registros quedaron sin subir.
 - **Usuario sin lugares**: un usuario que no tiene acceso a ningún lugar ve un mensaje para contactar a su administradora, no una app vacía.
 - **Nombre duplicado**: dos lugares del mismo tenant no pueden llamarse igual (sin distinguir mayúsculas). Dos tenants sí pueden tener lugares con el mismo nombre.
 - **Traslado de un lote caducado o en revisión**: se permite trasladarlo (el stock existe físicamente), pero mantiene su estado y sus alertas en el destino.
@@ -225,7 +226,7 @@ muestra el traslado vinculado.
 - **FR-015**: Todos los usuarios activos de un tenant DEBEN acceder a todos sus lugares activos. El modelo de membresía DEBE permitir, en una spec futura, restringir el acceso por lugar sin migrar datos.
 - **FR-019**: Una administradora DEBE poder invitar a una persona con rol administrador o personal mediante un enlace personal que la app le permite enviar por correo, WhatsApp o copiar; la invitación vence a los 7 días y se puede revocar.
 - **FR-020**: Al aceptar la invitación, la persona define su contraseña y queda en el tenant que la invitó con el rol indicado. Un correo ya registrado en otro tenant no puede aceptarse.
-- **FR-021**: Una administradora DEBE poder desactivar y reactivar usuarios de su tenant y cambiar su rol. Un usuario desactivado no puede entrar ni sincronizar, y su autoría en el historial se conserva. Siempre queda al menos una administradora activa.
+- **FR-021**: Una administradora DEBE poder desactivar y reactivar usuarios de su tenant y cambiar su rol. Un usuario desactivado no puede entrar ni sincronizar datos nuevos, y su autoría en el historial se conserva. Los movimientos que registró sin conexión **antes** de ser desactivado se siguen subiendo; los posteriores se rechazan y la app indica cuántos quedaron sin subir. Siempre queda al menos una administradora activa.
 
 **Traslados (US6)**
 
@@ -259,7 +260,7 @@ muestra el traslado vinculado.
 - **SC-004**: Cambiar de lugar actualiza todas las secciones en menos de 1 segundo, sin recargar.
 - **SC-005**: Un consumo registrado sin conexión en un lugar llega a ese lugar al sincronizar en el 100% de los casos, aunque el usuario haya cambiado de lugar entretanto.
 - **SC-006**: Una administradora crea un lugar nuevo y empieza a registrar inventario en él en menos de 2 minutos.
-- **SC-007**: Una persona invitada pasa del correo de invitación a ver el inventario del tenant en menos de 3 minutos.
+- **SC-007**: Una persona invitada pasa del enlace de invitación a ver el inventario del tenant en menos de 3 minutos.
 - **SC-008**: En el 100% de los traslados (con o sin conexión), la suma del stock del lote en origen y destino es la misma antes y después.
 
 ## Assumptions
