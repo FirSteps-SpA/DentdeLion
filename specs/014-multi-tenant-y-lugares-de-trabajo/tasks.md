@@ -568,13 +568,13 @@ lugar.
 - [X] T070 [P] Agregar a `README.md` la Edge Function (`supabase functions serve
   aceptar-invitacion` para desarrollo local) y el script `alta-tenant`.
 - [X] T071 Correr `npm run lint && npm run build && npm test && npm run test:rls`, todo verde.
-- [ ] T072 [P] *(Backlog actualizado; falta el estado del roadmap, que se cambia al abrir el PR.)* En `../1stDocs/005-roadmap/002-DentdeLion.md`, actualizar el estado de la 014 cuando
+- [X] T072 [P] *(Hecho: backlog y roadmap con la 014 hecha, PR #10 en `develop`.)* En `../1stDocs/005-roadmap/002-DentdeLion.md`, actualizar el estado de la 014 cuando
   el PR esté abierto. En el backlog, anotar:
   - el envío automático de invitaciones con SMTP propio (R5);
   - el acceso por lugar (`accesos_lugar`, aclaración 1);
   - eliminar `configuracion_clinica` en la spec siguiente (R7);
   - los pendientes ajenos visibles con las herramientas del navegador (plan, Riesgos).
-- [ ] T073 Descripción del PR:
+- [X] T073 *(Hecho en el PR #10.)* Descripción del PR:
   - el cambio de RLS (tabla de políticas) y la Edge Function con service role, para revisión de
     seguridad;
   - el orden de despliegue y el riesgo de los clientes 2.2.0 con varios lugares;
