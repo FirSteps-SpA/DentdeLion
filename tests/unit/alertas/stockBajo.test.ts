@@ -5,6 +5,8 @@ import { LUGAR_1, TENANT_1 } from '../../helpers/tenancy'
 
 function makeInsumo(overrides: Partial<Insumo>): Insumo {
   return {
+    unidadCompra: 'caja',
+    contenido: 1,
     tenantId: TENANT_1,
     id: crypto.randomUUID(),
     nombre: 'Guantes de nitrilo',
@@ -24,6 +26,11 @@ function makeInsumo(overrides: Partial<Insumo>): Insumo {
 
 function makeLote(overrides: Partial<Lote>): Lote {
   return {
+    cantidadIngresada: null,
+    unidadIngresada: null,
+    contenido: 1,
+    unidadConsumo: 'unidad',
+    precioCompra: null,
     tenantId: TENANT_1,
     lugarId: LUGAR_1,
     id: crypto.randomUUID(),
@@ -40,6 +47,7 @@ function makeLote(overrides: Partial<Lote>): Lote {
 
 function makeMovimiento(overrides: Partial<Movimiento>): Movimiento {
   return {
+    unidad: 'unidad',
     tenantId: TENANT_1,
     lugarId: LUGAR_1,
     trasladoId: null,

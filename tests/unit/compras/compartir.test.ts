@@ -10,6 +10,8 @@ import { LUGAR_1, TENANT_1 } from '../../helpers/tenancy'
 
 function insumo(overrides: Partial<Insumo>): Insumo {
   return {
+    unidadCompra: 'caja',
+    contenido: 1,
     tenantId: TENANT_1,
     id: 'i1',
     nombre: 'Guantes M',
@@ -52,7 +54,12 @@ afterEach(() => {
 describe('construirTextoCompartir', () => {
   it('lists sugeridos and manuales, con cantidad y origen', () => {
     const sugeridos: ItemSugerido[] = [
-      { insumo: insumo({ nombre: 'Guantes M' }), stockBajo: true, caducado: false },
+      {
+        insumo: insumo({ nombre: 'Guantes M' }),
+        stockBajo: true,
+        caducado: false,
+        presentacionesSugeridas: null,
+      },
     ]
     const manuales = [itemCompra({ nombre: 'Torundas', cantidad: 3 })]
 
@@ -60,6 +67,25 @@ describe('construirTextoCompartir', () => {
 
     expect(texto).toContain('Guantes M (Sugerido)')
     expect(texto).toContain('Torundas x3 (Manual)')
+  })
+
+  it('spec 015: incluye las presentaciones sugeridas (FR-020)', () => {
+    const sugeridos: ItemSugerido[] = [
+      {
+        insumo: insumo({
+          nombre: 'Articaína',
+          unidadMedida: 'cartucho',
+          unidadCompra: 'caja',
+          contenido: 50,
+        }),
+        stockBajo: true,
+        caducado: false,
+        presentacionesSugeridas: 2,
+      },
+    ]
+    expect(construirTextoCompartir(sugeridos, [])).toBe(
+      '- Articaína — pedir 2 cajas (100 cartuchos) (Sugerido)',
+    )
   })
 
   it('produces an empty string with no pending items', () => {

@@ -1,5 +1,6 @@
 import type {
   CambioInsumo,
+  CambioLote,
   Categoria,
   Movimiento,
   UsuarioConocido,
@@ -15,6 +16,8 @@ export interface PendientesPorAutor {
   movimientos: number
   cambiosInsumo: number
   categorias: number
+  /** Spec 015 (R6) — correcciones de precio de lotes sin subir. */
+  preciosLote?: number
   /** `creadoEn` de cada pendiente, para calcular antigüedades con el reloj actual. */
   creados: string[]
 }
@@ -39,7 +42,12 @@ export interface Indicador {
   /** `propios` para mostrar: "99+" desde 100. */
   etiqueta: string
   motivoError: 'servidor' | 'sesion' | null
-  desglosePropio: { movimientos: number; cambiosInsumo: number; categorias: number }
+  desglosePropio: {
+    movimientos: number
+    cambiosInsumo: number
+    categorias: number
+    preciosLote: number
+  }
   ajenos: PendientesAjenos[]
   /** Pendientes (propios y ajenos) que superan el umbral (FR-010). */
   antiguos: number
@@ -56,6 +64,8 @@ export function agruparPendientes(
   movimientos: Movimiento[],
   cambios: CambioInsumo[],
   categorias: Categoria[],
+  /** Spec 015 — sin rechazos por rol: solo cuenta la bandera `sincronizado`. */
+  cambiosLote: CambioLote[] = [],
 ): PendientesPorAutor[] {
   const porAutor = new Map<string, PendientesPorAutor>()
   const de = (usuarioId: string) => {
@@ -84,11 +94,17 @@ export function agruparPendientes(
     grupo.categorias++
     grupo.creados.push(categoria.creadoEn)
   }
+  for (const cambio of cambiosLote) {
+    if (cambio.sincronizado) continue
+    const grupo = de(cambio.usuarioId)
+    grupo.preciosLote = (grupo.preciosLote ?? 0) + 1
+    grupo.creados.push(cambio.creadoEn)
+  }
   return [...porAutor.values()]
 }
 
 const totalDe = (grupo: PendientesPorAutor) =>
-  grupo.movimientos + grupo.cambiosInsumo + grupo.categorias
+  grupo.movimientos + grupo.cambiosInsumo + grupo.categorias + (grupo.preciosLote ?? 0)
 
 export interface EntradaIndicador {
   usuarioId: string
@@ -153,6 +169,7 @@ export function calcularIndicador(entrada: EntradaIndicador): Indicador {
       movimientos: propio?.movimientos ?? 0,
       cambiosInsumo: propio?.cambiosInsumo ?? 0,
       categorias: propio?.categorias ?? 0,
+      preciosLote: propio?.preciosLote ?? 0,
     },
     ajenos,
     antiguos: creadosAntiguos.length,

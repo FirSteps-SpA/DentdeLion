@@ -30,6 +30,7 @@ vi.mock('../../src/lib/db', async () => {
       lotes: new MemoryTable(),
       movimientos: new MemoryTable(),
       cambiosInsumo: new MemoryTable(),
+      cambiosLote: new MemoryTable(),
       configuracionAlertas: new MemoryTable(),
       borradores: new MemoryTable(),
       usuarioActual: new MemoryTable(),
@@ -67,6 +68,8 @@ const borradoresT = db.borradores as unknown as MemoryTable<Borrador>
 
 function insumo(overrides: Partial<Insumo>): Insumo {
   return {
+    unidadCompra: 'pieza',
+    contenido: 1,
     tenantId: TENANT_1,
     id: crypto.randomUUID(),
     nombre: 'Insumo',
@@ -402,7 +405,9 @@ describe('AltaMaterialView — US2 (stock inicial + primer lote)', () => {
     fireEvent.change(screen.getByLabelText('Categoría'), {
       target: { value: 'Cirugía' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Cartucho' }))
+    fireEvent.change(screen.getByLabelText('Unidad de consumo'), {
+      target: { value: 'cartucho' },
+    })
     for (let i = 0; i < 10; i++) {
       fireEvent.click(screen.getAllByRole('button', { name: 'Sumar uno' })[1])
     }
@@ -427,6 +432,34 @@ describe('AltaMaterialView — US2 (stock inicial + primer lote)', () => {
     fireEvent.click(screen.getByText('Anestesia X'))
     const detalle = screen.getByText('Stock total: 10 cartucho').closest('div')!
     expect(within(detalle).getByText(/Lote A123/)).toBeInTheDocument()
+  }, 15000)
+
+  it('spec 015: 2 cajas de 50 muestran "2 cajas = 100 cartuchos" y suman 100 (US2-1)', async () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Material' }))
+    await screen.findByLabelText('Nombre del material')
+    fireEvent.change(screen.getByLabelText('Nombre del material'), {
+      target: { value: 'Articaína' },
+    })
+    fireEvent.change(screen.getByLabelText('Categoría'), { target: { value: 'Cirugía' } })
+    fireEvent.change(screen.getByLabelText('Unidad de consumo'), {
+      target: { value: 'cartucho' },
+    })
+    fireEvent.change(screen.getByLabelText('Se compra por'), { target: { value: 'caja' } })
+    fireEvent.change(screen.getByLabelText(/^Contenido/), { target: { value: '50' } })
+    fireEvent.change(screen.getByLabelText('Stock inicial (cajas)'), { target: { value: '2' } })
+    expect(screen.getByText('2 cajas = 100 cartuchos')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Número de lote'), { target: { value: 'A1' } })
+    fireEvent.change(screen.getByLabelText('Proveedor'), { target: { value: 'Septodont' } })
+    fireEvent.change(screen.getByLabelText('Fecha de vencimiento'), {
+      target: { value: '2027-01-01' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar e Ingresar' }))
+
+    await screen.findByText('«Articaína» agregado al inventario')
+    expect(movimientosT.all()[0]).toMatchObject({ cantidad: 100, unidad: 'cartucho' })
+    expect(lotesT.all()[0]).toMatchObject({ cantidadIngresada: 2, unidadIngresada: 'caja' })
   }, 15000)
 
   it('yesterday opens the confirm dialog and, after "Guardar igual", counts in the caducidad summary', async () => {
@@ -744,9 +777,10 @@ describe('AltaMaterialView — Polish (touch targets, FR-025)', () => {
       target: { value: '__nueva-categoria__' },
     })
 
-    const grupoUnidad = screen.getByRole('group', { name: 'Unidad de medida' })
-    for (const boton of within(grupoUnidad).getAllByRole('button')) {
-      expect(boton.className).toMatch(/touch-target/)
+    // Spec 015: la sección "Unidades" usa selectores de 48 px (Constitución III).
+    const unidades = screen.getByRole('group', { name: 'Unidades' })
+    for (const selector of within(unidades).getAllByRole('combobox')) {
+      expect(selector.className).toMatch(/touch-target/)
     }
     expect(
       screen.getByRole('button', { name: 'Volver a la lista' }).className,

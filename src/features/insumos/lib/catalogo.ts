@@ -12,27 +12,8 @@ import {
 } from './categorias'
 import { reproyectarEnTransaccion } from './proyeccion'
 import { permiteDecimales } from './quantity'
-
-/** Unidades de medida del alta/edición de insumos (spec 008 research.md R5). */
-export const UNIDADES_MEDIDA = [
-  'caja',
-  'frasco',
-  'pieza',
-  'cartucho',
-  'mL',
-  'g',
-] as const
-
-export type UnidadMedida = (typeof UNIDADES_MEDIDA)[number]
-
-export const ETIQUETAS_UNIDAD: Record<UnidadMedida, string> = {
-  caja: 'Caja',
-  frasco: 'Frasco',
-  pieza: 'Pieza',
-  cartucho: 'Cartucho',
-  mL: 'mL',
-  g: 'g',
-}
+import { esUnidad } from '../../../lib/unidades'
+import { validarPresentacion } from './presentacion'
 
 export type CambiosInsumoInput = Partial<Pick<Insumo, CampoEditableInsumo>>
 
@@ -44,6 +25,8 @@ const CAMPOS_EDITABLES: CampoEditableInsumo[] = [
   'nombre',
   'categoria',
   'unidadMedida',
+  'unidadCompra',
+  'contenido',
   'stockMinimo',
   'codigoFabricante',
   'caduca',
@@ -75,6 +58,13 @@ export function validarStockMinimo(
 /** Normaliza lo escrito en el formulario al valor que se persiste. */
 function normalizar(cambios: CambiosInsumoInput): CambiosInsumoInput {
   const normalizados: CambiosInsumoInput = { ...cambios }
+  // Spec 015 FR-004: misma unidad de compra y de consumo → contenido 1.
+  if (
+    normalizados.unidadCompra !== undefined &&
+    normalizados.unidadCompra === normalizados.unidadMedida
+  ) {
+    normalizados.contenido = 1
+  }
   if (normalizados.nombre !== undefined)
     normalizados.nombre = normalizados.nombre.trim()
   if (normalizados.codigoFabricante !== undefined) {
@@ -119,10 +109,14 @@ export function validarEdicionInsumo(
     errores.categoria = 'Elige una categoría existente.'
   }
 
-  if (
-    !(UNIDADES_MEDIDA as readonly string[]).includes(resultado.unidadMedida)
-  ) {
+  if (!esUnidad(resultado.unidadMedida)) {
     errores.unidadMedida = 'Elige una unidad de medida válida.'
+  } else if ('unidadCompra' in cambios || 'contenido' in cambios || 'unidadMedida' in cambios) {
+    // Spec 015 (FR-003/FR-004): solo si la presentación es parte del cambio,
+    // como la categoría.
+    const erroresPresentacion = validarPresentacion(resultado)
+    if (erroresPresentacion.unidadCompra) errores.unidadCompra = erroresPresentacion.unidadCompra
+    if (erroresPresentacion.contenido) errores.contenido = erroresPresentacion.contenido
   }
 
   const errorStockMinimo = validarStockMinimo(
@@ -135,6 +129,10 @@ export function validarEdicionInsumo(
     ? { valido: true }
     : { valido: false, errores }
 }
+
+/** Spec 015 FR-007a — mensaje cuando se intenta editar la unidad de un insumo con historial. */
+export const MENSAJE_USAR_CONVERSION =
+  'Este insumo ya tiene movimientos: para cambiar su unidad de consumo usa "Convertir unidad".'
 
 /** Exported for reuse outside this module (spec 010 — `categoriasAdmin.ts`/`clinica.ts`). */
 export function exigirAdministrador(accion: string): string {
@@ -152,6 +150,8 @@ export function nuevoCambio(
   valorAnterior: CambioInsumo['valorAnterior'],
   valorNuevo: CambioInsumo['valorNuevo'],
   usuarioId: string,
+  /** Spec 015 (research.md R3) — solo en una conversión de unidad de consumo. */
+  factor: number | null = null,
 ): CambioInsumo {
   return {
     id: crypto.randomUUID(),
@@ -160,6 +160,7 @@ export function nuevoCambio(
     campo,
     valorAnterior,
     valorNuevo,
+    factor,
     usuarioId,
     creadoEn: new Date().toISOString(),
     sincronizado: false,
@@ -183,12 +184,20 @@ export async function editarInsumo(
 
   await db.transaction(
     'rw',
-    db.insumos,
-    db.cambiosInsumo,
-    db.categorias,
+    [db.insumos, db.cambiosInsumo, db.categorias, db.lotes],
     async () => {
       const insumo = await db.insumos.get(insumoId)
       if (!insumo) throw new Error('El insumo no existe.')
+
+      // Spec 015 (FR-007a): con lotes (y por lo tanto movimientos), cambiar la
+      // unidad de consumo es una conversión con factor, no una edición.
+      if (
+        normalizados.unidadMedida !== undefined &&
+        normalizados.unidadMedida !== insumo.unidadMedida &&
+        (await db.lotes.where('insumoId').equals(insumoId).toArray()).length > 0
+      ) {
+        throw new Error(MENSAJE_USAR_CONVERSION)
+      }
 
       const activos = (await db.insumos.toArray()).filter(
         (i) => !i.dadoDeBajaEn,

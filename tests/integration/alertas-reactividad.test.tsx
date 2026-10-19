@@ -17,6 +17,8 @@ import { useAuthStore } from '../../src/stores/authStore'
 import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
 
 const insumo: Insumo = {
+  unidadCompra: 'mL',
+  contenido: 1,
   tenantId: TENANT_1,
   id: 'insumo-1',
   nombre: 'Anestesia local',
@@ -33,6 +35,11 @@ const insumo: Insumo = {
 }
 
 const lote: Lote = {
+  cantidadIngresada: null,
+  unidadIngresada: null,
+  contenido: 1,
+  unidadConsumo: 'unidad',
+  precioCompra: null,
   tenantId: TENANT_1,
   lugarId: LUGAR_1,
   id: 'lote-1',
@@ -47,6 +54,7 @@ const lote: Lote = {
 
 function ingreso(cantidad: number): Movimiento {
   return {
+    unidad: 'unidad',
     tenantId: TENANT_1,
     lugarId: LUGAR_1,
     trasladoId: null,
@@ -63,6 +71,7 @@ function ingreso(cantidad: number): Movimiento {
 
 function consumo(cantidad: number): Movimiento {
   return {
+    unidad: 'unidad',
     tenantId: TENANT_1,
     lugarId: LUGAR_1,
     trasladoId: null,

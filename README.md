@@ -135,6 +135,18 @@ que en `.env` local (producción, no las de desarrollo):
 CI (`.github/workflows/ci.yml`) corre `lint`, `test` y `build` en cada push/PR a `main` y
 `develop`, independiente del deploy.
 
+### Orden de despliegue con cambios de esquema
+
+1. Respaldo: `~/1STEPS/1stDocs/004-operacion/respaldo/respaldo.sh DentdeLion`.
+2. Migraciones: `supabase db push --linked`.
+3. Recién después, el front (merge a `main` → Netlify). Los clientes en caché siguen funcionando:
+   el servidor completa las columnas nuevas que no envían.
+
+**Spec 015 (unidades y costo unitario):** antes de la **primera conversión de unidad de consumo**
+de un tenant ("Convertir unidad" en la edición de un insumo), confirmar que todos sus
+dispositivos ya cargaron la versión nueva (abrir la app una vez con red). Una versión anterior no
+conoce el factor de conversión y mostraría el stock sin convertir.
+
 ## ¿Quedó bien configurado mi entorno?
 
 Checklist manual (sin script) — cada punto debe poder confirmarse a simple vista en menos de 2

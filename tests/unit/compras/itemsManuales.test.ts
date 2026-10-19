@@ -32,6 +32,8 @@ const itemsCompraT = db.itemsCompra as unknown as MemoryTable<ItemCompra>
 
 function insumo(overrides: Partial<Insumo>): Insumo {
   return {
+    unidadCompra: 'pieza',
+    contenido: 1,
     tenantId: TENANT_1,
     id: 'i1',
     nombre: 'Composite A2',

@@ -16,6 +16,7 @@ vi.mock('../../src/lib/db', async () => {
       configuracionAlertas: new MemoryTable(),
       configuracionClinica: new MemoryTable(),
       cambiosInsumo: new MemoryTable(),
+      cambiosLote: new MemoryTable(),
       categorias: new MemoryTable(),
       itemsCompra: new MemoryTable(),
       usuarioActual: new MemoryTable(),
@@ -70,6 +71,7 @@ import { usarLugar1 } from '../helpers/lugarFalso'
 const movimientosT = db.movimientos as unknown as MemoryTable<Movimiento>
 
 const consumoOffline: Movimiento = {
+  unidad: 'unidad',
   tenantId: TENANT_1,
   lugarId: LUGAR_1,
   trasladoId: null,

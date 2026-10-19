@@ -12,6 +12,8 @@ import { LUGAR_1, LUGAR_2, TENANT_1 } from '../helpers/tenancy'
 
 /** Spec 014 T031/T032/T033 (FR-006/FR-007, SC-003). */
 const insumo: Insumo = {
+  unidadCompra: 'caja',
+  contenido: 1,
   id: 'i1',
   tenantId: TENANT_1,
   nombre: 'Guantes',
@@ -28,6 +30,11 @@ const insumo: Insumo = {
 }
 
 const lote = (id: string, lugarId: string): Lote => ({
+  cantidadIngresada: null,
+  unidadIngresada: null,
+  contenido: 1,
+  unidadConsumo: 'unidad',
+  precioCompra: null,
   id,
   tenantId: TENANT_1,
   lugarId,
@@ -46,6 +53,7 @@ const mov = (
   tipo: Movimiento['tipo'],
   cantidad: number,
 ): Movimiento => ({
+  unidad: 'unidad',
   id: crypto.randomUUID(),
   tenantId: TENANT_1,
   lugarId,

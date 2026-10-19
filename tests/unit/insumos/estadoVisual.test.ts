@@ -8,6 +8,8 @@ import {
 import { TENANT_1 } from '../../helpers/tenancy'
 
 const insumo: Insumo = {
+  unidadCompra: 'caja',
+  contenido: 1,
   tenantId: TENANT_1,
   id: 'i1',
   nombre: 'Guantes',

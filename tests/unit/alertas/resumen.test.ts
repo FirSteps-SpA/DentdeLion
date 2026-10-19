@@ -5,6 +5,8 @@ import { LUGAR_1, TENANT_1 } from '../../helpers/tenancy'
 
 function insumo(overrides: Partial<Insumo>): Insumo {
   return {
+    unidadCompra: 'caja',
+    contenido: 1,
     tenantId: TENANT_1,
     id: crypto.randomUUID(),
     nombre: 'Insumo',
@@ -24,6 +26,11 @@ function insumo(overrides: Partial<Insumo>): Insumo {
 
 function lote(overrides: Partial<Lote>): Lote {
   return {
+    cantidadIngresada: null,
+    unidadIngresada: null,
+    contenido: 1,
+    unidadConsumo: 'unidad',
+    precioCompra: null,
     tenantId: TENANT_1,
     lugarId: LUGAR_1,
     id: crypto.randomUUID(),
@@ -40,6 +47,7 @@ function lote(overrides: Partial<Lote>): Lote {
 
 function ingreso(loteId: string, cantidad: number): Movimiento {
   return {
+    unidad: 'unidad',
     tenantId: TENANT_1,
     lugarId: LUGAR_1,
     trasladoId: null,

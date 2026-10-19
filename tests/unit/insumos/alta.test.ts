@@ -21,6 +21,7 @@ vi.mock('../../../src/lib/db', async () => {
       movimientos: new MemoryTable(),
       borradores: new MemoryTable(),
       cambiosInsumo: new MemoryTable(),
+      cambiosLote: new MemoryTable(),
       configuracionAlertas: new MemoryTable(),
       configuracionClinica: new MemoryTable(),
       itemsCompra: new MemoryTable(),
@@ -59,6 +60,8 @@ const borradoresT = db.borradores as unknown as MemoryTable<{
 
 function insumo(overrides: Partial<Insumo>): Insumo {
   return {
+    unidadCompra: 'pieza',
+    contenido: 1,
     tenantId: TENANT_1,
     id: crypto.randomUUID(),
     nombre: 'Insumo',
@@ -94,7 +97,7 @@ function inputBase(overrides: Partial<AltaMaterialInput> = {}): AltaMaterialInpu
     nombre: 'Fresa Diamante 856',
     categoria: 'Fresas',
     categoriaNueva: false,
-    unidadMedida: 'pieza',
+    unidadMedida: 'unidad',
     codigoFabricante: '',
     stockMinimo: null,
     caduca: true,
@@ -323,6 +326,42 @@ describe('darDeAltaMaterial — US2 (FR-013..FR-021, SC-003)', () => {
       usuarioId: 'admin-1',
       sincronizado: false,
     })
+  })
+
+  it('spec 015: stock inicial en cajas suma en cartuchos y guarda la presentación', async () => {
+    await darDeAltaMaterial(
+      inputConLote({
+        unidadMedida: 'cartucho',
+        unidadCompra: 'caja',
+        contenido: 50,
+        stockInicial: 2,
+      }),
+    )
+    expect(insumosT.all()[0]).toMatchObject({
+      unidadMedida: 'cartucho',
+      unidadCompra: 'caja',
+      contenido: 50,
+    })
+    expect(lotesT.all()[0]).toMatchObject({
+      cantidadIngresada: 2,
+      unidadIngresada: 'caja',
+      contenido: 50,
+      unidadConsumo: 'cartucho',
+    })
+    expect(movimientosT.all()[0]).toMatchObject({ cantidad: 100, unidad: 'cartucho' })
+  })
+
+  it('spec 015: el stock inicial puede ir en unidad de consumo', async () => {
+    await darDeAltaMaterial(
+      inputConLote({
+        unidadMedida: 'cartucho',
+        unidadCompra: 'caja',
+        contenido: 50,
+        stockInicial: 30,
+        unidadStockInicial: 'cartucho',
+      }),
+    )
+    expect(movimientosT.all()[0]).toMatchObject({ cantidad: 30, unidad: 'cartucho' })
   })
 
   it('throws without confirmarCaducado and writes nothing', async () => {

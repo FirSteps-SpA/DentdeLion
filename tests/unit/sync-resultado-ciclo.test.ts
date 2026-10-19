@@ -34,6 +34,11 @@ import { usarLugar1 } from '../helpers/lugarFalso'
 const movimientosT = db.movimientos as unknown as MemoryTable<Movimiento>
 
 const lote: Lote = {
+  cantidadIngresada: null,
+  unidadIngresada: null,
+  contenido: 1,
+  unidadConsumo: 'unidad',
+  precioCompra: null,
   tenantId: TENANT_1,
   lugarId: LUGAR_1,
   id: 'l1',
@@ -47,6 +52,7 @@ const lote: Lote = {
 }
 
 const movimiento: Movimiento = {
+  unidad: 'unidad',
   tenantId: TENANT_1,
   lugarId: LUGAR_1,
   trasladoId: null,

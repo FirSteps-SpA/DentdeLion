@@ -129,6 +129,8 @@ const insumoBajo = {
   nombre: 'Guantes',
   categoria: 'Cirugía',
   unidadMedida: 'caja',
+  unidadCompra: 'caja',
+  contenido: 1,
   permiteDecimales: false,
   caduca: false,
   codigoFabricante: null,
@@ -149,6 +151,11 @@ const loteBajo = {
   codigoFabricante: null,
   estado: 'activo' as const,
   creadoEn: '2026-01-01T00:00:00.000Z',
+  cantidadIngresada: null,
+  unidadIngresada: null,
+  contenido: 1,
+  unidadConsumo: 'caja',
+  precioCompra: null,
 }
 const ingresoBajo = {
   tenantId: TENANT_1,
@@ -158,6 +165,7 @@ const ingresoBajo = {
   tipo: 'ingreso' as const,
   loteId: 'l-bajo',
   cantidad: 1,
+  unidad: 'caja',
   usuarioId: 'u1',
   movimientoOrigenId: null,
   creadoEn: '2026-01-01T00:00:00.000Z',

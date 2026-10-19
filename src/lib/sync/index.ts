@@ -4,6 +4,7 @@ import { getSupabaseStatus } from '../supabase'
 import {
   db,
   type CambioInsumo,
+  type CambioLote,
   type Categoria,
   type ConfiguracionAlertas,
   type Insumo,
@@ -29,6 +30,7 @@ import { useAvisosStore } from '../../stores/avisosStore'
 import { useSyncStore, type ResultadoCiclo } from '../../stores/syncStore'
 import { reconcileOverdraft } from './reconcileOverdraft'
 import { esFallaDeRed, reportarErrorSync } from './reportar'
+import { normalizarUnidad } from '../unidades'
 
 interface InsumoRow {
   id: string
@@ -36,6 +38,9 @@ interface InsumoRow {
   nombre: string
   categoria: string
   unidad_medida: string
+  /** Spec 015 — opcionales al bajar solo por robustez: la migración los deja `not null`. */
+  unidad_compra?: string | null
+  contenido?: number | null
   permite_decimales: boolean
   caduca: boolean
   codigo_fabricante: string | null
@@ -65,6 +70,11 @@ interface LoteRow {
   codigo_fabricante: string | null
   estado: 'activo' | 'revision'
   creado_en: string
+  cantidad_ingresada?: number | null
+  unidad_ingresada?: string | null
+  contenido?: number | null
+  unidad_consumo?: string | null
+  precio_compra?: number | null
 }
 
 interface CambioInsumoRow {
@@ -74,8 +84,47 @@ interface CambioInsumoRow {
   campo: CambioInsumo['campo']
   valor_anterior: CambioInsumo['valorAnterior']
   valor_nuevo: CambioInsumo['valorNuevo']
+  factor?: number | null
   usuario_id: string
   creado_en: string
+}
+
+interface CambioLoteRow {
+  id: string
+  tenant_id: string
+  lote_id: string
+  campo: CambioLote['campo']
+  valor_anterior: number | null
+  valor_nuevo: number | null
+  usuario_id: string
+  creado_en: string
+}
+
+function toCambioLoteRow(cambio: CambioLote): CambioLoteRow {
+  return {
+    id: cambio.id,
+    tenant_id: cambio.tenantId,
+    lote_id: cambio.loteId,
+    campo: cambio.campo,
+    valor_anterior: cambio.valorAnterior,
+    valor_nuevo: cambio.valorNuevo,
+    usuario_id: cambio.usuarioId,
+    creado_en: cambio.creadoEn,
+  }
+}
+
+function fromCambioLoteRow(row: CambioLoteRow): CambioLote {
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    loteId: row.lote_id,
+    campo: row.campo,
+    valorAnterior: row.valor_anterior === null ? null : Number(row.valor_anterior),
+    valorNuevo: row.valor_nuevo === null ? null : Number(row.valor_nuevo),
+    usuarioId: row.usuario_id,
+    creadoEn: row.creado_en,
+    sincronizado: true,
+  }
 }
 
 interface CategoriaRow {
@@ -169,6 +218,7 @@ interface MovimientoRow {
   tipo: Movimiento['tipo']
   lote_id: string
   cantidad: number
+  unidad?: string | null
   usuario_id: string
   movimiento_origen_id: string | null
   creado_en: string
@@ -181,6 +231,8 @@ function toInsumoRow(insumo: Insumo): InsumoRow {
     nombre: insumo.nombre,
     categoria: insumo.categoria,
     unidad_medida: insumo.unidadMedida,
+    unidad_compra: insumo.unidadCompra,
+    contenido: insumo.contenido,
     permite_decimales: insumo.permiteDecimales,
     caduca: insumo.caduca,
     codigo_fabricante: insumo.codigoFabricante,
@@ -198,7 +250,9 @@ function fromInsumoRow(row: InsumoRow): Insumo {
     tenantId: row.tenant_id,
     nombre: row.nombre,
     categoria: row.categoria,
-    unidadMedida: row.unidad_medida,
+    unidadMedida: normalizarUnidad(row.unidad_medida),
+    unidadCompra: normalizarUnidad(row.unidad_compra ?? row.unidad_medida),
+    contenido: row.contenido ?? 1,
     permiteDecimales: row.permite_decimales,
     caduca: row.caduca,
     codigoFabricante: row.codigo_fabricante,
@@ -251,6 +305,11 @@ function toLoteRow(lote: Lote): LoteRow {
     codigo_fabricante: lote.codigoFabricante,
     estado: lote.estado,
     creado_en: lote.creadoEn,
+    cantidad_ingresada: lote.cantidadIngresada,
+    unidad_ingresada: lote.unidadIngresada,
+    contenido: lote.contenido,
+    unidad_consumo: lote.unidadConsumo,
+    precio_compra: lote.precioCompra,
   }
 }
 
@@ -266,6 +325,13 @@ function fromLoteRow(row: LoteRow): Lote {
     codigoFabricante: row.codigo_fabricante,
     estado: row.estado,
     creadoEn: row.creado_en,
+    cantidadIngresada: row.cantidad_ingresada ?? null,
+    unidadIngresada: row.unidad_ingresada ? normalizarUnidad(row.unidad_ingresada) : null,
+    contenido: row.contenido ?? 1,
+    // Sin la columna (no debería pasar tras la migración): la unidad no se
+    // conoce aquí; `unidad` vale como "sin conversión" en los factores.
+    unidadConsumo: normalizarUnidad(row.unidad_consumo ?? 'unidad'),
+    precioCompra: row.precio_compra ?? null,
   }
 }
 
@@ -332,6 +398,7 @@ function toCambioInsumoRow(cambio: CambioInsumo): CambioInsumoRow {
     campo: cambio.campo,
     valor_anterior: cambio.valorAnterior,
     valor_nuevo: cambio.valorNuevo,
+    factor: cambio.factor,
     usuario_id: cambio.usuarioId,
     creado_en: cambio.creadoEn,
   }
@@ -345,6 +412,7 @@ function fromCambioInsumoRow(row: CambioInsumoRow): CambioInsumo {
     campo: row.campo,
     valorAnterior: row.valor_anterior,
     valorNuevo: row.valor_nuevo,
+    factor: row.factor ?? null,
     usuarioId: row.usuario_id,
     creadoEn: row.creado_en,
     sincronizado: true,
@@ -361,6 +429,7 @@ function toMovimientoRow(movimiento: Movimiento): MovimientoRow {
     tipo: movimiento.tipo,
     lote_id: movimiento.loteId,
     cantidad: movimiento.cantidad,
+    unidad: movimiento.unidad,
     usuario_id: movimiento.usuarioId,
     movimiento_origen_id: movimiento.movimientoOrigenId,
     creado_en: movimiento.creadoEn,
@@ -376,6 +445,7 @@ function fromMovimientoRow(row: MovimientoRow): Movimiento {
     tipo: row.tipo,
     loteId: row.lote_id,
     cantidad: row.cantidad,
+    unidad: normalizarUnidad(row.unidad ?? 'unidad'),
     usuarioId: row.usuario_id,
     movimientoOrigenId: row.movimiento_origen_id,
     creadoEn: row.creado_en,
@@ -772,6 +842,44 @@ async function pushLotes(
 }
 
 /**
+ * Spec 015 (research.md R6, contracts/supabase-schema.md §7): sube las
+ * correcciones de precio pendientes del usuario con sesión. `cambios_lote` es
+ * insert-only y abierto a todo el tenant (Clarifications Q3), así que no hay
+ * rechazos por rol que manejar: un error deja las filas pendientes y es un
+ * error del ciclo. `ignoreDuplicates` porque reenviar una fila que ya llegó no
+ * debe fallar el lote. Va después de `pushLotes` (FK).
+ */
+async function pushCambiosLote(
+  client: SupabaseClient,
+  ciclo: CicloSync,
+): Promise<void> {
+  const usuarioId = usuarioActualId()
+  if (!usuarioId) return
+  const pendientes = delTenantActual(await db.cambiosLote.toArray()).filter(
+    (cambio) => !cambio.sincronizado && cambio.usuarioId === usuarioId,
+  )
+  if (pendientes.length === 0) return
+  const respuesta = await client
+    .from('cambios_lote')
+    .upsert(pendientes.map(toCambioLoteRow), { onConflict: 'id', ignoreDuplicates: true })
+  ciclo.registrar('push cambios_lote', errorDe(respuesta))
+  if (respuesta.error) return
+  await db.cambiosLote.bulkUpdate(
+    pendientes.map((cambio) => ({ key: cambio.id, changes: { sincronizado: true } })),
+  )
+}
+
+async function pullCambiosLote(
+  client: SupabaseClient,
+  ciclo: CicloSync,
+): Promise<void> {
+  const respuesta = await client.from('cambios_lote').select('*')
+  ciclo.registrar('pull cambios_lote', errorDe(respuesta))
+  if (respuesta.error || !respuesta.data) return
+  await db.cambiosLote.bulkPut((respuesta.data as CambioLoteRow[]).map(fromCambioLoteRow))
+}
+
+/**
  * Sube todas las filas locales de `itemsCompra` cada ciclo (research.md R2):
  * a diferencia de `categorias`/`cambios_insumo`, ninguna escritura puede ser
  * rechazada por rol (spec Clarifications: abierto a todo autenticado), así
@@ -1135,10 +1243,17 @@ async function subirPendientesPrevios(
   const previos = delTenantActual(await db.movimientos.toArray()).filter(
     (m) => !m.sincronizado && m.usuarioId === usuarioId && m.creadoEn < desactivadoEn,
   )
-  if (previos.length === 0) return
+  // Spec 015: las correcciones de precio previas también (política propia).
+  const preciosPrevios = delTenantActual(await db.cambiosLote.toArray()).filter(
+    (c) => !c.sincronizado && c.usuarioId === usuarioId && c.creadoEn < desactivadoEn,
+  )
+  if (previos.length === 0 && preciosPrevios.length === 0) return
   const yaArriba = (error: { code?: string } | null) => !error || error.code === '23505'
 
-  const loteIds = new Set(previos.map((m) => m.loteId))
+  const loteIds = new Set([
+    ...previos.map((m) => m.loteId),
+    ...preciosPrevios.map((c) => c.loteId),
+  ])
   for (const lote of await db.lotes.bulkGet([...loteIds])) {
     if (!lote || lote.creadoEn >= desactivadoEn) continue
     await client.from('lotes').insert(toLoteRow(lote))
@@ -1150,6 +1265,10 @@ async function subirPendientesPrevios(
         unidad.map((m) => ({ key: m.id, changes: { sincronizado: true } })),
       )
     }
+  }
+  for (const cambio of preciosPrevios) {
+    const { error } = await client.from('cambios_lote').insert(toCambioLoteRow(cambio))
+    if (yaArriba(error)) await db.cambiosLote.update(cambio.id, { sincronizado: true })
   }
 }
 
@@ -1227,6 +1346,7 @@ async function ejecutarCiclo(
   }
 
   await pushLotes(client, ciclo)
+  await pushCambiosLote(client, ciclo)
   await pushItemsCompra(client, ciclo)
   await pushMinimosLugar(client, ciclo)
   await pushConfiguracionAlertas(client, ciclo)
@@ -1235,6 +1355,7 @@ async function ejecutarCiclo(
   }
 
   await pullLotes(client, ciclo)
+  await pullCambiosLote(client, ciclo)
   await pullItemsCompra(client, ciclo)
   await pullMinimosLugar(client, ciclo)
   await pullConfiguracionAlertas(client, ciclo)

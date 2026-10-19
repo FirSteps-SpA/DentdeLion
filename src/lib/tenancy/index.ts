@@ -1,6 +1,7 @@
 import {
   db,
   type CambioInsumo,
+  type CambioLote,
   type Categoria,
   type Insumo,
   type ItemCompra,
@@ -20,6 +21,8 @@ interface TablasPorTenant {
   itemsCompra: ItemCompra
   lugares: Lugar
   minimosLugar: MinimoLugar
+  /** Spec 015 (Dexie v11). */
+  cambiosLote: CambioLote
 }
 
 /** Lo mínimo de una tabla Dexie indexada por `tenantId` que necesita `delTenant`. */
@@ -51,8 +54,8 @@ export async function delTenant<K extends keyof TablasPorTenant>(
  * ocultos para la app hasta que su dueño vuelva a entrar (spec 012).
  *
  * "Pendiente" según la tabla:
- * - `movimientos`, `cambiosInsumo`, `categorias`, `lugares`, `minimosLugar`:
- *   la bandera `sincronizado`;
+ * - `movimientos`, `cambiosInsumo`, `cambiosLote`, `categorias`, `lugares`,
+ *   `minimosLugar`: la bandera `sincronizado`;
  * - `insumos` y `lotes` no tienen bandera: se conservan los que referencia un
  *   pendiente que se conserva (sin ellos, ese pendiente no podría subir);
  * - `itemsCompra` tampoco tiene bandera y no lo referencia nada: se conservan
@@ -72,6 +75,7 @@ export async function aislarDatosLocales(tenantId: string): Promise<void> {
       db.itemsCompra,
       db.lugares,
       db.minimosLugar,
+      db.cambiosLote,
       db.configuracionAlertas,
       db.configuracionClinica,
     ],
@@ -87,9 +91,12 @@ export async function aislarDatosLocales(tenantId: string): Promise<void> {
       const cambiosAjenos = (await db.cambiosInsumo.toArray()).filter(ajeno)
       const cambiosConservados = cambiosAjenos.filter((cambio) => !cambio.sincronizado)
 
-      const lotesConservados = new Set(
-        movimientosConservados.map((movimiento: Movimiento) => movimiento.loteId),
-      )
+      const cambiosLoteAjenos = (await db.cambiosLote.toArray()).filter(ajeno)
+
+      const lotesConservados = new Set([
+        ...movimientosConservados.map((movimiento: Movimiento) => movimiento.loteId),
+        ...cambiosLoteAjenos.filter((c) => !c.sincronizado).map((c) => c.loteId),
+      ])
       const lotesAjenos = (await db.lotes.toArray()).filter(ajeno)
       const insumosConservados = new Set([
         ...cambiosConservados.map((cambio) => cambio.insumoId),
@@ -103,6 +110,9 @@ export async function aislarDatosLocales(tenantId: string): Promise<void> {
       )
       await db.cambiosInsumo.bulkDelete(
         cambiosAjenos.filter((c) => c.sincronizado).map((c) => c.id),
+      )
+      await db.cambiosLote.bulkDelete(
+        cambiosLoteAjenos.filter((c) => c.sincronizado).map((c) => c.id),
       )
       await db.lotes.bulkDelete(
         lotesAjenos.filter((lote) => !lotesConservados.has(lote.id)).map((l) => l.id),

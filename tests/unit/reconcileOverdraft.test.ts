@@ -19,6 +19,8 @@ vi.mock('../../src/lib/db', () => ({
     },
     lotes: {
       update: (...args: Parameters<typeof updateLote>) => updateLote(...args),
+      // Spec 015: sin lote conocido, los movimientos se leen sin convertir.
+      get: async () => undefined,
     },
   },
 }))
@@ -28,6 +30,7 @@ import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
 
 function makeMovimiento(overrides: Partial<Movimiento>): Movimiento {
   return {
+    unidad: 'unidad',
     tenantId: TENANT_1,
     lugarId: LUGAR_1,
     trasladoId: null,

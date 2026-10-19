@@ -9,6 +9,9 @@ vi.mock('../../src/lib/db', () => ({
     movimientos: {
       add: (...args: Parameters<typeof addMock>) => addMock(...args),
     },
+    // Spec 015: sin `unidad` explícita, se lee la del insumo del lote.
+    lotes: { get: async (id: string) => ({ id, insumoId: 'insumo-1' }) },
+    insumos: { get: async () => ({ id: 'insumo-1', unidadMedida: 'unidad' }) },
   },
 }))
 

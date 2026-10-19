@@ -21,6 +21,7 @@ vi.mock('../../src/lib/db', async () => {
       lotes: new MemoryTable(),
       movimientos: new MemoryTable(),
       cambiosInsumo: new MemoryTable(),
+      cambiosLote: new MemoryTable(),
       configuracionAlertas: new MemoryTable(),
       categorias: new MemoryTable(),
       usuarioActual: new MemoryTable(),
@@ -45,6 +46,8 @@ function insumo(
   extra: Partial<Insumo> = {},
 ): Insumo {
   return {
+    unidadCompra: 'caja',
+    contenido: 1,
     tenantId: TENANT_1,
     id,
     nombre,
@@ -67,6 +70,11 @@ const insumos = [
 ]
 const lotes: Lote[] = [
   {
+    cantidadIngresada: null,
+    unidadIngresada: null,
+    contenido: 1,
+    unidadConsumo: 'unidad',
+    precioCompra: null,
     tenantId: TENANT_1,
     lugarId: LUGAR_1,
     id: 'l1',
@@ -81,6 +89,7 @@ const lotes: Lote[] = [
 ]
 const movimientos: Movimiento[] = [
   {
+    unidad: 'unidad',
     tenantId: TENANT_1,
     lugarId: LUGAR_1,
     trasladoId: null,
@@ -148,8 +157,10 @@ describe('inventario en tabla (spec 013 US5)', () => {
     expect(encabezados).toEqual([
       'Producto',
       'Categoría',
+      'Presentación',
       'Stock',
       'Stock mínimo',
+      'Costo unitario',
       'Vencimiento',
       'Estado',
       'Acciones',
@@ -222,5 +233,52 @@ describe('inventario en tabla (spec 013 US5)', () => {
         name: 'Consumir 1 caja de Guantes nitrilo M',
       }),
     ).toBeInTheDocument()
+  })
+})
+
+describe('rendimiento de las conversiones y costos (spec 015 T070)', () => {
+  it('300 insumos, 3.000 movimientos y conversiones: menos de 100 ms', async () => {
+    const { normalizarMovimientos } = await import('../../src/features/insumos/lib/stock')
+    const { costosUnitariosPorInsumo } = await import('../../src/features/insumos/lib/precio')
+    const muchos = Array.from({ length: 300 }, (_, i) =>
+      insumo(`i${i}`, `Insumo ${i}`, { unidadMedida: 'unidad', unidadCompra: 'caja', contenido: 10 }),
+    )
+    const susLotes: Lote[] = muchos.flatMap((uno, i) => [
+      { ...lotes[0], id: `l${i}a`, insumoId: uno.id, precioCompra: 1000 + i, unidadConsumo: 'caja', creadoEn: '2026-01-01' },
+      { ...lotes[0], id: `l${i}b`, insumoId: uno.id, precioCompra: null, unidadConsumo: 'unidad', creadoEn: '2026-01-02' },
+    ])
+    const susMovimientos: Movimiento[] = susLotes.flatMap((lote, i) =>
+      Array.from({ length: 5 }, (_, j) => ({
+        ...movimientos[0],
+        id: `m${i}-${j}`,
+        loteId: lote.id,
+        cantidad: 1 + j,
+        unidad: lote.unidadConsumo,
+      })),
+    )
+    const cambios = muchos.map((uno, i) => ({
+      id: `c${i}`,
+      tenantId: TENANT_1,
+      insumoId: uno.id,
+      campo: 'unidadMedida' as const,
+      valorAnterior: 'caja',
+      valorNuevo: 'unidad',
+      factor: 10,
+      usuarioId: 'admin',
+      creadoEn: '2026-01-02T00:00:00.000Z',
+      sincronizado: true,
+      rechazadoEn: null,
+    }))
+
+    const inicio = performance.now()
+    const normalizados = normalizarMovimientos(susMovimientos, susLotes, muchos, cambios)
+    const costos = costosUnitariosPorInsumo(muchos, susLotes, [], cambios)
+    const duracion = performance.now() - inicio
+
+    expect(normalizados).toHaveLength(3000)
+    expect(normalizados.find((m) => m.id === 'm0-0')?.cantidad).toBe(10)
+    expect(costos.size).toBe(300)
+    expect(costos.get('i0')?.costo).toBe(100) // $1.000 por caja ÷ 10 unidades
+    expect(duracion).toBeLessThan(100)
   })
 })
