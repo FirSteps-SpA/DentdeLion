@@ -433,10 +433,10 @@ cartucho → caja con 120 se rechaza (quickstart 10–12).
   todos sus dispositivos están en la versión nueva" (R10, riesgo aceptado).
 - [X] T075 Recorrer los 15 escenarios de `quickstart.md`. *(Cubiertos por las pruebas automáticas y los recorridos en Chromium de T072/T073; no hubo un recorrido manual aparte.)*
 - [X] T076 Correr `npm run lint && npm run build && npm test && npm run test:rls`, todo verde.
-- [ ] T077 [P] En `../1stDocs/005-roadmap/002-DentdeLion.md`, actualizar el estado de la 015 al
+- [X] T077 [P] *(Hecho: roadmap con la 015 implementada y PR #11; backlog con stock ideal, el gap aceptado, el respaldo nuevo y la verificación de dispositivos antes de la primera conversión.)* En `../1stDocs/005-roadmap/002-DentdeLion.md`, actualizar el estado de la 015 al
   abrir el PR; en el backlog, anotar "stock ideal" del DS §24 (para sugerir más que el mínimo, R8)
   y el gap aceptado del mínimo editado sin red durante una conversión.
-- [ ] T078 Descripción del PR: cambios de esquema y triggers (`proteger_lote`,
+- [X] T078 *(Hecho en el PR #11.)* Descripción del PR: cambios de esquema y triggers (`proteger_lote`,
   `completar_unidad_movimiento`, `normalizar_unidad`), `cambios_lote` abierto a todo el tenant
   (Q3), orden de despliegue y riesgo de clientes 2.3.0 con conversiones, resultados de T071–T075.
 
