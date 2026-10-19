@@ -6,6 +6,9 @@ vi.mock('../../../src/lib/db', async () => {
   const { createMemoryDb, MemoryTable } = await import('../../helpers/memoryDb')
   return {
     db: createMemoryDb({
+      lugares: new MemoryTable(),
+      minimosLugar: new MemoryTable(),
+      lugarActivo: new MemoryTable(),
       usuarioActual: new MemoryTable(),
       usuariosConocidos: new MemoryTable(),
       borradores: new MemoryTable(),
@@ -15,11 +18,12 @@ vi.mock('../../../src/lib/db', async () => {
 
 import { db } from '../../../src/lib/db'
 import { useAuthStore } from '../../../src/stores/authStore'
+import { TENANT_1 } from '../../helpers/tenancy'
 
 const conocidosT = db.usuariosConocidos as unknown as MemoryTable<UsuarioConocido>
 
 function usuario(id: string, nombre: string): UsuarioActual {
-  return { id, email: `${id}@x.cl`, nombre, rol: 'personal', autenticadoEn: 'x' }
+  return { tenantId: TENANT_1, desactivadoEn: null, id, email: `${id}@x.cl`, nombre, rol: 'personal', autenticadoEn: 'x' }
 }
 
 beforeEach(() => {

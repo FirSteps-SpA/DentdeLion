@@ -4,7 +4,7 @@ import {
   type CampoEditableInsumo,
   type Insumo,
 } from '../../../lib/db'
-import { useAuthStore } from '../../../stores/authStore'
+import { tenantActualOFallar, useAuthStore } from '../../../stores/authStore'
 import {
   catalogoCategorias,
   resolverCategoria,
@@ -155,6 +155,7 @@ export function nuevoCambio(
 ): CambioInsumo {
   return {
     id: crypto.randomUUID(),
+    tenantId: tenantActualOFallar(),
     insumoId,
     campo,
     valorAnterior,

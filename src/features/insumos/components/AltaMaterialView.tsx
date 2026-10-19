@@ -24,6 +24,8 @@ import { ConfirmarLoteCaducadoDialog } from './ConfirmarLoteCaducadoDialog'
 
 export interface AltaMaterialViewProps {
   nombreInicial?: string
+  /** Spec 014 FR-014 — lugar del lote inicial (desde "Todos"); sin él, el activo. */
+  lugarId?: string
   onCreated: (resultado: { insumo: Insumo; conLoteInicial: boolean }) => void
   onCancel: () => void
   onAbrirExistente: (insumo: Insumo) => void
@@ -74,6 +76,7 @@ function ErrorCampo({ id, mensaje }: { id: string; mensaje?: string }) {
  */
 export function AltaMaterialView({
   nombreInicial,
+  lugarId,
   onCreated,
   onCancel,
   onAbrirExistente,
@@ -170,7 +173,7 @@ export function AltaMaterialView({
     setIsPending(true)
     setErrorGeneral(null)
     try {
-      const resultado = await darDeAltaMaterial(datosParaGuardar)
+      const resultado = await darDeAltaMaterial(datosParaGuardar, { lugarId })
       // Cancels any still-pending debounced borrador write (useBorradorAlta
       // would otherwise resurrect it on unmount) — the transaction above
       // already deleted the row, so this is a no-op on the DB.

@@ -15,6 +15,8 @@ interface AuthState {
   logout: () => Promise<void>
   /** Feature 007 FR-021b: refresh a role the server changed (e.g. admin demoted). */
   actualizarRol: (rol: UsuarioActual['rol']) => Promise<void>
+  /** Spec 014 FR-021: refleja la (des)activación que el sync leyó del servidor. */
+  marcarDesactivado: (desactivadoEn: string | null) => Promise<void>
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -54,6 +56,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await db.usuarioActual.put(actualizado)
     set({ usuario: actualizado })
   },
+  marcarDesactivado: async (desactivadoEn) => {
+    const usuario = get().usuario
+    if (!usuario || usuario.desactivadoEn === desactivadoEn) return
+    const actualizado = { ...usuario, desactivadoEn }
+    await db.usuarioActual.put(actualizado)
+    set({ usuario: actualizado })
+  },
 }))
 
 /**
@@ -62,4 +71,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
  */
 export function getUsuarioActualId(): string | undefined {
   return useAuthStore.getState().usuario?.id
+}
+
+/**
+ * Spec 014 FR-001/FR-004 — tenant del usuario con sesión. Toda fila de negocio
+ * nueva lo lleva, y todo lo que se lee de Dexie se filtra por él.
+ */
+export function getTenantActualId(): string | undefined {
+  return useAuthStore.getState().usuario?.tenantId
+}
+
+/** Igual que `getTenantActualId`, para escrituras: sin sesión local no se escribe nada. */
+export function tenantActualOFallar(): string {
+  const tenantId = getTenantActualId()
+  if (!tenantId) {
+    throw new Error('No hay un usuario autenticado local — no se puede registrar el cambio.')
+  }
+  return tenantId
 }

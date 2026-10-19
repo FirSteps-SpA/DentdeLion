@@ -14,8 +14,10 @@ vi.mock('../../src/lib/db', () => ({
 import { AlertasView } from '../../src/features/alertas/components/AlertasView'
 import { useInventoryStore } from '../../src/stores/inventoryStore'
 import { useAuthStore } from '../../src/stores/authStore'
+import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
 
 const insumo: Insumo = {
+  tenantId: TENANT_1,
   id: 'insumo-1',
   nombre: 'Anestesia local',
   categoria: 'Farmacia',
@@ -31,6 +33,8 @@ const insumo: Insumo = {
 }
 
 const lote: Lote = {
+  tenantId: TENANT_1,
+  lugarId: LUGAR_1,
   id: 'lote-1',
   insumoId: insumo.id,
   numeroLote: 'A-1',
@@ -43,6 +47,9 @@ const lote: Lote = {
 
 function ingreso(cantidad: number): Movimiento {
   return {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
+    trasladoId: null,
     id: crypto.randomUUID(),
     tipo: 'ingreso',
     loteId: lote.id,
@@ -56,6 +63,9 @@ function ingreso(cantidad: number): Movimiento {
 
 function consumo(cantidad: number): Movimiento {
   return {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
+    trasladoId: null,
     id: crypto.randomUUID(),
     tipo: 'consumo',
     loteId: lote.id,
@@ -76,6 +86,8 @@ describe('AlertasView reactivity (FR-011)', () => {
   it('reflects a new movimiento without remounting the component', () => {
     useAuthStore.setState({
       usuario: {
+        tenantId: TENANT_1,
+        desactivadoEn: null,
         id: 'user-1',
         email: 'a@a.com',
         nombre: 'Persona',
@@ -118,6 +130,8 @@ describe('AlertasView reactivity (FR-011)', () => {
   it('no longer shows the stock-mínimo/niveles-de-aviso config controls, even for an administrador (spec 010 FR-006/007/008)', () => {
     useAuthStore.setState({
       usuario: {
+        tenantId: TENANT_1,
+        desactivadoEn: null,
         id: 'admin-1',
         email: 'admin@a.com',
         nombre: 'Admin',

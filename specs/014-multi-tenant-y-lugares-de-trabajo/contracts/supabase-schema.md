@@ -29,7 +29,7 @@ Va en una sola transacción y en este orden (research.md R9):
 | `items_compra` | tenant | tenant y autor = `uid` | tenant | — |
 | `minimos_lugar`, `configuracion_alertas` | tenant | administrador | administrador | — |
 | `invitaciones` | administrador del tenant | RPC `crear_invitacion` | RPC `revocar_invitacion` | — |
-| `equipo_tenant` (vista) | administrador del tenant | — | — | — |
+| `equipo_tenant()` (RPC) | administrador del tenant | — | — | — |
 
 "Pendiente previo a la desactivación" significa `usuario_id = auth.uid()`, `tenant_id = tenant_del_perfil()`
 y `creado_en < desactivado_en` del perfil (FR-021, data-model.md).
@@ -53,7 +53,9 @@ los clientes 2.2.0 sigan escribiendo durante la transición (R2).
 | `correo_en_otro_tenant` | El correo ya tiene perfil en otro tenant |
 | `password_debil` | Auth rechaza la contraseña (política: 10+ caracteres, letras y dígitos) |
 
-Si el correo ya tiene un usuario de Auth **sin** perfil, se le asigna el perfil y la contraseña. Si
+Primero `revisar_invitacion` (solo service role) valida el token y dice si el correo ya tiene usuario
+de Auth y en qué tenant. Si el correo ya tiene un usuario de Auth **sin** perfil, se le asigna el
+perfil y la contraseña. Si
 tiene perfil en el **mismo** tenant, se reactiva. Con service role, primero crea o actualiza el
 usuario en Auth y después llama al RPC `consumir_invitacion`, que en una transacción marca la
 invitación y crea el perfil. Los dos pasos no son atómicos, pero reintentar es seguro: un usuario de
@@ -62,14 +64,16 @@ contraseña.
 
 ## Script `scripts/alta-tenant.mjs`
 
-`node scripts/alta-tenant.mjs --nombre "Clínica X" --lugar "Sede Centro" --admin correo@x.cl`, con
-service role desde `supabase status` (local) o con variables de entorno (producción).
+`npm run alta-tenant -- --nombre "Clínica X" --lugar "Sede Centro" --admin correo@x.cl`, con
+service role desde `supabase status` (local) o con `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` y
+`APP_URL` (producción).
 - Crea el tenant, el lugar y una invitación de administrador, e imprime el enlace.
 - En producción pide confirmación interactiva.
 
 ## `test:rls`: casos nuevos
 
-Dos tenants (A y B), cada uno con administrador y personal, y dos lugares en A.
+Dos tenants (A y B), cada uno con administrador y personal, y dos lugares en A. La Edge Function se
+sirve con `supabase functions serve` (también en CI, antes de `npm run test:rls`).
 
 | Caso | Esperado |
 |---|---|

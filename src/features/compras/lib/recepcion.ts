@@ -1,5 +1,6 @@
 import { db, type Insumo, type Lote } from '../../../lib/db'
-import { getUsuarioActualId } from '../../../stores/authStore'
+import { getUsuarioActualId, tenantActualOFallar } from '../../../stores/authStore'
+import { lugarParaEscribirOFallar } from '../../../stores/lugarStore'
 import { crearMovimiento } from '../../insumos/lib/movements'
 import { validateQuantity } from '../../insumos/lib/quantity'
 
@@ -74,6 +75,8 @@ export async function recibirEnInsumo(
   insumo: Insumo,
   input: RecepcionInput,
   itemCompraId: string | null,
+  /** Spec 014 FR-014 — lugar elegido en "¿En qué lugar?" desde "Todos". */
+  opciones: { lugarId?: string } = {},
 ): Promise<{ lote: Lote }> {
   const usuarioId = getUsuarioActualId()
   if (!usuarioId) {
@@ -91,6 +94,8 @@ export async function recibirEnInsumo(
     throw new Error('Confirma el ingreso de un lote ya caducado.')
   }
 
+  const tenantId = tenantActualOFallar()
+  const lugarId = lugarParaEscribirOFallar(opciones.lugarId)
   return db.transaction(
     'rw',
     db.lotes,
@@ -99,6 +104,8 @@ export async function recibirEnInsumo(
     async () => {
       const lote: Lote = {
         id: crypto.randomUUID(),
+        tenantId,
+        lugarId,
         insumoId: insumo.id,
         numeroLote: input.numeroLote.trim(),
         proveedor: input.proveedor.trim(),
@@ -112,6 +119,7 @@ export async function recibirEnInsumo(
         tipo: 'ingreso',
         loteId: lote.id,
         cantidad: input.cantidad,
+        lugarId,
       })
 
       if (itemCompraId !== null) {

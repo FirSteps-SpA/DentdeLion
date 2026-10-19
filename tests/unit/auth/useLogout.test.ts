@@ -26,8 +26,11 @@ vi.mock('../../../src/lib/db', () => ({
 
 import { useLogout } from '../../../src/features/auth/useLogout'
 import { db } from '../../../src/lib/db'
+import { TENANT_1 } from '../../helpers/tenancy'
 
 const usuarioDePrueba = {
+  tenantId: TENANT_1,
+  desactivadoEn: null,
   id: 'user-1',
   email: 'a@example.com',
   nombre: 'Ana',

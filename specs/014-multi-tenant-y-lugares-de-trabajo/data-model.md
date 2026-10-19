@@ -17,7 +17,7 @@ LUGAR_1  = '00000000-0000-4000-8000-000000000011'
 |---|---|---|
 | `tenants` | `id uuid pk`, `nombre text`, `creado_en` | La crea solo service role (alta manual, FR-003). Los usuarios leen su propio tenant |
 | `lugares` | `id uuid pk`, `tenant_id`, `nombre text`, `desactivado_en`, `creado_en`; `unique (id, tenant_id)` para FK compuestas; índice único `(tenant_id, lower(trim(nombre)))` | Lee el tenant y escribe solo el administrador. No se puede desactivar el último lugar activo (trigger) |
-| `minimos_lugar` | `tenant_id`, `insumo_id`, `lugar_id`, `stock_minimo numeric`; PK `(insumo_id, lugar_id)`; FK compuestas `(insumo_id, tenant_id)` y `(lugar_id, tenant_id)` | Lee el tenant y escribe solo el administrador |
+| `minimos_lugar` | `tenant_id`, `insumo_id`, `lugar_id`, `stock_minimo numeric null` (null = usar el del catálogo, así volver al catálogo es un upsert y no un borrado); PK `(insumo_id, lugar_id)`; FK compuestas `(insumo_id, tenant_id)` y `(lugar_id, tenant_id)` | Lee el tenant y escribe solo el administrador |
 | `invitaciones` | `id`, `tenant_id`, `correo`, `rol`, `token_hash`, `invitado_por`, `vence_en` (creación + 7 días), `estado` (`pendiente`/`aceptada`/`revocada`), `aceptada_por`, `creado_en` | Solo el administrador del tenant crea, lee y revoca. Solo la acepta la Edge Function (service role). "Vencida" se deriva de `vence_en < now()` |
 
 ### Columnas nuevas en tablas existentes
@@ -44,24 +44,28 @@ LUGAR_1  = '00000000-0000-4000-8000-000000000011'
 | `proteger_ultimo_admin()` | Impide desactivar o degradar a la última administradora activa |
 | `crear_invitacion(correo, rol)` / `revocar_invitacion(id)` | RPC `security definer` para administradores: genera el token, guarda su hash y devuelve el token una sola vez |
 | `ver_invitacion(token)` | RPC `security definer` **público** (`anon`): devuelve `{correo, tenant}` solo si el hash coincide con una invitación pendiente y vigente; si no, nada. Es la única función que se puede llamar sin sesión |
-| `consumir_invitacion(token_hash, uid, nombre)` | Solo service role (Edge Function): marca la invitación aceptada y crea o reactiva el perfil |
-| `equipo_tenant` (vista `security definer`, o función que devuelve sus filas) | `id`, `nombre`, `correo` (de `auth.users.email`), `rol`, `desactivado_en` de los perfiles del tenant. Solo devuelve filas si `es_administrador(auth.uid())` |
-| `tenant_del_perfil()` | `tenant_id` del perfil de `auth.uid()` **aunque esté desactivado**, junto con `desactivado_en`. Solo se usa en la política de pendientes previos a la desactivación |
+| `revisar_invitacion(token_hash)` | Solo service role (Edge Function): `{correo, rol, tenant_id, codigo, usuario_id}`; `codigo` es `invitacion_invalida`, `invitacion_vencida` o `correo_en_otro_tenant`, o `null` si se puede aceptar. Evita listar `auth.users` desde la función |
+| `consumir_invitacion(token_hash, uid, nombre)` | Solo service role (Edge Function): marca la invitación aceptada y crea o reactiva el perfil, en una transacción |
+| `equipo_tenant()` (RPC `security definer`) | `id`, `nombre`, `correo` (de `auth.users.email`), `rol`, `desactivado_en` de los perfiles del tenant. Solo devuelve filas si `es_administrador(auth.uid())`. Es una función y no una vista para no exponer `auth.users` a `anon` |
+| `tenant_del_perfil()` / `desactivado_en_propio()` | `tenant_id` y `desactivado_en` del perfil de `auth.uid()` **aunque esté desactivado**. Solo se usan en la política de pendientes previos a la desactivación |
+| `hash_token(token)` | SHA-256 en hex; el mismo cálculo hacen la Edge Function y `scripts/alta-tenant.mjs` |
 
 **Pendientes de un usuario desactivado (FR-021)**: una política extra de `insert` en `lotes` y
-`movimientos` acepta filas con `usuario_id = auth.uid()`, `tenant_id` = su tenant y
-`creado_en < desactivado_en`. Todo lo demás le devuelve 0 filas, salvo su propio perfil, que
-siempre puede leer para que la app detecte la desactivación.
+`movimientos` acepta filas con `tenant_id` = su tenant y `creado_en < desactivado_en` (en
+`movimientos`, además `usuario_id = auth.uid()`). Todo lo demás le devuelve 0 filas, salvo su propio
+perfil, que siempre puede leer para que la app detecte la desactivación. El último envío usa INSERT
+simple (un 23505 significa "ya estaba arriba"): `ON CONFLICT` exige además la política SELECT, que
+un desactivado no pasa.
 
 ## Dispositivo (Dexie v10)
 
 | Tabla | Cambio |
 |---|---|
 | `insumos`, `categorias`, `cambiosInsumo`, `lotes`, `movimientos`, `itemsCompra`, `configuracionAlertas` | `+ tenantId` (índice). `lotes`, `movimientos` e `itemsCompra`: `+ lugarId` (índice). `movimientos`: `+ trasladoId` |
-| `lugares` | **Nueva**, sincronizada: `id, tenantId, nombre, desactivadoEn` |
-| `minimosLugar` | **Nueva**, sincronizada: `[insumoId+lugarId], tenantId, stockMinimo` |
+| `lugares` | **Nueva**, sincronizada: `id, tenantId, nombre, desactivadoEn, creadoEn, sincronizado` |
+| `minimosLugar` | **Nueva**, sincronizada: `[insumoId+lugarId], tenantId, stockMinimo` (`null` = el del catálogo), `sincronizado` |
 | `lugarActivo` | **Nueva**, local: fila `id: 'local'`, `lugarId: string \| 'todos'` |
-| `usuarioActual` | `+ tenantId` |
+| `usuarioActual` | `+ tenantId`, `+ desactivadoEn` |
 
 **Upgrade v10**: todas las filas existentes reciben `tenantId = TENANT_1` y, donde corresponde,
 `lugarId = LUGAR_1`. `configuracionClinica` se conserva, aunque la interfaz ya no la usa.
@@ -71,6 +75,11 @@ entra un usuario de otro tenant, se borran las filas sincronizadas de tenants di
 conservan los pendientes (`sincronizado: false`) de otros usuarios.
 
 ## View-models y reglas
+
+- **Vista de un lugar** (`datosDeLugar` / `useInventarioDeLugar`, `src/features/insumos/lib/vistaLugar.ts`):
+  en vez de un parámetro de lugar en cada cálculo, las funciones existentes (estado, alertas,
+  sugeridos, Inicio) reciben solo los movimientos y lotes del lugar e insumos con su mínimo
+  efectivo. "Todos" aplica lo mismo a cada lugar (`useVistasDeLugar`, `porLugar`).
 
 - **Stock de un lote en un lugar** = suma de sus movimientos con ese `lugarId`: `ingreso` y
   `traslado_entrada` suman; `consumo` y `traslado_salida` restan; `ajuste` según su signo, como hoy.

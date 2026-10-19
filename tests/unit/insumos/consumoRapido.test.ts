@@ -6,6 +6,9 @@ vi.mock('../../../src/lib/db', async () => {
   const { createMemoryDb, MemoryTable } = await import('../../helpers/memoryDb')
   return {
     db: createMemoryDb({
+      lugares: new MemoryTable(),
+      minimosLugar: new MemoryTable(),
+      lugarActivo: new MemoryTable(),
       lotes: new MemoryTable(),
       movimientos: new MemoryTable(),
     }),
@@ -13,7 +16,8 @@ vi.mock('../../../src/lib/db', async () => {
 })
 
 vi.mock('../../../src/stores/authStore', () => ({
-  getUsuarioActualId: () => 'user-1',
+  getUsuarioActualId: () => 'user-1',  // Spec 014: tenant de la clínica original (literal: el factory se iza).
+  tenantActualOFallar: () => '00000000-0000-4000-8000-000000000001',
 }))
 
 import { db } from '../../../src/lib/db'
@@ -24,6 +28,8 @@ import {
 } from '../../../src/features/insumos/lib/consumoRapido'
 import { computeStockLote } from '../../../src/features/insumos/lib/stock'
 import { useAvisosStore } from '../../../src/stores/avisosStore'
+import { LUGAR_1, TENANT_1 } from '../../helpers/tenancy'
+import { usarLugar1 } from '../../helpers/lugarFalso'
 
 const lotesTable = db.lotes as unknown as MemoryTable<Lote & { id: string }>
 const movimientosTable = db.movimientos as unknown as MemoryTable<
@@ -46,6 +52,8 @@ function lote(
   insumoId = 'insumo-1',
 ): Lote {
   return {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
     id,
     insumoId,
     numeroLote: id,
@@ -59,6 +67,9 @@ function lote(
 
 function ingreso(loteId: string, cantidad: number): Movimiento {
   return {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
+    trasladoId: null,
     id: crypto.randomUUID(),
     tipo: 'ingreso',
     loteId,
@@ -71,6 +82,7 @@ function ingreso(loteId: string, cantidad: number): Movimiento {
 }
 
 const insumo: Insumo = {
+  tenantId: TENANT_1,
   id: 'insumo-1',
   nombre: 'Anestesia',
   categoria: 'Cirugía',
@@ -84,6 +96,9 @@ const insumo: Insumo = {
   dadoDeBajaPor: null,
   creadoPor: null,
 }
+
+// Spec 014: un tenant de un solo lugar, como la clínica original.
+beforeEach(usarLugar1)
 
 describe('selectLoteConsumoRapido (FR-002/FR-003)', () => {
   it('picks the earliest-expiring vigente lot', () => {

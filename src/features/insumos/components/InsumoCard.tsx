@@ -12,6 +12,8 @@ export interface InsumoCardProps {
   disponibilidad: DisponibilidadConsumoRapido
   /** Spec 008 FR-026/R9 — solo lo pasa `InventarioView` cuando el usuario es administrador. */
   posibleDuplicado?: boolean
+  /** Spec 014 — en "Todos", el stock de cada lugar ("Providencia 4 · Las Condes 2"). */
+  desglose?: string
   onOpen: (insumoId: string) => void
   onConsumirUno: (insumoId: string) => void
   onAbrirMenu: (insumoId: string) => void
@@ -38,6 +40,7 @@ export function InsumoCard({
   estadoInsumo,
   disponibilidad,
   posibleDuplicado = false,
+  desglose,
   onOpen,
   onConsumirUno,
   onAbrirMenu,
@@ -75,6 +78,7 @@ export function InsumoCard({
         <span className="text-sm font-bold text-text-muted">
           {stockTotal} {insumo.unidadMedida}
         </span>
+        {desglose && <span className="text-xs text-text-muted">{desglose}</span>}
       </button>
 
       <TouchButton

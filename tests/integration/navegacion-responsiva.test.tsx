@@ -30,10 +30,13 @@ import { AlertasView } from '../../src/features/alertas/components/AlertasView'
 import { AjustesView } from '../../src/features/ajustes/components/AjustesView'
 import { useInventoryStore } from '../../src/stores/inventoryStore'
 import { useAuthStore } from '../../src/stores/authStore'
-import { useClinicaStore } from '../../src/stores/clinicaStore'
+import { useLugarStore } from '../../src/stores/lugarStore'
+import { lugar1 } from '../helpers/lugarFalso'
 import { useLayoutStore } from '../../src/stores/layoutStore'
+import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
 
 const insumoBajo: Insumo = {
+  tenantId: TENANT_1,
   id: 'i1',
   nombre: 'Guantes nitrilo M',
   categoria: 'Protección',
@@ -48,6 +51,8 @@ const insumoBajo: Insumo = {
   creadoPor: null,
 }
 const lote: Lote = {
+  tenantId: TENANT_1,
+  lugarId: LUGAR_1,
   id: 'l1',
   insumoId: 'i1',
   numeroLote: 'G1',
@@ -58,6 +63,9 @@ const lote: Lote = {
   creadoEn: 'x',
 }
 const ingreso: Movimiento = {
+  tenantId: TENANT_1,
+  lugarId: LUGAR_1,
+  trasladoId: null,
   id: 'm1',
   tipo: 'ingreso',
   loteId: 'l1',
@@ -93,6 +101,8 @@ beforeEach(() => {
   })
   useAuthStore.setState({
     usuario: {
+      tenantId: TENANT_1,
+      desactivadoEn: null,
       id: 'user-1',
       email: 'a@x.cl',
       nombre: 'Sofía León',
@@ -101,8 +111,10 @@ beforeEach(() => {
     },
     isReady: true,
   })
-  useClinicaStore.setState({
-    nombreClinica: 'Clínica Providencia',
+  // Spec 014: la barra muestra el lugar activo (con uno solo, su nombre).
+  useLugarStore.setState({
+    lugares: [{ ...lugar1, nombre: 'Clínica Providencia' }],
+    lugarActivoId: lugar1.id,
     isReady: true,
   })
   useLayoutStore.setState({ sidebarExpandida: false })
@@ -157,7 +169,7 @@ describe('desktop ≥ 1200 px: sidebar (US2)', () => {
     ).toBeInTheDocument()
   })
 
-  it('la barra superior muestra la clínica y el indicador de sincronización', () => {
+  it('la barra superior muestra el lugar de trabajo y el indicador de sincronización', () => {
     render(<Harness />)
 
     const barra = screen.getByRole('banner')

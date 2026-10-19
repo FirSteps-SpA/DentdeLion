@@ -2,6 +2,7 @@ import { db } from '../../../lib/db'
 import { permiteDecimales } from '../../insumos/lib/quantity'
 import { editarInsumo } from '../../insumos/lib/catalogo'
 import { NIVELES_AVISO_POR_DEFECTO } from '../../../stores/alertasStore'
+import { tenantActualOFallar } from '../../../stores/authStore'
 
 export interface StockMinimoValidation {
   valid: boolean
@@ -69,6 +70,7 @@ export async function actualizarNivelesAviso(dias: number[]): Promise<void> {
   await db.configuracionAlertas.put({
     ...actual,
     id: 'global',
+    tenantId: tenantActualOFallar(),
     nivelesAvisoDias: niveles,
     sincronizado: false,
   })
@@ -88,6 +90,7 @@ export async function actualizarHorasAvisoPendientes(horas: number): Promise<voi
   const actual = await db.configuracionAlertas.get('global')
   await db.configuracionAlertas.put({
     id: 'global',
+    tenantId: tenantActualOFallar(),
     nivelesAvisoDias: actual?.nivelesAvisoDias ?? NIVELES_AVISO_POR_DEFECTO,
     horasAvisoPendientes: horas,
     sincronizado: false,

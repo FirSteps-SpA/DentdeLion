@@ -6,6 +6,9 @@ vi.mock('../../../src/lib/db', async () => {
   const { createMemoryDb, MemoryTable } = await import('../../helpers/memoryDb')
   return {
     db: createMemoryDb({
+      lugares: new MemoryTable(),
+      minimosLugar: new MemoryTable(),
+      lugarActivo: new MemoryTable(),
       insumos: new MemoryTable(),
       categorias: new MemoryTable(),
       lotes: new MemoryTable(),
@@ -32,6 +35,8 @@ import {
   validarRecepcion,
   type RecepcionInput,
 } from '../../../src/features/compras/lib/recepcion'
+import { LUGAR_1, TENANT_1 } from '../../helpers/tenancy'
+import { usarLugar1 } from '../../helpers/lugarFalso'
 
 const lotesT = db.lotes as unknown as MemoryTable<Lote>
 const movimientosT = db.movimientos as unknown as MemoryTable<Movimiento>
@@ -39,6 +44,7 @@ const itemsCompraT = db.itemsCompra as unknown as MemoryTable<ItemCompra>
 
 function insumo(overrides: Partial<Insumo>): Insumo {
   return {
+    tenantId: TENANT_1,
     id: 'i1',
     nombre: 'Anestesia X',
     categoria: 'Cirugía',
@@ -57,6 +63,8 @@ function insumo(overrides: Partial<Insumo>): Insumo {
 
 function itemCompra(overrides: Partial<ItemCompra>): ItemCompra {
   return {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
     id: 'item-1',
     nombre: 'Anestesia X',
     cantidad: null,
@@ -83,6 +91,8 @@ function inputBase(overrides: Partial<RecepcionInput> = {}): RecepcionInput {
 }
 
 const usuario: UsuarioActual = {
+  tenantId: TENANT_1,
+  desactivadoEn: null,
   id: 'user-1',
   email: 'u@x.cl',
   nombre: 'Usuario',
@@ -96,6 +106,9 @@ beforeEach(() => {
   itemsCompraT.seed([])
   useAuthStore.setState({ usuario, isReady: true })
 })
+
+// Spec 014: un tenant de un solo lugar, como la clínica original.
+beforeEach(usarLugar1)
 
 describe('validarRecepcion', () => {
   const hoy = '2026-06-15'

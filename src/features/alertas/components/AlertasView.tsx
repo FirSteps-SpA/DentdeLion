@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useAuthStore } from '../../../stores/authStore'
-import { useInventoryStore } from '../../../stores/inventoryStore'
 import { useAlertasStore } from '../../../stores/alertasStore'
 import { computeInsumosStockBajo } from '../lib/stockBajo'
 import { computeAlertasCaducidad } from '../lib/caducidad'
@@ -9,6 +8,8 @@ import { AlertTriangle, CircleAlert, Clock } from '../../../components/icons'
 import { Badge, type BadgeVariant } from '../../../components/ui/Badge'
 import { Card } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
+import { porLugar, useVistasDeLugar } from '../../insumos/lib/vistaLugar'
+import { ChipLugar } from '../../../app/ChipLugar'
 
 function badgeVariantParaNivel(nivel: number | 'caducado'): BadgeVariant {
   if (nivel === 'caducado') return 'danger'
@@ -30,21 +31,23 @@ export function AlertasView() {
   const usuario = useAuthStore((s) => s.usuario)
   const esAdministrador = usuario?.rol === 'administrador'
 
-  const insumos = useInventoryStore((s) => s.insumos)
-  const lotes = useInventoryStore((s) => s.lotes)
-  const movimientos = useInventoryStore((s) => s.movimientos)
+  // Spec 014: alertas del lugar activo; en "Todos", las de cada lugar, con su chip.
+  const { vistas, esTodos } = useVistasDeLugar()
   const nivelesAvisoDias = useAlertasStore((s) => s.nivelesAvisoDias)
 
   const [errorRevision, setErrorRevision] = useState<string | null>(null)
 
-  const alertasStockBajo = computeInsumosStockBajo(insumos, lotes, movimientos)
-  const alertasCaducidad = computeAlertasCaducidad(
-    insumos,
-    lotes,
-    movimientos,
-    nivelesAvisoDias,
+  const alertasStockBajo = porLugar(vistas, (d) =>
+    computeInsumosStockBajo(d.insumos, d.lotes, d.movimientos),
   )
-  const alertasRevision = lotesEnRevision(insumos, lotes, movimientos)
+  const alertasCaducidad = porLugar(vistas, (d) =>
+    computeAlertasCaducidad(d.insumos, d.lotes, d.movimientos, nivelesAvisoDias),
+  )
+  const alertasRevision = porLugar(vistas, (d) =>
+    lotesEnRevision(d.insumos, d.lotes, d.movimientos),
+  )
+  const chip = (lugar: { nombre: string } | null) =>
+    esTodos && lugar ? <ChipLugar nombre={lugar.nombre} /> : null
 
   async function handleMarcarResuelto(loteId: string) {
     setErrorRevision(null)
@@ -71,8 +74,8 @@ export function AlertasView() {
           </Card>
         ) : (
           <ul className="flex flex-col gap-2">
-            {alertasStockBajo.map(({ insumo, stockActual }) => (
-              <li key={insumo.id}>
+            {alertasStockBajo.map(({ insumo, stockActual, lugar }) => (
+              <li key={`${lugar?.id ?? ''}-${insumo.id}`}>
                 <Card className="flex items-center justify-between gap-2 px-3.5 py-2.5">
                   {stockActual === 0 ? (
                     <CircleAlert size={18} className="shrink-0 text-danger" />
@@ -82,7 +85,7 @@ export function AlertasView() {
                   <span className="flex-1 text-sm text-text">
                     <span className="font-bold">{insumo.nombre}</span> —{' '}
                     {stockActual} {insumo.unidadMedida} disponibles (mínimo{' '}
-                    {insumo.stockMinimo} {insumo.unidadMedida})
+                    {insumo.stockMinimo} {insumo.unidadMedida}) {chip(lugar)}
                   </span>
                   <Badge
                     variant={stockActual === 0 ? 'danger' : 'warning-30'}
@@ -107,8 +110,8 @@ export function AlertasView() {
           </Card>
         ) : (
           <ul className="flex flex-col gap-2">
-            {alertasCaducidad.map(({ lote, insumo, diasRestantes, nivel }) => (
-              <li key={lote.id}>
+            {alertasCaducidad.map(({ lote, insumo, diasRestantes, nivel, lugar }) => (
+              <li key={`${lugar?.id ?? ''}-${lote.id}`}>
                 <Card className="flex items-center justify-between gap-2 px-3.5 py-2.5">
                   {nivel === 'caducado' ? (
                     <CircleAlert size={18} className="shrink-0 text-danger" />
@@ -121,7 +124,7 @@ export function AlertasView() {
                     {nivel === 'caducado'
                       ? `caducado hace ${Math.abs(diasRestantes)} día(s)`
                       : `nivel ${nivel} días`}
-                    )
+                    ) {chip(lugar)}
                   </span>
                   <Badge
                     variant={badgeVariantParaNivel(nivel)}
@@ -154,14 +157,15 @@ export function AlertasView() {
           </Card>
         ) : (
           <ul className="flex flex-col gap-2">
-            {alertasRevision.map(({ lote, insumo, stockDerivado }) => (
-              <li key={lote.id}>
+            {alertasRevision.map(({ lote, insumo, stockDerivado, lugar }) => (
+              <li key={`${lugar?.id ?? ''}-${lote.id}`}>
                 <Card className="flex items-center justify-between gap-2 px-3.5 py-2.5">
                   <span className="flex items-start gap-2 text-sm text-text">
                     <AlertTriangle size={16} className="mt-0.5 shrink-0 text-danger" />
                     <span>
                       <span className="font-bold">{insumo.nombre}</span> — lote{' '}
-                      {lote.numeroLote}: stock {stockDerivado} {insumo.unidadMedida}
+                      {lote.numeroLote}: stock {stockDerivado} {insumo.unidadMedida}{' '}
+                      {chip(lugar)}
                     </span>
                   </span>
                   {esAdministrador && (

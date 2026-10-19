@@ -10,6 +10,7 @@ import { useInventoryStore } from '../../src/stores/inventoryStore'
 import { useAlertasStore } from '../../src/stores/alertasStore'
 import { useAuthStore } from '../../src/stores/authStore'
 import { contarAlertasPendientes } from '../../src/features/alertas/lib/resumen'
+import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
 
 vi.mock('../../src/lib/db', () => ({
   db: {
@@ -123,6 +124,7 @@ describe('4-tab navigation (User Story 4)', () => {
 })
 
 const insumoBajo = {
+  tenantId: TENANT_1,
   id: 'bajo',
   nombre: 'Guantes',
   categoria: 'Cirugía',
@@ -137,6 +139,8 @@ const insumoBajo = {
   creadoPor: null,
 }
 const loteBajo = {
+  tenantId: TENANT_1,
+  lugarId: LUGAR_1,
   id: 'l-bajo',
   insumoId: 'bajo',
   numeroLote: 'L1',
@@ -147,6 +151,9 @@ const loteBajo = {
   creadoEn: '2026-01-01T00:00:00.000Z',
 }
 const ingresoBajo = {
+  tenantId: TENANT_1,
+  lugarId: LUGAR_1,
+  trasladoId: null,
   id: 'm1',
   tipo: 'ingreso' as const,
   loteId: 'l-bajo',

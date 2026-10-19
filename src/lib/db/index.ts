@@ -1,5 +1,8 @@
-import Dexie, { type EntityTable } from 'dexie'
+import Dexie, { type EntityTable, type Table } from 'dexie'
 import type { AltaMaterialInput } from '../../features/insumos/lib/alta'
+import { LUGAR_1, TENANT_1 } from '../tenancy/constantes'
+
+export { LUGAR_1, TENANT_1 }
 
 /**
  * The locally-cached authenticated identity that gates offline app access
@@ -14,11 +17,20 @@ export interface UsuarioActual {
   nombre: string
   rol: 'administrador' | 'personal'
   autenticadoEn: string
+  /** Spec 014 FR-001 — tenant del usuario; filtra todo lo que se lee de Dexie. */
+  tenantId: string
+  /**
+   * Spec 014 FR-021 — fecha en que una administradora lo desactivó, o `null`.
+   * Con fecha, la app muestra "acceso desactivado" en vez del inventario.
+   */
+  desactivadoEn: string | null
 }
 
 /** Feature 002 data-model.md — Insumo. */
 export interface Insumo {
   id: string
+  /** Spec 014 — catálogo compartido por los lugares del tenant. */
+  tenantId: string
   nombre: string
   categoria: string
   unidadMedida: string
@@ -59,6 +71,7 @@ export type CampoEditableInsumo =
  */
 export interface CambioInsumo {
   id: string
+  tenantId: string
   insumoId: string
   campo: CampoEditableInsumo | 'baja'
   valorAnterior: string | number | boolean | null
@@ -73,6 +86,13 @@ export interface CambioInsumo {
 /** Feature 002 data-model.md — Lote. */
 export interface Lote {
   id: string
+  tenantId: string
+  /**
+   * Spec 014 (research.md R3) — lugar de alta. El stock por lugar sale de los
+   * movimientos (`Movimiento.lugarId`), así el lote conserva su identidad al
+   * trasladarse.
+   */
+  lugarId: string
   insumoId: string
   numeroLote: string
   proveedor: string
@@ -86,7 +106,17 @@ export interface Lote {
 /** Feature 002 data-model.md — Movimiento (append-only ledger entry). */
 export interface Movimiento {
   id: string
-  tipo: 'ingreso' | 'consumo' | 'ajuste'
+  tenantId: string
+  /** Spec 014 FR-010 — lugar activo al registrarlo, aunque se suba después. */
+  lugarId: string
+  tipo:
+    | 'ingreso'
+    | 'consumo'
+    | 'ajuste'
+    | 'traslado_salida'
+    | 'traslado_entrada'
+  /** Spec 014 (research.md R4) — une la salida y la entrada de un traslado. */
+  trasladoId: string | null
   loteId: string
   cantidad: number
   usuarioId: string
@@ -103,6 +133,8 @@ export interface Movimiento {
  */
 export interface ConfiguracionAlertas {
   id: 'global'
+  /** Spec 014 (R7) — una fila por tenant en el servidor; localmente sigue siendo `'global'`. */
+  tenantId: string
   nivelesAvisoDias: number[]
   /**
    * Spec 012 FR-011 — horas tras las que un cambio sin subir se avisa como
@@ -121,6 +153,7 @@ export interface ConfiguracionAlertas {
  */
 export interface Categoria {
   id: string
+  tenantId: string
   nombre: string
   creadoPor: string
   creadoEn: string
@@ -149,6 +182,9 @@ export interface Borrador {
  */
 export interface ItemCompra {
   id: string
+  tenantId: string
+  /** Spec 014 FR-006 — la lista de compras es por lugar. */
+  lugarId: string
   nombre: string
   cantidad: number | null
   nota: string | null
@@ -210,6 +246,38 @@ export interface EstadoSync {
 }
 
 /**
+ * Spec 014 data-model.md — Lugar de trabajo de un tenant. Sincronizado; lo
+ * crean y editan solo administradores (`sincronizado: false` = cambio local
+ * aún sin subir).
+ */
+export interface Lugar {
+  id: string
+  tenantId: string
+  nombre: string
+  desactivadoEn: string | null
+  creadoEn: string
+  sincronizado: boolean
+}
+
+/**
+ * Spec 014 FR-007 — mínimo de un insumo en un lugar. `stockMinimo: null` =
+ * usar el del catálogo (`Insumo.stockMinimo`).
+ */
+export interface MinimoLugar {
+  insumoId: string
+  lugarId: string
+  tenantId: string
+  stockMinimo: number | null
+  sincronizado: boolean
+}
+
+/** Spec 014 (research.md R10) — lugar elegido en este dispositivo. Local. */
+export interface LugarActivo {
+  id: 'local'
+  lugarId: string | 'todos'
+}
+
+/**
  * IndexedDB client (Constitution I: local-first primary write, Principle IV:
  * batch/expiry/stock queries). Future inventory features add their own
  * domain tables here via `db.version(n).stores({...})`.
@@ -228,6 +296,9 @@ export const db = new Dexie('inDENToryDB') as Dexie & {
   preferenciasNotificaciones: EntityTable<PreferenciaNotificaciones, 'id'>
   usuariosConocidos: EntityTable<UsuarioConocido, 'id'>
   estadoSync: EntityTable<EstadoSync, 'id'>
+  lugares: EntityTable<Lugar, 'id'>
+  minimosLugar: Table<MinimoLugar, [string, string]>
+  lugarActivo: EntityTable<LugarActivo, 'id'>
 }
 
 db.version(1).stores({
@@ -347,6 +418,73 @@ db.version(9)
       .modify((config: Partial<ConfiguracionClinica>) => {
         config.sincronizado ??= true
       })
+  })
+
+// Version 10 (spec 014, data-model.md / research.md R8): datos por tenant y
+// por lugar. Todas las filas existentes son de la clínica original, así que
+// reciben `TENANT_1` y, donde corresponde, `LUGAR_1` — los mismos UUID que
+// siembra la migración del servidor, para que los pendientes de la 2.2.0
+// suban al lugar 1 (FR-018). `sincronizado` no se toca. El lugar 1 se crea
+// localmente con el nombre de la clínica para que el selector no arranque
+// vacío sin red.
+db.version(10)
+  .stores({
+    insumos: 'id, nombre, categoria, codigoFabricante, tenantId',
+    lotes: 'id, insumoId, fechaCaducidad, codigoFabricante, estado, tenantId, lugarId',
+    movimientos:
+      'id, loteId, tipo, usuarioId, creadoEn, sincronizado, tenantId, lugarId, trasladoId',
+    cambiosInsumo: 'id, insumoId, campo, creadoEn, sincronizado, tenantId',
+    categorias: 'id, creadoEn, sincronizado, tenantId',
+    itemsCompra: 'id, insumoId, estado, creadoEn, tenantId, lugarId',
+    lugares: 'id, tenantId',
+    minimosLugar: '[insumoId+lugarId], tenantId, lugarId',
+    lugarActivo: 'id',
+  })
+  .upgrade(async (tx) => {
+    const delTenant1 = (fila: { tenantId?: string }) => {
+      fila.tenantId ??= TENANT_1
+    }
+    const delLugar1 = (fila: { tenantId?: string; lugarId?: string }) => {
+      fila.tenantId ??= TENANT_1
+      fila.lugarId ??= LUGAR_1
+    }
+    for (const tabla of [
+      'insumos',
+      'cambiosInsumo',
+      'categorias',
+      'configuracionAlertas',
+      'configuracionClinica',
+      'usuarioActual',
+    ]) {
+      await tx.table(tabla).toCollection().modify(delTenant1)
+    }
+    for (const tabla of ['lotes', 'itemsCompra']) {
+      await tx.table(tabla).toCollection().modify(delLugar1)
+    }
+    await tx
+      .table('movimientos')
+      .toCollection()
+      .modify((movimiento: Partial<Movimiento>) => {
+        delLugar1(movimiento)
+        movimiento.trasladoId ??= null
+      })
+    await tx
+      .table('usuarioActual')
+      .toCollection()
+      .modify((usuario: Partial<UsuarioActual>) => {
+        usuario.desactivadoEn ??= null
+      })
+    const clinica = (await tx.table('configuracionClinica').get('global')) as
+      | ConfiguracionClinica
+      | undefined
+    await tx.table('lugares').put({
+      id: LUGAR_1,
+      tenantId: TENANT_1,
+      nombre: clinica?.nombre?.trim() || 'Clínica',
+      desactivadoEn: null,
+      creadoEn: '2026-01-01T00:00:00.000Z',
+      sincronizado: true,
+    } satisfies Lugar)
   })
 
 export type { EntityTable }

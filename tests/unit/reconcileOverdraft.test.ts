@@ -24,9 +24,13 @@ vi.mock('../../src/lib/db', () => ({
 }))
 
 import { reconcileOverdraft } from '../../src/lib/sync/reconcileOverdraft'
+import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
 
 function makeMovimiento(overrides: Partial<Movimiento>): Movimiento {
   return {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
+    trasladoId: null,
     id: crypto.randomUUID(),
     tipo: 'ingreso',
     loteId: 'lote-1',

@@ -6,10 +6,11 @@ import {
   type CambioInsumo,
   type Categoria,
   type ConfiguracionAlertas,
-  type ConfiguracionClinica,
   type Insumo,
   type ItemCompra,
   type Lote,
+  type Lugar,
+  type MinimoLugar,
   type Movimiento,
 } from '../db'
 import { fetchPerfilPropio } from '../supabase/perfiles'
@@ -23,7 +24,7 @@ import {
   claveCategoria,
   resolverCategoria,
 } from '../../features/insumos/lib/categorias'
-import { useAuthStore } from '../../stores/authStore'
+import { getTenantActualId, useAuthStore } from '../../stores/authStore'
 import { useAvisosStore } from '../../stores/avisosStore'
 import { useSyncStore, type ResultadoCiclo } from '../../stores/syncStore'
 import { reconcileOverdraft } from './reconcileOverdraft'
@@ -31,6 +32,7 @@ import { esFallaDeRed, reportarErrorSync } from './reportar'
 
 interface InsumoRow {
   id: string
+  tenant_id: string
   nombre: string
   categoria: string
   unidad_medida: string
@@ -46,6 +48,7 @@ interface InsumoRow {
 
 interface ConfiguracionAlertasRow {
   id: 'global'
+  tenant_id: string
   niveles_aviso_dias: number[]
   /** Spec 012 FR-011 — se omite si el valor local es `undefined` (research.md R6). */
   horas_aviso_pendientes?: number
@@ -53,6 +56,8 @@ interface ConfiguracionAlertasRow {
 
 interface LoteRow {
   id: string
+  tenant_id: string
+  lugar_id: string
   insumo_id: string
   numero_lote: string
   proveedor: string
@@ -64,6 +69,7 @@ interface LoteRow {
 
 interface CambioInsumoRow {
   id: string
+  tenant_id: string
   insumo_id: string
   campo: CambioInsumo['campo']
   valor_anterior: CambioInsumo['valorAnterior']
@@ -74,6 +80,7 @@ interface CambioInsumoRow {
 
 interface CategoriaRow {
   id: string
+  tenant_id: string
   nombre: string
   creado_por: string
   creado_en: string
@@ -84,6 +91,7 @@ interface CategoriaRow {
 function toCategoriaRow(categoria: Categoria): CategoriaRow {
   return {
     id: categoria.id,
+    tenant_id: categoria.tenantId,
     nombre: categoria.nombre,
     creado_por: categoria.creadoPor,
     creado_en: categoria.creadoEn,
@@ -94,6 +102,7 @@ function toCategoriaRow(categoria: Categoria): CategoriaRow {
 function fromCategoriaRow(row: CategoriaRow): Categoria {
   return {
     id: row.id,
+    tenantId: row.tenant_id,
     nombre: row.nombre,
     creadoPor: row.creado_por,
     creadoEn: row.creado_en,
@@ -105,6 +114,8 @@ function fromCategoriaRow(row: CategoriaRow): Categoria {
 
 interface ItemCompraRow {
   id: string
+  tenant_id: string
+  lugar_id: string
   nombre: string
   cantidad: number | null
   nota: string | null
@@ -119,6 +130,8 @@ interface ItemCompraRow {
 function toItemCompraRow(item: ItemCompra): ItemCompraRow {
   return {
     id: item.id,
+    tenant_id: item.tenantId,
+    lugar_id: item.lugarId,
     nombre: item.nombre,
     cantidad: item.cantidad,
     nota: item.nota,
@@ -134,6 +147,8 @@ function toItemCompraRow(item: ItemCompra): ItemCompraRow {
 function fromItemCompraRow(row: ItemCompraRow): ItemCompra {
   return {
     id: row.id,
+    tenantId: row.tenant_id,
+    lugarId: row.lugar_id,
     nombre: row.nombre,
     cantidad: row.cantidad ?? null,
     nota: row.nota ?? null,
@@ -148,6 +163,9 @@ function fromItemCompraRow(row: ItemCompraRow): ItemCompra {
 
 interface MovimientoRow {
   id: string
+  tenant_id: string
+  lugar_id: string
+  traslado_id: string | null
   tipo: Movimiento['tipo']
   lote_id: string
   cantidad: number
@@ -159,6 +177,7 @@ interface MovimientoRow {
 function toInsumoRow(insumo: Insumo): InsumoRow {
   return {
     id: insumo.id,
+    tenant_id: insumo.tenantId,
     nombre: insumo.nombre,
     categoria: insumo.categoria,
     unidad_medida: insumo.unidadMedida,
@@ -176,6 +195,7 @@ function toInsumoRow(insumo: Insumo): InsumoRow {
 function fromInsumoRow(row: InsumoRow): Insumo {
   return {
     id: row.id,
+    tenantId: row.tenant_id,
     nombre: row.nombre,
     categoria: row.categoria,
     unidadMedida: row.unidad_medida,
@@ -195,6 +215,7 @@ function toConfiguracionAlertasRow(
 ): ConfiguracionAlertasRow {
   const row: ConfiguracionAlertasRow = {
     id: config.id,
+    tenant_id: config.tenantId,
     niveles_aviso_dias: config.nivelesAvisoDias,
   }
   if (config.horasAvisoPendientes !== undefined) {
@@ -207,7 +228,8 @@ function fromConfiguracionAlertasRow(
   row: ConfiguracionAlertasRow,
 ): ConfiguracionAlertas {
   const config: ConfiguracionAlertas = {
-    id: row.id,
+    id: 'global',
+    tenantId: row.tenant_id,
     nivelesAvisoDias: row.niveles_aviso_dias,
     sincronizado: true,
   }
@@ -217,33 +239,11 @@ function fromConfiguracionAlertasRow(
   return config
 }
 
-interface ConfiguracionClinicaRow {
-  id: 'global'
-  nombre: string | null
-}
-
-function toConfiguracionClinicaRow(
-  config: ConfiguracionClinica,
-): ConfiguracionClinicaRow {
-  return {
-    id: config.id,
-    nombre: config.nombre,
-  }
-}
-
-function fromConfiguracionClinicaRow(
-  row: ConfiguracionClinicaRow,
-): ConfiguracionClinica {
-  return {
-    id: row.id,
-    nombre: row.nombre ?? null,
-    sincronizado: true,
-  }
-}
-
 function toLoteRow(lote: Lote): LoteRow {
   return {
     id: lote.id,
+    tenant_id: lote.tenantId,
+    lugar_id: lote.lugarId,
     insumo_id: lote.insumoId,
     numero_lote: lote.numeroLote,
     proveedor: lote.proveedor,
@@ -257,6 +257,8 @@ function toLoteRow(lote: Lote): LoteRow {
 function fromLoteRow(row: LoteRow): Lote {
   return {
     id: row.id,
+    tenantId: row.tenant_id,
+    lugarId: row.lugar_id,
     insumoId: row.insumo_id,
     numeroLote: row.numero_lote,
     proveedor: row.proveedor,
@@ -267,9 +269,65 @@ function fromLoteRow(row: LoteRow): Lote {
   }
 }
 
+interface LugarRow {
+  id: string
+  tenant_id: string
+  nombre: string
+  desactivado_en: string | null
+  creado_en: string
+}
+
+function toLugarRow(lugar: Lugar): LugarRow {
+  return {
+    id: lugar.id,
+    tenant_id: lugar.tenantId,
+    nombre: lugar.nombre,
+    desactivado_en: lugar.desactivadoEn,
+    creado_en: lugar.creadoEn,
+  }
+}
+
+function fromLugarRow(row: LugarRow): Lugar {
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    nombre: row.nombre,
+    desactivadoEn: row.desactivado_en ?? null,
+    creadoEn: row.creado_en,
+    sincronizado: true,
+  }
+}
+
+interface MinimoLugarRow {
+  tenant_id: string
+  insumo_id: string
+  lugar_id: string
+  stock_minimo: number | null
+}
+
+function toMinimoLugarRow(minimo: MinimoLugar): MinimoLugarRow {
+  return {
+    tenant_id: minimo.tenantId,
+    insumo_id: minimo.insumoId,
+    lugar_id: minimo.lugarId,
+    stock_minimo: minimo.stockMinimo,
+  }
+}
+
+function fromMinimoLugarRow(row: MinimoLugarRow): MinimoLugar {
+  return {
+    tenantId: row.tenant_id,
+    insumoId: row.insumo_id,
+    lugarId: row.lugar_id,
+    stockMinimo: row.stock_minimo ?? null,
+    sincronizado: true,
+  }
+}
+
 function toCambioInsumoRow(cambio: CambioInsumo): CambioInsumoRow {
   return {
     id: cambio.id,
+    tenant_id: cambio.tenantId,
     insumo_id: cambio.insumoId,
     campo: cambio.campo,
     valor_anterior: cambio.valorAnterior,
@@ -282,6 +340,7 @@ function toCambioInsumoRow(cambio: CambioInsumo): CambioInsumoRow {
 function fromCambioInsumoRow(row: CambioInsumoRow): CambioInsumo {
   return {
     id: row.id,
+    tenantId: row.tenant_id,
     insumoId: row.insumo_id,
     campo: row.campo,
     valorAnterior: row.valor_anterior,
@@ -296,6 +355,9 @@ function fromCambioInsumoRow(row: CambioInsumoRow): CambioInsumo {
 function toMovimientoRow(movimiento: Movimiento): MovimientoRow {
   return {
     id: movimiento.id,
+    tenant_id: movimiento.tenantId,
+    lugar_id: movimiento.lugarId,
+    traslado_id: movimiento.trasladoId,
     tipo: movimiento.tipo,
     lote_id: movimiento.loteId,
     cantidad: movimiento.cantidad,
@@ -308,6 +370,9 @@ function toMovimientoRow(movimiento: Movimiento): MovimientoRow {
 function fromMovimientoRow(row: MovimientoRow): Movimiento {
   return {
     id: row.id,
+    tenantId: row.tenant_id,
+    lugarId: row.lugar_id,
+    trasladoId: row.traslado_id ?? null,
     tipo: row.tipo,
     loteId: row.lote_id,
     cantidad: row.cantidad,
@@ -418,6 +483,16 @@ function esAdministradorActual(): boolean {
 }
 
 /**
+ * Spec 014 FR-004/FR-017: solo se suben filas del tenant del usuario con
+ * sesión. Las de otro tenant (pendientes de alguien que entró antes en este
+ * dispositivo) esperan a que su dueño vuelva a entrar.
+ */
+function delTenantActual<T extends { tenantId: string }>(filas: T[]): T[] {
+  const tenantId = getTenantActualId()
+  return tenantId ? filas.filter((fila) => fila.tenantId === tenantId) : []
+}
+
+/**
  * Pushes every local insumo row with its not-yet-synced cambios undone
  * (`filaParaSubir`, feature 007): the remote row never runs ahead of
  * `cambios_insumo`, so a cambio the server later rejects (FR-021b) can't
@@ -427,7 +502,7 @@ async function pushInsumos(
   client: SupabaseClient,
   ciclo: CicloSync,
 ): Promise<void> {
-  const insumos = await db.insumos.toArray()
+  const insumos = delTenantActual(await db.insumos.toArray())
   if (insumos.length === 0) return
   const cambios = await db.cambiosInsumo.toArray()
   const respuesta = await client
@@ -465,7 +540,7 @@ async function pushCambiosInsumo(
 ): Promise<CambioInsumo[]> {
   const usuarioId = usuarioActualId()
   if (!usuarioId) return []
-  const pendientes = (await db.cambiosInsumo.toArray()).filter(
+  const pendientes = delTenantActual(await db.cambiosInsumo.toArray()).filter(
     (cambio) =>
       !cambio.sincronizado &&
       cambio.rechazadoEn === null &&
@@ -563,7 +638,7 @@ async function pushCategorias(
 ): Promise<Categoria[]> {
   const usuarioId = usuarioActualId()
   if (!usuarioId) return []
-  const pendientes = (await db.categorias.toArray()).filter(
+  const pendientes = delTenantActual(await db.categorias.toArray()).filter(
     (categoria) =>
       !categoria.sincronizado &&
       categoria.rechazadoEn === null &&
@@ -690,7 +765,7 @@ async function pushLotes(
   client: SupabaseClient,
   ciclo: CicloSync,
 ): Promise<void> {
-  const lotes = await db.lotes.toArray()
+  const lotes = delTenantActual(await db.lotes.toArray())
   if (lotes.length === 0) return
   const respuesta = await client.from('lotes').upsert(lotes.map(toLoteRow))
   ciclo.registrar('push lotes', errorDe(respuesta))
@@ -707,7 +782,7 @@ async function pushItemsCompra(
   client: SupabaseClient,
   ciclo: CicloSync,
 ): Promise<void> {
-  const items = await db.itemsCompra.toArray()
+  const items = delTenantActual(await db.itemsCompra.toArray())
   if (items.length === 0) return
   const respuesta = await client
     .from('items_compra')
@@ -716,48 +791,95 @@ async function pushItemsCompra(
 }
 
 /**
+ * Spec 014 (research.md R4): unidades de subida. Las dos mitades de un
+ * traslado viajan siempre juntas, en el mismo upsert (una transacción en el
+ * servidor, donde `verificar_traslado` rechaza un par incompleto al
+ * confirmar). Una mitad cuya pareja ya está en el servidor sube sola; una sin
+ * pareja local no sube y se reporta, porque el servidor la rechazaría igual.
+ */
+async function unidadesDeSubida(pendientes: Movimiento[]): Promise<Movimiento[][]> {
+  const unidades: Movimiento[][] = []
+  const porTraslado = new Map<string, Movimiento[]>()
+  for (const movimiento of pendientes) {
+    if (!movimiento.trasladoId) {
+      unidades.push([movimiento])
+      continue
+    }
+    const grupo = porTraslado.get(movimiento.trasladoId) ?? []
+    grupo.push(movimiento)
+    porTraslado.set(movimiento.trasladoId, grupo)
+  }
+  for (const [trasladoId, grupo] of porTraslado) {
+    if (grupo.length === 2) {
+      unidades.push(grupo)
+      continue
+    }
+    const pareja = (
+      await db.movimientos.where('trasladoId').equals(trasladoId).toArray()
+    ).find((movimiento) => movimiento.id !== grupo[0].id)
+    if (pareja?.sincronizado) {
+      unidades.push(grupo)
+    } else {
+      reportarErrorSync('push traslado incompleto', {
+        message: `Traslado ${trasladoId} sin su pareja local`,
+      })
+    }
+  }
+  return unidades
+}
+
+/**
  * Pushes the current user's unsynced movimientos and returns the loteIds of
- * any `consumo` rows actually pushed. Only rows the server accepted are marked
- * `sincronizado`: supabase-js returns `{ error }` instead of throwing (offline,
- * 5xx, RLS), and marking a failed batch as synced lost those movimientos for
- * good. `ignoreDuplicates` (ON CONFLICT DO NOTHING) because `movimientos` is
- * insert-only (no UPDATE policy): re-sending a row that already reached the
- * server must not fail the whole batch. Rows of other users on a shared device
- * stay pending until their owner signs in (RLS: `usuario_id = auth.uid()`).
- * Unlike cambios/categorías there's no `rechazadoEn`: a rejected row stays
- * pending, so every row error is a cycle error (spec 012 research.md R1).
+ * any `consumo` or `traslado_salida` rows actually pushed (the lots whose
+ * stock went down, to reconcile). Only rows the server accepted are marked
+ * `sincronizado`: supabase-js returns `{ error }` instead of throwing
+ * (offline, 5xx, RLS), and marking a failed batch as synced lost those
+ * movimientos for good. `ignoreDuplicates` (ON CONFLICT DO NOTHING) because
+ * `movimientos` is insert-only (no UPDATE policy): re-sending a row that
+ * already reached the server must not fail the whole batch. Rows of other
+ * users on a shared device stay pending until their owner signs in (RLS:
+ * `usuario_id = auth.uid()`). Unlike cambios/categorías there's no
+ * `rechazadoEn`: a rejected row stays pending, so every row error is a cycle
+ * error (spec 012 research.md R1). A traslado is one unit: its two halves
+ * are never split, not even in the row-by-row retry (spec 014 FR-023).
  */
 async function pushMovimientos(
   client: SupabaseClient,
   ciclo: CicloSync,
+  filtro: (movimiento: Movimiento) => boolean = () => true,
 ): Promise<string[]> {
   const usuarioId = usuarioActualId()
   if (!usuarioId) return []
-  const pendientes = (await db.movimientos.toArray()).filter(
-    (movimiento) => !movimiento.sincronizado && movimiento.usuarioId === usuarioId,
+  const pendientes = delTenantActual(await db.movimientos.toArray()).filter(
+    (movimiento) =>
+      !movimiento.sincronizado &&
+      movimiento.usuarioId === usuarioId &&
+      filtro(movimiento),
   )
   if (pendientes.length === 0) return []
+  const unidades = await unidadesDeSubida(pendientes)
+  if (unidades.length === 0) return []
 
   const subir = (filas: Movimiento[]) =>
     client
       .from('movimientos')
       .upsert(filas.map(toMovimientoRow), { onConflict: 'id', ignoreDuplicates: true })
 
-  let subidos = pendientes
-  const respuesta = await subir(pendientes)
+  let subidos = unidades.flat()
+  const respuesta = await subir(subidos)
   if (respuesta.error) {
     if (!esRechazoDePermisos(respuesta.error)) {
       ciclo.registrar('push movimientos', errorDe(respuesta))
       return []
     }
-    // Un rechazo de permisos no debe bloquear las filas válidas: fila por fila.
+    // Un rechazo de permisos no debe bloquear las filas válidas: unidad por unidad.
     subidos = []
-    for (const movimiento of pendientes) {
-      const respuestaFila = await subir([movimiento])
-      if (respuestaFila.error) {
-        ciclo.registrar('push movimiento (fila)', errorDe(respuestaFila))
+    for (const unidad of unidades) {
+      const respuestaUnidad = await subir(unidad)
+      if (respuestaUnidad.error) {
+        ciclo.registrar('push movimiento (fila)', errorDe(respuestaUnidad))
       } else {
-        subidos.push(movimiento)
+        subidos.push(...unidad)
       }
     }
   }
@@ -769,8 +891,12 @@ async function pushMovimientos(
     })),
   )
   return subidos
-    .filter((movimiento) => movimiento.tipo === 'consumo')
+    .filter((movimiento) => restaStock(movimiento.tipo))
     .map((movimiento) => movimiento.loteId)
+}
+
+function restaStock(tipo: Movimiento['tipo']): boolean {
+  return tipo === 'consumo' || tipo === 'traslado_salida'
 }
 
 /**
@@ -787,7 +913,12 @@ async function pushConfiguracionAlertas(
   ciclo: CicloSync,
 ): Promise<void> {
   const config = await db.configuracionAlertas.get('global')
-  if (!config || config.sincronizado !== false || !esAdministradorActual())
+  if (
+    !config ||
+    config.sincronizado !== false ||
+    !esAdministradorActual() ||
+    config.tenantId !== getTenantActualId()
+  )
     return
   const respuesta = await client
     .from('configuracion_alertas')
@@ -802,25 +933,105 @@ async function pushConfiguracionAlertas(
   }
 }
 
-/** Same contract as `pushConfiguracionAlertas`, for the clinic-name row. */
-async function pushConfiguracionClinica(
+/**
+ * Spec 014 FR-011: lugares creados, renombrados o (des)activados por un
+ * administrador en este dispositivo. Un rechazo del servidor (permisos,
+ * nombre repetido, último lugar activo) descarta el cambio local para que el
+ * pull traiga el valor del servidor, como la configuración global.
+ */
+async function pushLugares(
   client: SupabaseClient,
   ciclo: CicloSync,
 ): Promise<void> {
-  const config = await db.configuracionClinica.get('global')
-  if (!config || config.sincronizado !== false || !esAdministradorActual())
-    return
+  if (!esAdministradorActual()) return
+  const pendientes = delTenantActual(await db.lugares.toArray()).filter(
+    (lugar) => !lugar.sincronizado,
+  )
+  for (const lugar of pendientes) {
+    const respuesta = await client.from('lugares').upsert(toLugarRow(lugar))
+    if (respuesta.error && !esRechazoDeLugar(respuesta.error)) {
+      ciclo.registrar('push lugares', errorDe(respuesta))
+      continue
+    }
+    const actual = await db.lugares.get(lugar.id)
+    if (actual && mismaFila(actual, lugar)) {
+      await db.lugares.update(lugar.id, { sincronizado: true })
+    }
+  }
+}
+
+function esRechazoDeLugar(error: { code?: string; message?: string }): boolean {
+  return (
+    esRechazoDePermisos(error) ||
+    error.code === '23505' ||
+    /ultimo_lugar_activo/.test(error.message ?? '')
+  )
+}
+
+async function pullLugares(
+  client: SupabaseClient,
+  ciclo: CicloSync,
+): Promise<void> {
+  const respuesta = await client.from('lugares').select('*')
+  ciclo.registrar('pull lugares', errorDe(respuesta))
+  if (respuesta.error || !respuesta.data) return
+  const locales = new Map(
+    (await db.lugares.toArray()).map((lugar) => [lugar.id, lugar]),
+  )
+  await db.lugares.bulkPut(
+    (respuesta.data as LugarRow[])
+      .filter((row) => !conservarCambioLocal(locales.get(row.id)))
+      .map(fromLugarRow),
+  )
+}
+
+/** Spec 014 FR-007: mínimos por lugar que un administrador cambió aquí. */
+async function pushMinimosLugar(
+  client: SupabaseClient,
+  ciclo: CicloSync,
+): Promise<void> {
+  if (!esAdministradorActual()) return
+  const pendientes = delTenantActual(await db.minimosLugar.toArray()).filter(
+    (minimo) => !minimo.sincronizado,
+  )
+  if (pendientes.length === 0) return
   const respuesta = await client
-    .from('configuracion_clinica')
-    .upsert(toConfiguracionClinicaRow(config))
+    .from('minimos_lugar')
+    .upsert(pendientes.map(toMinimoLugarRow), { onConflict: 'insumo_id,lugar_id' })
   if (respuesta.error && !esRechazoDePermisos(respuesta.error)) {
-    ciclo.registrar('push configuracion_clinica', errorDe(respuesta))
+    ciclo.registrar('push minimos_lugar', errorDe(respuesta))
     return
   }
-  const actual = await db.configuracionClinica.get('global')
-  if (actual && mismaFila(actual, config)) {
-    await db.configuracionClinica.update('global', { sincronizado: true })
+  for (const minimo of pendientes) {
+    const clave: [string, string] = [minimo.insumoId, minimo.lugarId]
+    const actual = await db.minimosLugar.get(clave)
+    if (actual && mismaFila(actual, minimo)) {
+      await db.minimosLugar.update(clave, { sincronizado: true })
+    }
   }
+}
+
+async function pullMinimosLugar(
+  client: SupabaseClient,
+  ciclo: CicloSync,
+): Promise<void> {
+  const respuesta = await client.from('minimos_lugar').select('*')
+  ciclo.registrar('pull minimos_lugar', errorDe(respuesta))
+  if (respuesta.error || !respuesta.data) return
+  const locales = new Map(
+    (await db.minimosLugar.toArray()).map((minimo) => [
+      `${minimo.insumoId}|${minimo.lugarId}`,
+      minimo,
+    ]),
+  )
+  await db.minimosLugar.bulkPut(
+    (respuesta.data as MinimoLugarRow[])
+      .filter(
+        (row) =>
+          !conservarCambioLocal(locales.get(`${row.insumo_id}|${row.lugar_id}`)),
+      )
+      .map(fromMinimoLugarRow),
+  )
 }
 
 function mismaFila(a: object, b: object): boolean {
@@ -873,6 +1084,8 @@ async function pullConfiguracionAlertas(
   client: SupabaseClient,
   ciclo: CicloSync,
 ): Promise<void> {
+  // Spec 014 (R7): una fila por tenant, todas con id 'global'; RLS devuelve
+  // solo la del tenant propio.
   const respuesta = await client
     .from('configuracion_alertas')
     .select('*')
@@ -886,25 +1099,7 @@ async function pullConfiguracionAlertas(
   )
 }
 
-/** Pulls the remote clinic-name row, if one has ever been saved (spec 010 FR-020). */
-async function pullConfiguracionClinica(
-  client: SupabaseClient,
-  ciclo: CicloSync,
-): Promise<void> {
-  const respuesta = await client
-    .from('configuracion_clinica')
-    .select('*')
-    .eq('id', 'global')
-    .maybeSingle()
-  ciclo.registrar('pull configuracion_clinica', errorDe(respuesta))
-  if (respuesta.error || !respuesta.data) return
-  if (conservarCambioLocal(await db.configuracionClinica.get('global'))) return
-  await db.configuracionClinica.put(
-    fromConfiguracionClinicaRow(respuesta.data as ConfiguracionClinicaRow),
-  )
-}
-
-/** Pulls remote movimientos and returns the loteIds of any `consumo` rows pulled. */
+/** Pulls remote movimientos and returns the loteIds of the rows that lowered stock. */
 async function pullMovimientos(
   client: SupabaseClient,
   ciclo: CicloSync,
@@ -914,7 +1109,7 @@ async function pullMovimientos(
   if (respuesta.error || !respuesta.data) return []
   const rows = respuesta.data as MovimientoRow[]
   await db.movimientos.bulkPut(rows.map(fromMovimientoRow))
-  return rows.filter((row) => row.tipo === 'consumo').map((row) => row.lote_id)
+  return rows.filter((row) => restaStock(row.tipo)).map((row) => row.lote_id)
 }
 
 /**
@@ -923,6 +1118,61 @@ async function pullMovimientos(
  * categorías confundirían el RLS con "sin permisos" y revertirían filas.
  * Devuelve `false` si el ciclo no debe seguir.
  */
+/**
+ * Spec 014 FR-021: el último envío de un usuario desactivado. Sube sus lotes
+ * y movimientos registrados antes de la desactivación (el servidor los acepta
+ * con una política propia) con INSERT simple: `ON CONFLICT` exige además la
+ * política SELECT, que un desactivado no pasa. Un duplicado (23505) significa
+ * que ya estaba arriba. Lo posterior a la desactivación queda pendiente y la
+ * pantalla de acceso desactivado lo cuenta.
+ */
+async function subirPendientesPrevios(
+  client: SupabaseClient,
+  desactivadoEn: string,
+): Promise<void> {
+  const usuarioId = usuarioActualId()
+  if (!usuarioId) return
+  const previos = delTenantActual(await db.movimientos.toArray()).filter(
+    (m) => !m.sincronizado && m.usuarioId === usuarioId && m.creadoEn < desactivadoEn,
+  )
+  if (previos.length === 0) return
+  const yaArriba = (error: { code?: string } | null) => !error || error.code === '23505'
+
+  const loteIds = new Set(previos.map((m) => m.loteId))
+  for (const lote of await db.lotes.bulkGet([...loteIds])) {
+    if (!lote || lote.creadoEn >= desactivadoEn) continue
+    await client.from('lotes').insert(toLoteRow(lote))
+  }
+  for (const unidad of await unidadesDeSubida(previos)) {
+    const { error } = await client.from('movimientos').insert(unidad.map(toMovimientoRow))
+    if (yaArriba(error)) {
+      await db.movimientos.bulkUpdate(
+        unidad.map((m) => ({ key: m.id, changes: { sincronizado: true } })),
+      )
+    }
+  }
+}
+
+/**
+ * Spec 014 FR-021: estado del perfil en el servidor. Si una administradora lo
+ * desactivó, se marca localmente (la app muestra "acceso desactivado"), se
+ * hace el último envío y el ciclo se detiene sin borrar pendientes. Si lo
+ * reactivó, se desmarca. Sin respuesta (sin red, error) no cambia nada.
+ */
+async function revisarPerfil(client: SupabaseClient): Promise<boolean> {
+  const usuario = useAuthStore.getState().usuario
+  if (!usuario) return true
+  const perfil = await fetchPerfilPropio(client, usuario.id).catch(() => null)
+  if (!perfil) return !usuario.desactivadoEn
+  await useAuthStore.getState().marcarDesactivado(perfil.desactivado_en ?? null)
+  if (perfil.desactivado_en) {
+    await subirPendientesPrevios(client, perfil.desactivado_en)
+    return false
+  }
+  if (perfil.rol !== usuario.rol) await useAuthStore.getState().actualizarRol(perfil.rol)
+  return true
+}
+
 async function validarSesion(
   client: SupabaseClient,
   ciclo: CicloSync,
@@ -942,6 +1192,10 @@ async function validarSesion(
     ciclo.marcarSesionInvalida('sesion')
     return false
   }
+  if (!(await revisarPerfil(client))) {
+    ciclo.marcarSesionInvalida('acceso desactivado')
+    return false
+  }
   return true
 }
 
@@ -952,6 +1206,11 @@ async function ejecutarCiclo(
   if (!(await validarSesion(client, ciclo))) return
 
   const loteIdsTocados = new Set<string>()
+
+  // Spec 014: los lugares primero — lotes, movimientos e ítems de compra los
+  // referencian (FK compuesta en el servidor).
+  await pushLugares(client, ciclo)
+  await pullLugares(client, ciclo)
 
   const rechazadasCategorias = await pushCategorias(client, ciclo)
   await moverASinCategoria(rechazadasCategorias)
@@ -969,16 +1228,16 @@ async function ejecutarCiclo(
 
   await pushLotes(client, ciclo)
   await pushItemsCompra(client, ciclo)
+  await pushMinimosLugar(client, ciclo)
   await pushConfiguracionAlertas(client, ciclo)
-  await pushConfiguracionClinica(client, ciclo)
   for (const loteId of await pushMovimientos(client, ciclo)) {
     loteIdsTocados.add(loteId)
   }
 
   await pullLotes(client, ciclo)
   await pullItemsCompra(client, ciclo)
+  await pullMinimosLugar(client, ciclo)
   await pullConfiguracionAlertas(client, ciclo)
-  await pullConfiguracionClinica(client, ciclo)
   for (const loteId of await pullMovimientos(client, ciclo)) {
     loteIdsTocados.add(loteId)
   }

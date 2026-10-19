@@ -4,6 +4,7 @@ import { resumenInicio } from '../../src/features/inicio/lib/resumenInicio'
 import { computeInsumosStockBajo } from '../../src/features/alertas/lib/stockBajo'
 import { computeAlertasCaducidad } from '../../src/features/alertas/lib/caducidad'
 import { contarAlertasPendientes } from '../../src/features/alertas/lib/resumen'
+import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
 
 const HOY = new Date('2026-10-18T12:00:00')
 const enDias = (d: number) =>
@@ -15,6 +16,7 @@ function insumo(
   extra: Partial<Insumo> = {},
 ): Insumo {
   return {
+    tenantId: TENANT_1,
     id,
     nombre,
     categoria: 'General',
@@ -32,6 +34,8 @@ function insumo(
 }
 function lote(id: string, insumoId: string, fecha: string | null): Lote {
   return {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
     id,
     insumoId,
     numeroLote: id.toUpperCase(),
@@ -44,6 +48,9 @@ function lote(id: string, insumoId: string, fecha: string | null): Lote {
 }
 function ingreso(loteId: string, cantidad: number): Movimiento {
   return {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
+    trasladoId: null,
     id: `m-${loteId}`,
     tipo: 'ingreso',
     loteId,
@@ -56,6 +63,8 @@ function ingreso(loteId: string, cantidad: number): Movimiento {
 }
 function item(id: string, estado: ItemCompra['estado']): ItemCompra {
   return {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
     id,
     nombre: id,
     cantidad: null,

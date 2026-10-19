@@ -4,9 +4,12 @@ import {
   type LoteConStock,
 } from '../../src/features/insumos/lib/fefo'
 import type { Lote } from '../../src/lib/db'
+import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
 
 function makeLote(overrides: Partial<Lote>): Lote {
   return {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
     id: crypto.randomUUID(),
     insumoId: 'insumo-1',
     numeroLote: 'L1',

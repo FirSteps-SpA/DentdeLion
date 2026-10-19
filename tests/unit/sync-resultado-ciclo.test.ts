@@ -28,10 +28,14 @@ import { db } from '../../src/lib/db'
 import { runSyncBatch, sincronizarAhora } from '../../src/lib/sync'
 import { useAuthStore } from '../../src/stores/authStore'
 import { useSyncStore } from '../../src/stores/syncStore'
+import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
+import { usarLugar1 } from '../helpers/lugarFalso'
 
 const movimientosT = db.movimientos as unknown as MemoryTable<Movimiento>
 
 const lote: Lote = {
+  tenantId: TENANT_1,
+  lugarId: LUGAR_1,
   id: 'l1',
   insumoId: 'i1',
   numeroLote: 'A',
@@ -43,6 +47,9 @@ const lote: Lote = {
 }
 
 const movimiento: Movimiento = {
+  tenantId: TENANT_1,
+  lugarId: LUGAR_1,
+  trasladoId: null,
   id: 'm1',
   tipo: 'consumo',
   loteId: 'l1',
@@ -62,6 +69,8 @@ beforeEach(async () => {
   await db.movimientos.put({ ...movimiento })
   useAuthStore.setState({
     usuario: {
+      tenantId: TENANT_1,
+      desactivadoEn: null,
       id: 'u1',
       email: 'u1@x.cl',
       nombre: 'Usuario 1',
@@ -72,6 +81,9 @@ beforeEach(async () => {
   })
   useSyncStore.setState({ fase: 'inactivo', ultimoResultado: null })
 })
+
+// Spec 014: un tenant de un solo lugar, como la clínica original.
+beforeEach(usarLugar1)
 
 describe('runSyncBatch informa el resultado del ciclo (spec 012 R1–R3)', () => {
   it('(a) sin errores da ok y guarda la última sincronización exitosa', async () => {
@@ -96,6 +108,8 @@ describe('runSyncBatch informa el resultado del ciclo (spec 012 R1–R3)', () =>
 
   it('(c) un error de servidor en push items_compra da error con la etapa', async () => {
     await db.itemsCompra.put({
+      tenantId: TENANT_1,
+      lugarId: LUGAR_1,
       id: 'it1',
       nombre: 'Guantes',
       cantidad: null,

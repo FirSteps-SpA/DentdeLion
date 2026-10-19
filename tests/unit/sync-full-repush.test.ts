@@ -7,6 +7,9 @@ vi.mock('../../src/lib/db', async () => {
   const { createMemoryDb, MemoryTable } = await import('../helpers/memoryDb')
   return {
     db: createMemoryDb({
+      lugares: new MemoryTable(),
+      minimosLugar: new MemoryTable(),
+      lugarActivo: new MemoryTable(),
       insumos: new MemoryTable(),
       lotes: new MemoryTable(),
       movimientos: new MemoryTable(),
@@ -49,11 +52,14 @@ vi.mock('../../src/lib/supabase', () => ({
 import { db } from '../../src/lib/db'
 import { runSyncBatch } from '../../src/lib/sync'
 import { useAuthStore } from '../../src/stores/authStore'
+import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
+import { usarLugar1 } from '../helpers/lugarFalso'
 
 const insumosT = db.insumos as unknown as MemoryTable<Insumo>
 const lotesT = db.lotes as unknown as MemoryTable<Lote>
 
 const insumoA: Insumo = {
+  tenantId: TENANT_1,
   id: 'a',
   nombre: 'Guantes',
   categoria: 'Cirugía',
@@ -70,6 +76,8 @@ const insumoA: Insumo = {
 const insumoB: Insumo = { ...insumoA, id: 'b', nombre: 'Bisturí' }
 
 const loteA: Lote = {
+  tenantId: TENANT_1,
+  lugarId: LUGAR_1,
   id: 'lote-a',
   insumoId: 'a',
   numeroLote: 'A-1',
@@ -94,10 +102,15 @@ beforeEach(() => {
  * routine resync, but that's enforced by a trigger now, not by the client
  * withholding rows. This test only guards the client-side invariant.
  */
+// Spec 014: un tenant de un solo lugar, como la clínica original.
+beforeEach(usarLugar1)
+
 describe('full-table resync invariant (spec 010 FR-012)', () => {
   it('re-uploads every local insumo and lote for a personal (non-administrador) user', async () => {
     useAuthStore.setState({
       usuario: {
+        tenantId: TENANT_1,
+        desactivadoEn: null,
         id: 'personal-1',
         email: 'p@x.cl',
         nombre: 'Personal',
@@ -116,6 +129,8 @@ describe('full-table resync invariant (spec 010 FR-012)', () => {
   it('re-uploads every local insumo and lote for an administrador user too', async () => {
     useAuthStore.setState({
       usuario: {
+        tenantId: TENANT_1,
+        desactivadoEn: null,
         id: 'admin-1',
         email: 'a@x.cl',
         nombre: 'Admin',

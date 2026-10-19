@@ -8,9 +8,11 @@ import {
   claveCategoria,
   resolverCategoria,
 } from '../../../src/features/insumos/lib/categorias'
+import { TENANT_1 } from '../../helpers/tenancy'
 
 function insumo(overrides: Partial<Insumo>): Insumo {
   return {
+    tenantId: TENANT_1,
     id: crypto.randomUUID(),
     nombre: 'Insumo',
     categoria: 'Fresas',
@@ -29,6 +31,7 @@ function insumo(overrides: Partial<Insumo>): Insumo {
 
 function categoria(overrides: Partial<Categoria>): Categoria {
   return {
+    tenantId: TENANT_1,
     id: crypto.randomUUID(),
     nombre: 'Ortodoncia',
     creadoPor: 'admin-1',

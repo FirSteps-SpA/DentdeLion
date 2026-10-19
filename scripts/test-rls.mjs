@@ -64,10 +64,15 @@ async function leer(path) {
   return r.data
 }
 
+// Spec 014: los datos actuales viven en el tenant 1 / lugar 1 (UUID fijos de
+// la migración multi_tenant y de Dexie v10).
+const TENANT_1 = '00000000-0000-4000-8000-000000000001'
+const LUGAR_1 = '00000000-0000-4000-8000-000000000011'
+
 const run = randomUUID().slice(0, 8)
 const PASSWORD = 'Test-1234!'
 
-async function crearUsuario(alias, rol) {
+async function crearUsuario(alias, rol, tenant_id = TENANT_1) {
   const email = `${alias}-${run}@test.local`
   const r = await http('POST', '/auth/v1/admin/users', {
     key: SVC,
@@ -76,20 +81,20 @@ async function crearUsuario(alias, rol) {
   if (r.status !== 200) throw new Error(`crear usuario ${alias}: ${r.status}`)
   const p = await http('POST', '/rest/v1/perfiles', {
     key: SVC,
-    body: { id: r.data.id, nombre: alias, rol },
+    body: { id: r.data.id, nombre: alias, rol, tenant_id },
   })
   if (p.status !== 201) throw new Error(`perfil ${alias}: ${p.status}`)
   const t = await http('POST', '/auth/v1/token?grant_type=password', {
     body: { email, password: PASSWORD },
   })
   if (t.status !== 200) throw new Error(`login ${alias}: ${t.status}`)
-  return { id: r.data.id, token: t.data.access_token }
+  return { id: r.data.id, email, token: t.data.access_token }
 }
 
 // Fila singleton de configuración (la base local no tiene seed).
 await http('POST', '/rest/v1/configuracion_clinica?on_conflict=id', {
   key: SVC,
-  body: { id: 'global', nombre: 'Clínica de prueba' },
+  body: { id: 'global', nombre: 'Clínica de prueba', tenant_id: TENANT_1 },
   prefer: 'resolution=merge-duplicates',
 })
 
@@ -257,8 +262,10 @@ check(
 )
 
 // Spec 012 FR-011: umbral de pendientes antiguos en configuracion_alertas.
+// Sin `on_conflict`, como el cliente: PostgREST usa la PK (tenant_id desde la
+// spec 014), que completa el default tenant_actual().
 const upsertAlertas = (token, body) =>
-  http('POST', '/rest/v1/configuracion_alertas?on_conflict=id', {
+  http('POST', '/rest/v1/configuracion_alertas', {
     token,
     body: { id: 'global', ...body },
     prefer: 'resolution=merge-duplicates,return=minimal',
@@ -300,6 +307,380 @@ r = await upsertAlertas(adm.token, { niveles_aviso_dias: [15] })
 check(
   'un upsert sin la columna (cliente 2.1.0) conserva el umbral',
   r.status < 300 && (await horasAviso()) === 12,
+  `HTTP ${r.status}`,
+)
+
+// ---------------------------------------------------------------------------
+// Spec 014: aislamiento entre tenants, lugares, traslados e invitaciones
+// (contracts/supabase-schema.md, "test:rls: casos nuevos").
+// ---------------------------------------------------------------------------
+
+const TENANT_B = randomUUID()
+const LUGAR_A2 = randomUUID()
+const LUGAR_B1 = randomUUID()
+await http('POST', '/rest/v1/tenants', {
+  key: SVC,
+  body: { id: TENANT_B, nombre: `Tenant B ${run}` },
+})
+await http('POST', '/rest/v1/lugares', {
+  key: SVC,
+  body: [
+    { id: LUGAR_A2, tenant_id: TENANT_1, nombre: `Box A2 ${run}` },
+    { id: LUGAR_B1, tenant_id: TENANT_B, nombre: 'Clínica B' },
+  ],
+})
+const admB = await crearUsuario('admin-b', 'administrador', TENANT_B)
+const perB = await crearUsuario('personal-b', 'personal', TENANT_B)
+
+// Datos propios de B, creados por B con la forma 2.2.0 (sin tenant ni lugar).
+const insumoB = randomUUID()
+const loteB = randomUUID()
+r = await http('POST', '/rest/v1/insumos', {
+  token: admB.token,
+  body: {
+    id: insumoB,
+    nombre: 'Guantes B',
+    categoria: 'Protección',
+    unidad_medida: 'caja',
+    permite_decimales: false,
+  },
+})
+check('B da de alta un insumo en su tenant', r.status === 201, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/lotes', {
+  token: perB.token,
+  body: { id: loteB, insumo_id: insumoB, numero_lote: 'LB', proveedor: 'P' },
+})
+check('B crea un lote en su tenant', r.status === 201, `HTTP ${r.status}`)
+const [filaLoteB] = await leer(`lotes?select=tenant_id,lugar_id&id=eq.${loteB}`)
+check(
+  'una fila sin tenant_id ni lugar_id (forma 2.2.0) cae en su tenant y su lugar principal',
+  filaLoteB?.tenant_id === TENANT_B && filaLoteB?.lugar_id === LUGAR_B1,
+  JSON.stringify(filaLoteB),
+)
+
+for (const tabla of [
+  'insumos',
+  'lotes',
+  'movimientos',
+  'items_compra',
+  'categorias',
+  'cambios_insumo',
+  'lugares',
+  'configuracion_alertas',
+  'minimos_lugar',
+]) {
+  r = await http('GET', `/rest/v1/${tabla}?select=tenant_id`, { token: perB.token })
+  const ajenas = Array.isArray(r.data) ? r.data.filter((f) => f.tenant_id !== TENANT_B) : null
+  check(`B no lee ${tabla} de otro tenant`, ajenas?.length === 0, `HTTP ${r.status}`)
+}
+r = await http('GET', '/rest/v1/perfiles?select=id,tenant_id', { token: admB.token })
+check(
+  'la administradora de B solo ve perfiles de B',
+  Array.isArray(r.data) && r.data.length === 2 && r.data.every((f) => f.tenant_id === TENANT_B),
+  `${r.data?.length} filas`,
+)
+r = await http('GET', '/rest/v1/tenants?select=id', { token: perB.token })
+check(
+  'B solo ve su propio tenant',
+  Array.isArray(r.data) && r.data.length === 1 && r.data[0].id === TENANT_B,
+  `${r.data?.length} filas`,
+)
+
+r = await http('POST', '/rest/v1/insumos', {
+  token: admB.token,
+  body: {
+    id: randomUUID(),
+    tenant_id: TENANT_1,
+    nombre: 'Intruso',
+    categoria: 'X',
+    unidad_medida: 'caja',
+    permite_decimales: false,
+  },
+})
+check('B no inserta filas con el tenant_id de A', r.status === 403, `HTTP ${r.status}`)
+r = await http('PATCH', `/rest/v1/insumos?id=eq.${insumo}`, {
+  token: admB.token,
+  body: { nombre: 'Pisado por B' },
+})
+;[fila] = await leer(`insumos?select=nombre&id=eq.${insumo}`)
+check(
+  'B no actualiza filas de A',
+  Array.isArray(r.data) && r.data.length === 0 && fila.nombre !== 'Pisado por B',
+  `HTTP ${r.status}`,
+)
+
+r = await http('POST', '/rest/v1/lotes', {
+  token: per.token,
+  body: {
+    id: randomUUID(),
+    insumo_id: insumo,
+    lugar_id: LUGAR_B1,
+    numero_lote: 'X',
+    proveedor: 'P',
+  },
+})
+check('A no crea un lote en un lugar de B (FK compuesta)', r.status >= 400, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/lotes', {
+  token: per.token,
+  body: { id: randomUUID(), insumo_id: insumoB, numero_lote: 'X', proveedor: 'P' },
+})
+check('A no crea un lote de un insumo de B (FK compuesta)', r.status >= 400, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/movimientos', {
+  token: per.token,
+  body: { ...movimiento(per.id), lote_id: loteB },
+})
+check(
+  'A no registra un movimiento sobre un lote de B (FK compuesta)',
+  r.status >= 400,
+  `HTTP ${r.status}`,
+)
+
+r = await http('POST', '/rest/v1/lugares', {
+  token: per.token,
+  body: { tenant_id: TENANT_1, nombre: `Intento ${run}` },
+})
+check('personal no crea lugares', r.status === 403, `HTTP ${r.status}`)
+r = await http('PATCH', `/rest/v1/lugares?id=eq.${LUGAR_B1}`, {
+  token: admB.token,
+  body: { desactivado_en: new Date().toISOString() },
+})
+check(
+  'no se puede desactivar el último lugar activo',
+  r.status >= 400 && /ultimo_lugar_activo/.test(JSON.stringify(r.data)),
+  `HTTP ${r.status}`,
+)
+r = await http('PATCH', `/rest/v1/perfiles?id=eq.${admB.id}`, {
+  token: admB.token,
+  body: { rol: 'personal' },
+})
+check(
+  'no se puede degradar a la última administradora',
+  r.status >= 400 && /ultimo_administrador/.test(JSON.stringify(r.data)),
+  `HTTP ${r.status}`,
+)
+
+r = await http('POST', '/rest/v1/rpc/equipo_tenant', { token: admB.token, body: {} })
+check(
+  'equipo_tenant da los perfiles de B con correo a su administradora',
+  Array.isArray(r.data) &&
+    r.data.length === 2 &&
+    r.data.some((f) => f.correo === perB.email),
+  `HTTP ${r.status}`,
+)
+r = await http('POST', '/rest/v1/rpc/equipo_tenant', { token: perB.token, body: {} })
+check(
+  'equipo_tenant no da nada al personal',
+  Array.isArray(r.data) && r.data.length === 0,
+  `HTTP ${r.status}`,
+)
+
+// Usuario desactivado: sin acceso, salvo su perfil y sus pendientes previos.
+const perA2 = await crearUsuario('personal-a2', 'personal')
+const antesDeDesactivar = new Date(Date.now() - 60_000).toISOString()
+r = await http('PATCH', `/rest/v1/perfiles?id=eq.${perA2.id}`, {
+  token: adm.token,
+  body: { desactivado_en: new Date().toISOString() },
+})
+check('la administradora desactiva a un usuario de su tenant', r.status === 200, `HTTP ${r.status}`)
+r = await http('GET', '/rest/v1/insumos?select=id', { token: perA2.token })
+check(
+  'un usuario desactivado no lee nada',
+  Array.isArray(r.data) && r.data.length === 0,
+  `${r.data?.length} filas`,
+)
+r = await http('GET', '/rest/v1/perfiles?select=id,desactivado_en', { token: perA2.token })
+check(
+  'un usuario desactivado lee su propio perfil (con desactivado_en)',
+  Array.isArray(r.data) && r.data.length === 1 && r.data[0].desactivado_en !== null,
+  `${r.data?.length} filas`,
+)
+// El último envío de un desactivado es un INSERT simple: `ON CONFLICT` exige
+// además la política SELECT, que un desactivado no pasa.
+r = await http('POST', '/rest/v1/movimientos', {
+  token: perA2.token,
+  body: { ...movimiento(perA2.id), tenant_id: TENANT_1, lugar_id: LUGAR_1, creado_en: antesDeDesactivar },
+  prefer: 'return=minimal',
+})
+check(
+  'un pendiente registrado antes de la desactivación se acepta',
+  r.status === 201,
+  `HTTP ${r.status}`,
+)
+r = await http('POST', '/rest/v1/movimientos', {
+  token: perA2.token,
+  body: {
+    ...movimiento(perA2.id),
+    tenant_id: TENANT_1,
+    lugar_id: LUGAR_1,
+    creado_en: new Date(Date.now() + 60_000).toISOString(),
+  },
+  prefer: 'return=minimal',
+})
+check(
+  'un movimiento posterior a la desactivación se rechaza',
+  r.status === 403,
+  `HTTP ${r.status}`,
+)
+
+// Traslados: el par es atómico (constraint trigger diferido).
+const loteT = randomUUID()
+await http('POST', '/rest/v1/lotes', {
+  token: per.token,
+  body: { id: loteT, insumo_id: insumo, numero_lote: 'LT', proveedor: 'P' },
+})
+await http('POST', '/rest/v1/movimientos', {
+  token: per.token,
+  body: { ...movimiento(per.id), tipo: 'ingreso', lote_id: loteT, cantidad: 10 },
+})
+const mitad = (tipo, lugar_id, traslado_id, cantidad = 4) => ({
+  id: randomUUID(),
+  tipo,
+  lote_id: loteT,
+  cantidad,
+  usuario_id: per.id,
+  creado_en: ahora,
+  lugar_id,
+  traslado_id,
+})
+r = await http('POST', '/rest/v1/movimientos', {
+  token: per.token,
+  body: mitad('traslado_salida', LUGAR_1, randomUUID()),
+})
+check('una salida de traslado sin su entrada se rechaza', r.status >= 400, `HTTP ${r.status}`)
+const t1 = randomUUID()
+r = await http('POST', '/rest/v1/movimientos', {
+  token: per.token,
+  body: [mitad('traslado_salida', LUGAR_1, t1), mitad('traslado_entrada', LUGAR_A2, t1)],
+})
+const movsT = await leer(`movimientos?select=tipo,cantidad,lugar_id&lote_id=eq.${loteT}`)
+const stockEn = (lugar) =>
+  movsT
+    .filter((m) => m.lugar_id === lugar)
+    .reduce(
+      (t, m) =>
+        ['ingreso', 'traslado_entrada'].includes(m.tipo) ? t + m.cantidad : t - m.cantidad,
+      0,
+    )
+check(
+  'un traslado completo mueve el stock entre los lugares de A',
+  r.status === 201 && stockEn(LUGAR_1) === 6 && stockEn(LUGAR_A2) === 4,
+  `HTTP ${r.status} ${stockEn(LUGAR_1)}/${stockEn(LUGAR_A2)}`,
+)
+const t2 = randomUUID()
+r = await http('POST', '/rest/v1/movimientos', {
+  token: per.token,
+  body: [mitad('traslado_salida', LUGAR_1, t2), mitad('traslado_entrada', LUGAR_1, t2)],
+})
+check('un traslado al mismo lugar se rechaza', r.status >= 400, `HTTP ${r.status}`)
+const t3 = randomUUID()
+r = await http('POST', '/rest/v1/movimientos', {
+  token: per.token,
+  body: [mitad('traslado_salida', LUGAR_1, t3, 4), mitad('traslado_entrada', LUGAR_A2, t3, 3)],
+})
+check('un traslado con cantidades distintas se rechaza', r.status >= 400, `HTTP ${r.status}`)
+const t4 = randomUUID()
+r = await http('POST', '/rest/v1/movimientos', {
+  token: per.token,
+  body: [mitad('traslado_salida', LUGAR_1, t4), mitad('traslado_entrada', LUGAR_B1, t4)],
+})
+check('un traslado hacia un lugar de otro tenant se rechaza', r.status >= 400, `HTTP ${r.status}`)
+
+// Invitaciones (RPC + Edge Function `aceptar-invitacion`).
+const crearInvitacion = (token, correo, rol = 'personal') =>
+  http('POST', '/rest/v1/rpc/crear_invitacion', {
+    token,
+    body: { p_correo: correo, p_rol: rol },
+  })
+const aceptar = (body) =>
+  http('POST', '/functions/v1/aceptar-invitacion', { body })
+const NUEVA_CLAVE = 'Clave12345'
+
+r = await crearInvitacion(per.token, `x-${run}@test.local`)
+check('personal no crea invitaciones', r.status >= 400, `HTTP ${r.status}`)
+
+const correoInvitada = `invitada-${run}@test.local`
+r = await crearInvitacion(adm.token, correoInvitada)
+const invitacion = r.data?.[0]
+check(
+  'la administradora crea una invitación y recibe el token',
+  r.status === 200 && typeof invitacion?.token === 'string',
+  `HTTP ${r.status}`,
+)
+const [guardada] = await leer(`invitaciones?select=token_hash&id=eq.${invitacion.id}`)
+check(
+  'la tabla guarda solo el hash del token',
+  guardada.token_hash !== invitacion.token && guardada.token_hash.length === 64,
+)
+r = await http('POST', '/rest/v1/rpc/ver_invitacion', { body: { p_token: invitacion.token } })
+check(
+  'ver_invitacion sin sesión da correo y tenant de una invitación vigente',
+  r.data?.[0]?.correo === correoInvitada,
+  `HTTP ${r.status}`,
+)
+r = await http('POST', '/rest/v1/rpc/ver_invitacion', { body: { p_token: 'inventado-' + run } })
+check('ver_invitacion con un token inventado no da nada', Array.isArray(r.data) && r.data.length === 0)
+
+r = await aceptar({ token: invitacion.token, nombre: 'Invitada', password: 'corta' })
+check(
+  'una contraseña débil da password_debil',
+  r.status === 422 && r.data?.codigo === 'password_debil',
+  `HTTP ${r.status} ${r.data?.codigo}`,
+)
+r = await aceptar({ token: invitacion.token, nombre: 'Invitada', password: NUEVA_CLAVE })
+check('aceptar una invitación vigente funciona', r.status === 200, `HTTP ${r.status} ${r.data?.codigo ?? ''}`)
+const login = await http('POST', '/auth/v1/token?grant_type=password', {
+  body: { email: correoInvitada, password: NUEVA_CLAVE },
+})
+r = await http('GET', '/rest/v1/insumos?select=tenant_id', { token: login.data?.access_token })
+check(
+  'la invitada entra al tenant que la invitó y solo ve sus datos',
+  login.status === 200 &&
+    Array.isArray(r.data) &&
+    r.data.length > 0 &&
+    r.data.every((f) => f.tenant_id === TENANT_1),
+  `login ${login.status}, ${r.data?.length} filas`,
+)
+r = await aceptar({ token: invitacion.token, nombre: 'Otra vez', password: NUEVA_CLAVE })
+check(
+  'una invitación ya aceptada no se reutiliza',
+  r.status === 404 && r.data?.codigo === 'invitacion_invalida',
+  `HTTP ${r.status}`,
+)
+
+const vencida = (await crearInvitacion(adm.token, `vencida-${run}@test.local`)).data[0]
+await http('PATCH', `/rest/v1/invitaciones?id=eq.${vencida.id}`, {
+  key: SVC,
+  body: { vence_en: new Date(Date.now() - 1000).toISOString() },
+})
+r = await aceptar({ token: vencida.token, nombre: 'V', password: NUEVA_CLAVE })
+check(
+  'una invitación vencida da invitacion_vencida',
+  r.status === 410 && r.data?.codigo === 'invitacion_vencida',
+  `HTTP ${r.status}`,
+)
+
+const revocada = (await crearInvitacion(adm.token, `revocada-${run}@test.local`)).data[0]
+r = await http('POST', '/rest/v1/rpc/revocar_invitacion', {
+  token: per.token,
+  body: { p_id: revocada.id },
+})
+check('personal no revoca invitaciones', r.status >= 400, `HTTP ${r.status}`)
+await http('POST', '/rest/v1/rpc/revocar_invitacion', {
+  token: adm.token,
+  body: { p_id: revocada.id },
+})
+r = await aceptar({ token: revocada.token, nombre: 'R', password: NUEVA_CLAVE })
+check(
+  'una invitación revocada da invitacion_invalida',
+  r.status === 404 && r.data?.codigo === 'invitacion_invalida',
+  `HTTP ${r.status}`,
+)
+
+const deOtro = (await crearInvitacion(adm.token, admB.email)).data[0]
+r = await aceptar({ token: deOtro.token, nombre: 'B', password: NUEVA_CLAVE })
+check(
+  'un correo de otro tenant da correo_en_otro_tenant',
+  r.status === 409 && r.data?.codigo === 'correo_en_otro_tenant',
   `HTTP ${r.status}`,
 )
 
