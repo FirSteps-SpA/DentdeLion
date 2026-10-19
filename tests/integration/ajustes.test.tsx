@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type {
   CambioInsumo,
   Categoria,
@@ -15,6 +15,9 @@ vi.mock('../../src/lib/db', async () => {
   const { createMemoryDb, MemoryTable } = await import('../helpers/memoryDb')
   return {
     db: createMemoryDb({
+      lugares: new MemoryTable(),
+      minimosLugar: new MemoryTable(),
+      lugarActivo: new MemoryTable(),
       insumos: new MemoryTable(),
       lotes: new MemoryTable(),
       movimientos: new MemoryTable(),
@@ -23,7 +26,6 @@ vi.mock('../../src/lib/db', async () => {
       categorias: new MemoryTable(),
       usuarioActual: new MemoryTable(),
       borradores: new MemoryTable(),
-      configuracionClinica: new MemoryTable(),
       preferenciasNotificaciones: new MemoryTable(),
     }),
   }
@@ -33,10 +35,13 @@ import { db } from '../../src/lib/db'
 import { onMemoryDbChange } from '../helpers/memoryDb'
 import { useInventoryStore } from '../../src/stores/inventoryStore'
 import { useAlertasStore } from '../../src/stores/alertasStore'
-import { useClinicaStore } from '../../src/stores/clinicaStore'
+import { resolverLugarActivo, useLugarStore } from '../../src/stores/lugarStore'
+import { lugar1 } from '../helpers/lugarFalso'
+import type { Lugar } from '../../src/lib/db'
 import { useAuthStore } from '../../src/stores/authStore'
 import { AjustesView } from '../../src/features/ajustes/components/AjustesView'
 import { AppHeader } from '../../src/app/AppHeader'
+import { TENANT_1 } from '../helpers/tenancy'
 
 const insumosT = db.insumos as unknown as MemoryTable<Insumo>
 const lotesT = db.lotes as unknown as MemoryTable<Lote>
@@ -46,10 +51,7 @@ const configAlertasT = db.configuracionAlertas as unknown as MemoryTable<
   ConfiguracionAlertas & { id: string }
 >
 const categoriasT = db.categorias as unknown as MemoryTable<Categoria>
-const configClinicaT = db.configuracionClinica as unknown as MemoryTable<{
-  id: string
-  nombre: string | null
-}>
+const lugaresT = db.lugares as unknown as MemoryTable<Lugar>
 const prefNotifT = db.preferenciasNotificaciones as unknown as MemoryTable<{
   id: string
   stockBajo: boolean
@@ -58,6 +60,7 @@ const prefNotifT = db.preferenciasNotificaciones as unknown as MemoryTable<{
 
 function insumo(id: string, nombre: string, overrides: Partial<Insumo> = {}): Insumo {
   return {
+    tenantId: TENANT_1,
     id,
     nombre,
     categoria: 'Cirugía',
@@ -76,6 +79,7 @@ function insumo(id: string, nombre: string, overrides: Partial<Insumo> = {}): In
 
 function categoria(id: string, nombre: string, overrides: Partial<Categoria> = {}): Categoria {
   return {
+    tenantId: TENANT_1,
     id,
     nombre,
     creadoPor: 'admin-1',
@@ -88,6 +92,8 @@ function categoria(id: string, nombre: string, overrides: Partial<Categoria> = {
 }
 
 const personal: UsuarioActual = {
+  tenantId: TENANT_1,
+  desactivadoEn: null,
   id: 'personal-1',
   email: 'p@x.cl',
   nombre: 'Personal Uno',
@@ -118,8 +124,12 @@ function reflejarStore() {
     nivelesAvisoDias: config?.nivelesAvisoDias ?? [30, 7, 1],
     isReady: true,
   })
-  const clinica = configClinicaT.all()[0]
-  useClinicaStore.setState({ nombreClinica: clinica?.nombre ?? null, isReady: true })
+  const lugares = lugaresT.all()
+  useLugarStore.setState({
+    lugares,
+    lugarActivoId: resolverLugarActivo(lugares, useLugarStore.getState().lugarActivoId ?? undefined),
+    isReady: true,
+  })
   const pref = prefNotifT.all()[0]
   useAlertasStore.setState({
     preferenciaStockBajo: pref?.stockBajo ?? true,
@@ -134,7 +144,7 @@ function seed() {
   cambiosT.seed([])
   configAlertasT.seed([])
   categoriasT.seed([])
-  configClinicaT.seed([])
+  lugaresT.seed([lugar1])
   prefNotifT.seed([])
   reflejarStore()
 }
@@ -251,42 +261,116 @@ function AjustesConHeader() {
   )
 }
 
-describe('Ajustes — Clínica (User Story 5)', () => {
-  it('saves a clinic name and replaces "Gabinete" in the header', async () => {
+describe('Ajustes — Lugares de trabajo (spec 014 US4)', () => {
+  it('crea un lugar: aparece en la lista y el encabezado pasa a tener selector', async () => {
     useAuthStore.setState({ usuario: admin, isReady: true })
     render(<AjustesConHeader />)
 
-    expect(screen.getByText('Gabinete')).toBeInTheDocument()
-
-    fireEvent.blur(screen.getByLabelText('Nombre de la clínica o gabinete'), {
-      target: { value: 'Clínica Dental Sonrisas' },
+    expect(screen.queryByRole('button', { name: /Lugar de trabajo:/ })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Nuevo lugar/ }))
+    fireEvent.change(screen.getByLabelText('Nombre del lugar'), {
+      target: { value: 'Box Las Condes' },
     })
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lugar' }))
 
-    await waitFor(() => {
-      expect(screen.getByText('Clínica Dental Sonrisas')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('Box Las Condes')).toBeInTheDocument())
+    expect(lugaresT.all().find((l) => l.nombre === 'Box Las Condes')).toMatchObject({
+      tenantId: TENANT_1,
+      sincronizado: false,
+      desactivadoEn: null,
     })
-    expect(screen.queryByText('Gabinete')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Lugar de trabajo:/ })).toBeInTheDocument()
   })
 
-  it('rejects an empty name and keeps "Gabinete"', async () => {
+  it('no acepta un nombre repetido sin distinguir mayúsculas', async () => {
     useAuthStore.setState({ usuario: admin, isReady: true })
-    render(<AjustesConHeader />)
+    render(<AjustesView />)
 
-    fireEvent.blur(screen.getByLabelText('Nombre de la clínica o gabinete'), {
-      target: { value: '   ' },
+    fireEvent.click(screen.getByRole('button', { name: /Nuevo lugar/ }))
+    fireEvent.change(screen.getByLabelText('Nombre del lugar'), {
+      target: { value: '  CLÍNICA ' },
     })
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lugar' }))
 
-    await waitFor(() => {
-      expect(screen.getByText('Ingresa un nombre de clínica.')).toBeInTheDocument()
-    })
-    expect(screen.getByText('Gabinete')).toBeInTheDocument()
+    expect(await screen.findByText('Ya existe un lugar con ese nombre.')).toBeInTheDocument()
+    expect(lugaresT.all()).toHaveLength(1)
   })
 
-  it('hides Clínica for a non-administrador', () => {
+  it('renombra un lugar', async () => {
+    useAuthStore.setState({ usuario: admin, isReady: true })
+    render(<AjustesView />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Renombrar Clínica' }))
+    fireEvent.change(screen.getByLabelText('Nombre del lugar'), {
+      target: { value: 'Clínica Providencia' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    await waitFor(() => expect(lugaresT.all()[0].nombre).toBe('Clínica Providencia'))
+  })
+
+  it('no deja desactivar el último lugar activo', () => {
+    useAuthStore.setState({ usuario: admin, isReady: true })
+    render(<AjustesView />)
+
+    expect(screen.getByRole('button', { name: /Desactivar/ })).toBeDisabled()
+  })
+
+  it('desactivar un lugar con stock pide confirmación, y se puede reactivar', async () => {
+    useAuthStore.setState({ usuario: admin, isReady: true })
+    lugaresT.seed([lugar1, { ...lugar1, id: 'box', nombre: 'Box', creadoEn: '2026-03-01T00:00:00.000Z' }])
+    lotesT.seed([
+      {
+        id: 'l1',
+        tenantId: TENANT_1,
+        lugarId: 'box',
+        insumoId: 'a',
+        numeroLote: 'L1',
+        proveedor: 'P',
+        fechaCaducidad: null,
+        codigoFabricante: null,
+        estado: 'activo',
+        creadoEn: 'x',
+      },
+    ])
+    movimientosT.seed([
+      {
+        id: 'm1',
+        tenantId: TENANT_1,
+        lugarId: 'box',
+        trasladoId: null,
+        tipo: 'ingreso',
+        loteId: 'l1',
+        cantidad: 3,
+        usuarioId: 'x',
+        movimientoOrigenId: null,
+        creadoEn: 'x',
+        sincronizado: true,
+      },
+    ])
+    reflejarStore()
+    render(<AjustesView />)
+
+    expect(screen.getByText('1 insumo con stock')).toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole('button', { name: /Desactivar/ })[1])
+    const dialogo = screen.getByRole('dialog', { name: '¿Desactivar Box?' })
+    expect(dialogo).toHaveTextContent('Su stock dejará de verse en el selector')
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Desactivar' }))
+
+    await waitFor(() =>
+      expect(lugaresT.all().find((l) => l.id === 'box')!.desactivadoEn).not.toBeNull(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Reactivar/ }))
+    await waitFor(() =>
+      expect(lugaresT.all().find((l) => l.id === 'box')!.desactivadoEn).toBeNull(),
+    )
+  })
+
+  it('el personal no ve la gestión de lugares (US4-4)', () => {
     useAuthStore.setState({ usuario: personal, isReady: true })
     render(<AjustesView />)
 
-    expect(screen.queryByText('Clínica')).not.toBeInTheDocument()
+    expect(screen.queryByText('Lugares de trabajo')).not.toBeInTheDocument()
   })
 })
 

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { contarAlertasPendientes } from '../../../src/features/alertas/lib/resumen'
 import type { Insumo, Lote, Movimiento } from '../../../src/lib/db'
+import { LUGAR_1, TENANT_1 } from '../../helpers/tenancy'
 
 function insumo(overrides: Partial<Insumo>): Insumo {
   return {
+    tenantId: TENANT_1,
     id: crypto.randomUUID(),
     nombre: 'Insumo',
     categoria: 'Cirugía',
@@ -22,6 +24,8 @@ function insumo(overrides: Partial<Insumo>): Insumo {
 
 function lote(overrides: Partial<Lote>): Lote {
   return {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
     id: crypto.randomUUID(),
     insumoId: 'i1',
     numeroLote: 'L1',
@@ -36,6 +40,9 @@ function lote(overrides: Partial<Lote>): Lote {
 
 function ingreso(loteId: string, cantidad: number): Movimiento {
   return {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
+    trasladoId: null,
     id: crypto.randomUUID(),
     tipo: 'ingreso',
     loteId,

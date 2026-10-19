@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useInventoryStore } from '../../../stores/inventoryStore'
 import { computeItemsSugeridos } from '../lib/sugeridos'
 import { insumoVinculado, eliminarItemManual } from '../lib/itemsManuales'
 import {
@@ -16,12 +15,19 @@ import { VincularOCrearDialog } from './VincularOCrearDialog'
 import { Card } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { Plus, Share, Copy } from '../../../components/icons'
+import { porLugar, useVistasDeLugar } from '../../insumos/lib/vistaLugar'
+import { ChipLugar } from '../../../app/ChipLugar'
+import { ElegirLugarSheet } from '../../../app/ElegirLugarSheet'
+import { nombreLugar, useLugarStore } from '../../../stores/lugarStore'
 
+// Spec 014: cada acción lleva el lugar donde se registra (el de la fila, o el
+// elegido en "¿En qué lugar?" desde "Todos").
 type Overlay =
-  | { tipo: 'recibir'; insumoId: string }
+  | { tipo: 'recibir'; insumoId: string; lugarId?: string }
   | { tipo: 'recibirManual'; itemId: string }
   | { tipo: 'vincularOCrear'; itemId: string }
-  | { tipo: 'agregarManual' }
+  | { tipo: 'elegirLugarManual' }
+  | { tipo: 'agregarManual'; lugarId?: string }
   | null
 
 /**
@@ -34,16 +40,20 @@ type Overlay =
  * (FR-012).
  */
 export function ComprasView() {
-  const insumos = useInventoryStore((s) => s.insumos)
-  const lotes = useInventoryStore((s) => s.lotes)
-  const movimientos = useInventoryStore((s) => s.movimientos)
-  const itemsCompra = useInventoryStore((s) => s.itemsCompra)
+  // Spec 014: la lista del lugar activo; en "Todos", la de cada lugar con su chip.
+  const { vistas, esTodos } = useVistasDeLugar()
+  const lugares = useLugarStore((s) => s.lugares)
+  const insumos = vistas[0]?.datos.insumos ?? []
 
   const [overlay, setOverlay] = useState<Overlay>(null)
   const [mensajeCompartir, setMensajeCompartir] = useState<string | null>(null)
 
-  const sugeridos = computeItemsSugeridos(insumos, lotes, movimientos)
-  const manuales = itemsCompra.filter((item) => item.estado === 'pendiente')
+  const sugeridos = porLugar(vistas, (d) =>
+    computeItemsSugeridos(d.insumos, d.lotes, d.movimientos),
+  )
+  const manuales = vistas.flatMap(({ datos }) =>
+    datos.itemsCompra.filter((item) => item.estado === 'pendiente'),
+  )
   const hayPendientes = sugeridos.length > 0 || manuales.length > 0
 
   // Derivado, no un efecto (mismo patrón que InventarioView): si el insumo
@@ -62,7 +72,11 @@ export function ComprasView() {
       ? insumoVinculado(itemManualOverlay, insumos)
       : null
 
-  function stockTotalDe(insumoId: string): number {
+  /** Stock del insumo en el lugar de la fila (`null` = la única vista). */
+  function stockTotalDe(insumoId: string, lugarId: string | null): number {
+    const vista = vistas.find((v) => (v.lugar?.id ?? null) === lugarId) ?? vistas[0]
+    if (!vista) return 0
+    const { lotes, movimientos } = vista.datos
     return lotes
       .filter((lote) => lote.insumoId === insumoId)
       .reduce(
@@ -73,6 +87,10 @@ export function ComprasView() {
           ),
         0,
       )
+  }
+
+  function abrirAgregarManual() {
+    setOverlay(esTodos ? { tipo: 'elegirLugarManual' } : { tipo: 'agregarManual' })
   }
 
   function handleRecibirManual(item: (typeof manuales)[number]) {
@@ -152,11 +170,14 @@ export function ComprasView() {
         ) : (
           <ul className="flex flex-col gap-2">
             {sugeridos.map((item) => (
-              <li key={item.insumo.id}>
+              <li key={`${item.lugar?.id ?? ''}-${item.insumo.id}`} className="flex flex-col gap-1">
+                {esTodos && item.lugar && <ChipLugar nombre={item.lugar.nombre} />}
                 <ItemSugeridoCard
                   itemSugerido={item}
-                  stockTotal={stockTotalDe(item.insumo.id)}
-                  onRecibir={(insumoId) => setOverlay({ tipo: 'recibir', insumoId })}
+                  stockTotal={stockTotalDe(item.insumo.id, item.lugar?.id ?? null)}
+                  onRecibir={(insumoId) =>
+                    setOverlay({ tipo: 'recibir', insumoId, lugarId: item.lugar?.id })
+                  }
                 />
               </li>
             ))}
@@ -172,7 +193,7 @@ export function ComprasView() {
           <TouchButton
             type="button"
             variant="secondary"
-            onClick={() => setOverlay({ tipo: 'agregarManual' })}
+            onClick={abrirAgregarManual}
             className="px-3 text-xs"
           >
             <Plus size={16} />
@@ -186,7 +207,8 @@ export function ComprasView() {
         ) : (
           <ul className="flex flex-col gap-2">
             {manuales.map((item) => (
-              <li key={item.id}>
+              <li key={item.id} className="flex flex-col gap-1">
+                {esTodos && <ChipLugar nombre={nombreLugar(lugares, item.lugarId)} />}
                 <ItemManualCard
                   item={item}
                   insumoVinculado={insumoVinculado(item, insumos)}
@@ -204,6 +226,7 @@ export function ComprasView() {
         <RecibirItemForm
           insumo={insumoOverlay}
           itemCompraId={null}
+          lugarId={overlay.lugarId}
           onRecibido={() => setOverlay(null)}
           onCancelar={() => setOverlay(null)}
         />
@@ -213,6 +236,7 @@ export function ComprasView() {
         <RecibirItemForm
           insumo={insumoDelItemManualOverlay}
           itemCompraId={itemManualOverlay.id}
+          lugarId={itemManualOverlay.lugarId}
           onRecibido={() => setOverlay(null)}
           onCancelar={() => setOverlay(null)}
         />
@@ -226,9 +250,19 @@ export function ComprasView() {
         />
       )}
 
+      {overlay?.tipo === 'elegirLugarManual' && (
+        <ElegirLugarSheet
+          onElegir={(lugarId) =>
+            setOverlay({ tipo: 'agregarManual', lugarId: lugarId === 'todos' ? undefined : lugarId })
+          }
+          onClose={() => setOverlay(null)}
+        />
+      )}
+
       {overlay?.tipo === 'agregarManual' && (
         <AgregarItemManualForm
           insumosActivos={insumos}
+          lugarId={overlay.lugarId}
           onAgregado={() => setOverlay(null)}
           onCancelar={() => setOverlay(null)}
         />

@@ -15,6 +15,9 @@ vi.mock('../../src/lib/db', async () => {
   const { createMemoryDb, MemoryTable } = await import('../helpers/memoryDb')
   return {
     db: createMemoryDb({
+      lugares: new MemoryTable(),
+      minimosLugar: new MemoryTable(),
+      lugarActivo: new MemoryTable(),
       insumos: new MemoryTable(),
       categorias: new MemoryTable(),
       lotes: new MemoryTable(),
@@ -37,6 +40,8 @@ import { onMemoryDbChange } from '../helpers/memoryDb'
 import { useInventoryStore } from '../../src/stores/inventoryStore'
 import { useAuthStore } from '../../src/stores/authStore'
 import { ComprasView } from '../../src/features/compras/components/ComprasView'
+import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
+import { usarLugar1 } from '../helpers/lugarFalso'
 
 const insumosT = db.insumos as unknown as MemoryTable<Insumo>
 const categoriasT = db.categorias as unknown as MemoryTable<Categoria>
@@ -55,6 +60,7 @@ function fechaEnDias(dias: number): string {
 
 function makeInsumo(overrides: Partial<Insumo>): Insumo {
   return {
+    tenantId: TENANT_1,
     id: crypto.randomUUID(),
     nombre: 'Insumo',
     categoria: 'Cirugía',
@@ -73,6 +79,8 @@ function makeInsumo(overrides: Partial<Insumo>): Insumo {
 
 function makeLote(overrides: Partial<Lote>): Lote {
   return {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
     id: crypto.randomUUID(),
     insumoId: 'insumo-1',
     numeroLote: 'L1',
@@ -87,6 +95,9 @@ function makeLote(overrides: Partial<Lote>): Lote {
 
 function makeIngreso(loteId: string, cantidad: number): Movimiento {
   return {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
+    trasladoId: null,
     id: crypto.randomUUID(),
     tipo: 'ingreso',
     loteId,
@@ -111,6 +122,8 @@ function reflejarStore() {
 }
 
 const personal: UsuarioActual = {
+  tenantId: TENANT_1,
+  desactivadoEn: null,
   id: 'usuario-1',
   email: 'p@x.cl',
   nombre: 'Personal',
@@ -140,6 +153,9 @@ afterEach(() => {
   })
   vi.unstubAllGlobals()
 })
+
+// Spec 014: un tenant de un solo lugar, como la clínica original.
+beforeEach(usarLugar1)
 
 describe('ComprasView — Sugeridos por el Sistema (User Story 1)', () => {
   it('shows an insumo with stock bajo under "Stock Mínimo" (FR-004)', () => {
@@ -349,6 +365,8 @@ describe('ComprasView — Agregar y gestionar ítems manuales (User Story 3)', (
     insumosT.seed([makeInsumo({ id: 'i1', nombre: 'Composite A2', caduca: false })])
     itemsCompraT.seed([
       {
+        tenantId: TENANT_1,
+        lugarId: LUGAR_1,
         id: 'item-1',
         nombre: 'Composite A2',
         cantidad: null,
@@ -386,6 +404,8 @@ describe('ComprasView — Agregar y gestionar ítems manuales (User Story 3)', (
   it('an unvinculado manual item marcado como recibido ofrece crear material o marcar sin inventario (FR-012)', async () => {
     itemsCompraT.seed([
       {
+        tenantId: TENANT_1,
+        lugarId: LUGAR_1,
         id: 'item-1',
         nombre: 'Hilo sutura',
         cantidad: null,
@@ -417,6 +437,8 @@ describe('ComprasView — Agregar y gestionar ítems manuales (User Story 3)', (
   it('creating a material from an unvinculado manual item marks it comprado (FR-012, research.md R6)', async () => {
     itemsCompraT.seed([
       {
+        tenantId: TENANT_1,
+        lugarId: LUGAR_1,
         id: 'item-1',
         nombre: 'Hilo sutura',
         cantidad: null,
@@ -452,6 +474,8 @@ describe('ComprasView — Agregar y gestionar ítems manuales (User Story 3)', (
   it('eliminating a manual item added by another account removes it without touching inventory (FR-018)', () => {
     itemsCompraT.seed([
       {
+        tenantId: TENANT_1,
+        lugarId: LUGAR_1,
         id: 'item-1',
         nombre: 'Guantes talla M',
         cantidad: null,
@@ -487,6 +511,8 @@ describe('ComprasView — Compartir la lista de compras (User Story 4)', () => {
     movimientosT.seed([makeIngreso('l1', 5)])
     itemsCompraT.seed([
       {
+        tenantId: TENANT_1,
+        lugarId: LUGAR_1,
         id: 'item-1',
         nombre: 'Torundas',
         cantidad: 3,
@@ -543,6 +569,8 @@ describe('ComprasView — Polish: touch targets (FR-026)', () => {
     movimientosT.seed([makeIngreso('l1', 5)])
     itemsCompraT.seed([
       {
+        tenantId: TENANT_1,
+        lugarId: LUGAR_1,
         id: 'item-1',
         nombre: 'Torundas',
         cantidad: null,

@@ -5,8 +5,10 @@ import {
   estadoVisual,
   type EstadoInsumo,
 } from '../../../src/features/insumos/lib/estado'
+import { TENANT_1 } from '../../helpers/tenancy'
 
 const insumo: Insumo = {
+  tenantId: TENANT_1,
   id: 'i1',
   nombre: 'Guantes',
   categoria: 'Protección',

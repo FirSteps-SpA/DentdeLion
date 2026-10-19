@@ -34,11 +34,25 @@ import { BottomSheet } from '../../../components/ui/BottomSheet'
 import { Card } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { Plus } from '../../../components/icons'
+import {
+  porLugar,
+  resumenPorLugar,
+  useInventarioDeLugar,
+  useVistasDeLugar,
+} from '../lib/vistaLugar'
+import { ElegirLugarSheet } from '../../../app/ElegirLugarSheet'
+import { hayVariosLugares, nombreLugar, useLugarStore } from '../../../stores/lugarStore'
+import { TrasladoForm } from './TrasladoForm'
 
-type Overlay = {
-  tipo: 'menu' | 'consumir' | 'editar' | 'baja'
-  insumoId: string
-} | null
+// Spec 014 FR-014: en "Todos", las acciones que modifican stock pasan antes por
+// "¿En qué lugar?" (`elegirLugar`) y siguen con el lugar elegido.
+type AccionConLugar = 'consumirUno' | 'consumir' | 'alta' | 'trasladar'
+type Overlay =
+  | { tipo: 'menu' | 'editar' | 'baja'; insumoId: string }
+  | { tipo: 'consumir'; insumoId: string; lugarId?: string }
+  | { tipo: 'trasladar'; insumoId: string; origenId: string }
+  | { tipo: 'elegirLugar'; accion: AccionConLugar; insumoId: string | null }
+  | null
 
 function mensajeDeError(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback
@@ -57,9 +71,11 @@ function mensajeDeError(error: unknown, fallback: string): string {
  * detalle deja de estar activo (baja local o sincronizada), se cierra.
  */
 export function InventarioView() {
-  const insumos = useInventoryStore((s) => s.insumos)
-  const lotes = useInventoryStore((s) => s.lotes)
-  const movimientos = useInventoryStore((s) => s.movimientos)
+  // Spec 014: datos del lugar activo; en "Todos", los totales del tenant más
+  // el estado del peor lugar y el stock de cada uno.
+  const { insumos, lotes, movimientos } = useInventarioDeLugar()
+  const { vistas, esTodos } = useVistasDeLugar()
+  const lugares = useLugarStore((s) => s.lugares)
   const categoriasRows = useInventoryStore((s) => s.categorias)
   const nivelesAvisoDias = useAlertasStore((s) => s.nivelesAvisoDias)
   const rol = useAuthStore((s) => s.usuario?.rol)
@@ -73,26 +89,25 @@ export function InventarioView() {
   const [overlay, setOverlay] = useState<Overlay>(null)
   const [errorAccion, setErrorAccion] = useState<string | null>(null)
   const [bajaPendiente, setBajaPendiente] = useState(false)
-  const [altaAbierta, setAltaAbierta] = useState(false)
+  const [altaAbierta, setAltaAbierta] = useState<{ lugarId?: string } | null>(null)
 
-  const totalCaducidad = computeAlertasCaducidad(
-    insumos,
-    lotes,
-    movimientos,
-    nivelesAvisoDias,
+  const totalCaducidad = porLugar(vistas, (d) =>
+    computeAlertasCaducidad(d.insumos, d.lotes, d.movimientos, nivelesAvisoDias),
   ).length
-  const totalStockBajo = computeInsumosStockBajo(
-    insumos,
-    lotes,
-    movimientos,
+  const totalStockBajo = porLugar(vistas, (d) =>
+    computeInsumosStockBajo(d.insumos, d.lotes, d.movimientos),
   ).length
 
+  const resumenTodos = esTodos ? resumenPorLugar(vistas, nivelesAvisoDias) : null
   const estadosInsumo = computeEstadoInsumo(
     insumos,
     lotes,
     movimientos,
     nivelesAvisoDias,
-  )
+  ).map((estadoInsumo) => {
+    const peor = resumenTodos?.get(estadoInsumo.insumo.id)?.estado
+    return peor ? { ...estadoInsumo, estado: peor } : estadoInsumo
+  })
   const idsTexto = new Set(
     searchInsumosPorTexto(insumos, texto).map((insumo) => insumo.id),
   )
@@ -111,7 +126,8 @@ export function InventarioView() {
   const insumoActivo = (id: string | null) =>
     id ? (insumos.find((insumo) => insumo.id === id) ?? null) : null
   const insumoDetalle = insumoActivo(insumoSeleccionadoId)
-  const insumoOverlay = overlay ? insumoActivo(overlay.insumoId) : null
+  const insumoOverlay =
+    overlay && overlay.tipo !== 'elegirLugar' ? insumoActivo(overlay.insumoId) : null
   const duplicados =
     rol === 'administrador' ? posiblesDuplicados(insumos) : new Set<string>()
 
@@ -122,6 +138,7 @@ export function InventarioView() {
       lotesConStockDeInsumo(estadoInsumo.insumo.id, lotes, movimientos),
     ),
     posibleDuplicado: duplicados.has(estadoInsumo.insumo.id),
+    desglose: resumenTodos?.get(estadoInsumo.insumo.id)?.desglose,
   }))
 
   function limpiarFiltros() {
@@ -135,14 +152,48 @@ export function InventarioView() {
     setErrorAccion(null)
   }
 
-  async function handleConsumirUno(insumoId: string) {
+  async function handleConsumirUno(insumoId: string, lugarId?: string) {
     const insumo = insumoActivo(insumoId)
     if (!insumo) return
+    if (esTodos && !lugarId) {
+      setOverlay({ tipo: 'elegirLugar', accion: 'consumirUno', insumoId })
+      return
+    }
     setErrorAccion(null)
     try {
-      await consumirUno(insumo)
+      const movimiento = await consumirUno(insumo, { lugarId })
+      if (!movimiento && lugarId) {
+        setErrorAccion(
+          `No hay stock vigente de ${insumo.nombre} en ${nombreLugar(lugares, lugarId)}.`,
+        )
+      }
     } catch (error) {
       setErrorAccion(mensajeDeError(error, 'No se pudo registrar el consumo.'))
+    }
+  }
+
+  function abrirAlta() {
+    if (esTodos) setOverlay({ tipo: 'elegirLugar', accion: 'alta', insumoId: null })
+    else setAltaAbierta({})
+  }
+
+  function continuarConLugar(accion: AccionConLugar, insumoId: string | null, lugarId: string) {
+    setOverlay(null)
+    if (accion === 'alta') setAltaAbierta({ lugarId })
+    else if (accion === 'consumirUno' && insumoId) void handleConsumirUno(insumoId, lugarId)
+    else if (accion === 'consumir' && insumoId) setOverlay({ tipo: 'consumir', insumoId, lugarId })
+    else if (accion === 'trasladar' && insumoId) {
+      setOverlay({ tipo: 'trasladar', insumoId, origenId: lugarId })
+    }
+  }
+
+  // Spec 014 US6-5: "Trasladar" solo con 2 o más lugares activos.
+  const lugarActivoId = useLugarStore((s) => s.lugarActivoId)
+  function abrirTraslado(insumoId: string) {
+    if (esTodos || !lugarActivoId || lugarActivoId === 'todos') {
+      setOverlay({ tipo: 'elegirLugar', accion: 'trasladar', insumoId })
+    } else {
+      setOverlay({ tipo: 'trasladar', insumoId, origenId: lugarActivoId })
     }
   }
 
@@ -169,7 +220,7 @@ export function InventarioView() {
         onFiltrarStockBajo={() => setEstado(['bajo-stock'])}
       />
 
-      <TouchButton type="button" onClick={() => setAltaAbierta(true)}>
+      <TouchButton type="button" onClick={abrirAlta}>
         <Plus size={18} />
         Material
       </TouchButton>
@@ -204,12 +255,13 @@ export function InventarioView() {
         )
       ) : (
         <ul className="flex flex-col gap-2">
-          {filas.map(({ estadoInsumo, disponibilidad, posibleDuplicado }) => (
+          {filas.map(({ estadoInsumo, disponibilidad, posibleDuplicado, desglose }) => (
             <li key={estadoInsumo.insumo.id}>
               <InsumoCard
                 estadoInsumo={estadoInsumo}
                 disponibilidad={disponibilidad}
                 posibleDuplicado={posibleDuplicado}
+                desglose={desglose}
                 onOpen={setInsumoSeleccionadoId}
                 onConsumirUno={(id) => void handleConsumirUno(id)}
                 onAbrirMenu={(id) => setOverlay({ tipo: 'menu', insumoId: id })}
@@ -262,7 +314,14 @@ export function InventarioView() {
             cerrarOverlay()
           }}
           onConsumirOtraCantidad={() =>
-            setOverlay({ tipo: 'consumir', insumoId: insumoOverlay.id })
+            setOverlay(
+              esTodos
+                ? { tipo: 'elegirLugar', accion: 'consumir', insumoId: insumoOverlay.id }
+                : { tipo: 'consumir', insumoId: insumoOverlay.id },
+            )
+          }
+          onTrasladar={
+            hayVariosLugares(lugares) ? () => abrirTraslado(insumoOverlay.id) : undefined
           }
           onEditar={() =>
             setOverlay({ tipo: 'editar', insumoId: insumoOverlay.id })
@@ -279,8 +338,20 @@ export function InventarioView() {
           titulo={`Consumir ${insumoOverlay.nombre}`}
           onClose={cerrarOverlay}
         >
-          <ConsumoForm insumoInicial={insumoOverlay} onDone={cerrarOverlay} />
+          <ConsumoForm
+            insumoInicial={insumoOverlay}
+            lugarId={overlay.lugarId}
+            onDone={cerrarOverlay}
+          />
         </BottomSheet>
+      )}
+
+      {overlay?.tipo === 'trasladar' && insumoOverlay && (
+        <TrasladoForm
+          insumo={insumoOverlay}
+          origenId={overlay.origenId}
+          onClose={cerrarOverlay}
+        />
       )}
 
       {overlay?.tipo === 'editar' && insumoOverlay && (
@@ -307,10 +378,20 @@ export function InventarioView() {
         />
       )}
 
+      {overlay?.tipo === 'elegirLugar' && (
+        <ElegirLugarSheet
+          onElegir={(lugarId) => {
+            if (lugarId !== 'todos') continuarConLugar(overlay.accion, overlay.insumoId, lugarId)
+          }}
+          onClose={cerrarOverlay}
+        />
+      )}
+
       {altaAbierta && (
         <AltaMaterialView
+          lugarId={altaAbierta.lugarId}
           onCreated={({ insumo }) => {
-            setAltaAbierta(false)
+            setAltaAbierta(null)
             useAvisosStore.getState().agregar({
               tipo: 'material-creado',
               movimientoId: null,
@@ -319,9 +400,9 @@ export function InventarioView() {
               unidadMedida: null,
             })
           }}
-          onCancel={() => setAltaAbierta(false)}
+          onCancel={() => setAltaAbierta(null)}
           onAbrirExistente={(insumo) => {
-            setAltaAbierta(false)
+            setAltaAbierta(null)
             setInsumoSeleccionadoId(insumo.id)
           }}
         />

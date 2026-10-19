@@ -7,6 +7,9 @@ vi.mock('../../src/lib/db', async () => {
   const { createMemoryDb, MemoryTable } = await import('../helpers/memoryDb')
   return {
     db: createMemoryDb({
+      lugares: new MemoryTable(),
+      minimosLugar: new MemoryTable(),
+      lugarActivo: new MemoryTable(),
       insumos: new MemoryTable(),
       lotes: new MemoryTable(),
       movimientos: new MemoryTable(),
@@ -61,10 +64,15 @@ vi.mock('../../src/lib/supabase', () => ({
 import { db } from '../../src/lib/db'
 import { runSyncBatch } from '../../src/lib/sync'
 import { useAuthStore } from '../../src/stores/authStore'
+import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
+import { usarLugar1 } from '../helpers/lugarFalso'
 
 const movimientosT = db.movimientos as unknown as MemoryTable<Movimiento>
 
 const consumoOffline: Movimiento = {
+  tenantId: TENANT_1,
+  lugarId: LUGAR_1,
+  trasladoId: null,
   id: 'm1',
   tipo: 'consumo',
   loteId: 'l1',
@@ -75,6 +83,9 @@ const consumoOffline: Movimiento = {
   sincronizado: false,
 }
 
+// Spec 014: un tenant de un solo lugar, como la clínica original.
+beforeEach(usarLugar1)
+
 describe('pushMovimientos ante un upsert fallido', () => {
   beforeEach(async () => {
     errorMovimientos = null
@@ -83,6 +94,8 @@ describe('pushMovimientos ante un upsert fallido', () => {
     await db.movimientos.put({ ...consumoOffline })
     useAuthStore.setState({
       usuario: {
+        tenantId: TENANT_1,
+        desactivadoEn: null,
         id: 'u1',
         email: 'u1@x.cl',
         nombre: 'Usuario 1',

@@ -42,6 +42,11 @@ import {
   Truck as LucideTruck,
   Undo2,
   X as LucideX,
+  ArrowRightLeft,
+  Link as LucideLink,
+  MapPin as LucideMapPin,
+  MessageCircle as LucideMessageCircle,
+  Users as LucideUsers,
 } from 'lucide-react'
 
 export interface IconProps {
@@ -137,3 +142,9 @@ export const Lock = deLucide(LucideLock)
 export const Tag = deLucide(LucideTag)
 export const User = deLucide(CircleUserRound)
 export const Building = deLucide(Building2)
+// Spec 014: lugares de trabajo, traslados, equipo e invitaciones.
+export const MapPin = deLucide(LucideMapPin)
+export const Traslado = deLucide(ArrowRightLeft)
+export const Users = deLucide(LucideUsers)
+export const Link = deLucide(LucideLink)
+export const MessageCircle = deLucide(LucideMessageCircle)

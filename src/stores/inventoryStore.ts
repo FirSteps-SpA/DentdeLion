@@ -1,14 +1,15 @@
 import { create } from 'zustand'
 import { liveQuery } from 'dexie'
 import {
-  db,
   type CambioInsumo,
   type Categoria,
   type Insumo,
   type ItemCompra,
   type Lote,
+  type MinimoLugar,
   type Movimiento,
 } from '../lib/db'
+import { delTenant } from '../lib/tenancy'
 import type { Estado, EstadoInsumo } from '../features/insumos/lib/estado'
 import { claveCategoria } from '../features/insumos/lib/categorias'
 
@@ -27,6 +28,11 @@ import { claveCategoria } from '../features/insumos/lib/categorias'
  * lotes whose insumo isn't in the array. `categorias` (feature 008) holds
  * only categories created by administrators — the precargadas and "Sin
  * categoría" are constants in `categorias.ts`, never rows here.
+ *
+ * Spec 014 (FR-004): every table holds only rows of the signed-in user's
+ * tenant (`delTenant`) — pending rows another tenant left on this device stay
+ * in Dexie, hidden. Filtering by lugar happens downstream
+ * (`useInventarioDeLugar`), since the device keeps every lugar of the tenant.
  */
 interface InventoryState {
   insumos: Insumo[]
@@ -37,6 +43,8 @@ interface InventoryState {
   cambiosInsumo: CambioInsumo[]
   categorias: Categoria[]
   itemsCompra: ItemCompra[]
+  /** Spec 014 FR-007 — mínimos por lugar del tenant. */
+  minimosLugar: MinimoLugar[]
   isReady: boolean
   subscribe: () => () => void
 }
@@ -49,9 +57,10 @@ export const useInventoryStore = create<InventoryState>((set) => ({
   cambiosInsumo: [],
   categorias: [],
   itemsCompra: [],
+  minimosLugar: [],
   isReady: false,
   subscribe: () => {
-    const insumosSub = liveQuery(() => db.insumos.toArray()).subscribe({
+    const insumosSub = liveQuery(() => delTenant('insumos')).subscribe({
       next: (insumos) =>
         set({
           insumos: insumos.filter((insumo) => !insumo.dadoDeBajaEn),
@@ -59,22 +68,26 @@ export const useInventoryStore = create<InventoryState>((set) => ({
           isReady: true,
         }),
     })
-    const lotesSub = liveQuery(() => db.lotes.toArray()).subscribe({
+    const lotesSub = liveQuery(() => delTenant('lotes')).subscribe({
       next: (lotes) => set({ lotes, isReady: true }),
     })
-    const movimientosSub = liveQuery(() => db.movimientos.toArray()).subscribe({
+    const movimientosSub = liveQuery(() => delTenant('movimientos')).subscribe({
       next: (movimientos) => set({ movimientos, isReady: true }),
     })
-    const cambiosSub = liveQuery(() => db.cambiosInsumo.toArray()).subscribe({
+    const cambiosSub = liveQuery(() => delTenant('cambiosInsumo')).subscribe({
       next: (cambiosInsumo) => set({ cambiosInsumo }),
     })
-    const categoriasSub = liveQuery(() => db.categorias.toArray()).subscribe({
+    const categoriasSub = liveQuery(() => delTenant('categorias')).subscribe({
       next: (categorias) => set({ categorias }),
     })
-    const itemsCompraSub = liveQuery(() => db.itemsCompra.toArray()).subscribe({
+    const itemsCompraSub = liveQuery(() => delTenant('itemsCompra')).subscribe({
       next: (itemsCompra) => set({ itemsCompra }),
     })
+    const minimosSub = liveQuery(() => delTenant('minimosLugar')).subscribe({
+      next: (minimosLugar) => set({ minimosLugar }),
+    })
     return () => {
+      minimosSub.unsubscribe()
       cambiosSub.unsubscribe()
       insumosSub.unsubscribe()
       lotesSub.unsubscribe()

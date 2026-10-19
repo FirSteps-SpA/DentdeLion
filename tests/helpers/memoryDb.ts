@@ -6,10 +6,22 @@
  * `transaction()` serializes callers so concurrent `rw` transactions don't
  * interleave — the property Dexie gives the double-tap guard (T009).
  */
-type Row = { id: string }
+// `id`, o la clave compuesta `[insumoId+lugarId]` de `minimosLugar` (spec 014).
+type Row = { id?: string } | { insumoId: string; lugarId: string }
+type Clave = string | [string, string]
 
 function clone<T>(value: T): T {
   return structuredClone(value)
+}
+
+function claveDe(row: Row): string {
+  if ('id' in row && row.id !== undefined) return row.id
+  const { insumoId, lugarId } = row as { insumoId: string; lugarId: string }
+  return `${insumoId}|${lugarId}`
+}
+
+function normalizar(clave: Clave): string {
+  return Array.isArray(clave) ? clave.join('|') : clave
 }
 
 let listener: (() => void) | null = null
@@ -33,26 +45,32 @@ export class MemoryTable<T extends Row> {
     return [...this.rows.values()].map(clone)
   }
 
-  async get(id: string): Promise<T | undefined> {
-    const row = this.rows.get(id)
+  async get(id: Clave): Promise<T | undefined> {
+    const row = this.rows.get(normalizar(id))
     return row ? clone(row) : undefined
   }
 
+  async bulkGet(ids: Clave[]): Promise<(T | undefined)[]> {
+    return Promise.all(ids.map((id) => this.get(id)))
+  }
+
   async add(row: T): Promise<string> {
-    if (this.rows.has(row.id)) throw new Error(`Duplicate key ${row.id}`)
-    this.rows.set(row.id, clone(row))
+    const clave = claveDe(row)
+    if (this.rows.has(clave)) throw new Error(`Duplicate key ${clave}`)
+    this.rows.set(clave, clone(row))
     this.changed()
-    return row.id
+    return clave
   }
 
   async put(row: T): Promise<string> {
-    this.rows.set(row.id, clone(row))
+    const clave = claveDe(row)
+    this.rows.set(clave, clone(row))
     this.changed()
-    return row.id
+    return clave
   }
 
   async bulkPut(rows: T[]): Promise<void> {
-    for (const row of rows) this.rows.set(row.id, clone(row))
+    for (const row of rows) this.rows.set(claveDe(row), clone(row))
     this.changed()
   }
 
@@ -60,16 +78,17 @@ export class MemoryTable<T extends Row> {
     for (const row of rows) await this.add(row)
   }
 
-  async update(id: string, changes: Partial<T>): Promise<number> {
-    const row = this.rows.get(id)
+  async update(id: Clave, changes: Partial<T>): Promise<number> {
+    const clave = normalizar(id)
+    const row = this.rows.get(clave)
     if (!row) return 0
-    this.rows.set(id, { ...row, ...clone(changes) })
+    this.rows.set(clave, { ...row, ...clone(changes) })
     this.changed()
     return 1
   }
 
   async bulkUpdate(
-    updates: { key: string; changes: Partial<T> }[],
+    updates: { key: Clave; changes: Partial<T> }[],
   ): Promise<number> {
     let n = 0
     for (const { key, changes } of updates) n += await this.update(key, changes)
@@ -81,8 +100,13 @@ export class MemoryTable<T extends Row> {
     this.changed()
   }
 
-  async delete(id: string): Promise<void> {
-    this.rows.delete(id)
+  async delete(id: Clave): Promise<void> {
+    this.rows.delete(normalizar(id))
+    this.changed()
+  }
+
+  async bulkDelete(ids: Clave[]): Promise<void> {
+    for (const id of ids) this.rows.delete(normalizar(id))
     this.changed()
   }
 
@@ -97,6 +121,10 @@ export class MemoryTable<T extends Row> {
     }
   }
 
+  toCollection() {
+    return { first: async () => this.all()[0] }
+  }
+
   filter(fn: (row: T) => boolean) {
     return {
       toArray: async () => [...this.rows.values()].filter(fn).map(clone),
@@ -104,7 +132,7 @@ export class MemoryTable<T extends Row> {
   }
 
   seed(rows: T[]): void {
-    this.rows = new Map(rows.map((row) => [row.id, clone(row)]))
+    this.rows = new Map(rows.map((row) => [claveDe(row), clone(row)]))
   }
 
   all(): T[] {

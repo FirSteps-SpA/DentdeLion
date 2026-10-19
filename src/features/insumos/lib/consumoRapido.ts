@@ -2,6 +2,7 @@ import { db, type Insumo, type Lote, type Movimiento } from '../../../lib/db'
 import { diasEntre } from '../../../lib/dateMath'
 import { vibrarLeve } from '../../../lib/haptics'
 import { useAvisosStore } from '../../../stores/avisosStore'
+import { lugarParaEscribirOFallar } from '../../../stores/lugarStore'
 import { compararFefo, type LoteConStock } from './fefo'
 import { crearMovimiento } from './movements'
 import { computeStockLote } from './stock'
@@ -64,7 +65,13 @@ export function lotesConStockDeInsumo(
  * escribir si ya no queda un lote vigente con 1 unidad. La vibración y el
  * aviso solo ocurren tras el commit.
  */
-export async function consumirUno(insumo: Insumo): Promise<Movimiento | null> {
+export async function consumirUno(
+  insumo: Insumo,
+  /** Spec 014 FR-014 — lugar elegido en "¿En qué lugar?" desde "Todos". */
+  opciones: { lugarId?: string } = {},
+): Promise<Movimiento | null> {
+  // Spec 014 FR-010: descuenta del stock del lote en el lugar activo.
+  const lugarId = lugarParaEscribirOFallar(opciones.lugarId)
   const movimiento = await db.transaction(
     'rw',
     db.lotes,
@@ -75,7 +82,9 @@ export async function consumirUno(insumo: Insumo): Promise<Movimiento | null> {
         lotes.map(async (lote) => ({
           lote,
           stockDisponible: computeStockLote(
-            await db.movimientos.where('loteId').equals(lote.id).toArray(),
+            (await db.movimientos.where('loteId').equals(lote.id).toArray()).filter(
+              (m) => m.lugarId === lugarId,
+            ),
           ),
         })),
       )
@@ -85,6 +94,7 @@ export async function consumirUno(insumo: Insumo): Promise<Movimiento | null> {
         tipo: 'consumo',
         loteId: disponibilidad.lote.id,
         cantidad: 1,
+        lugarId,
       })
     },
   )
@@ -131,6 +141,9 @@ export async function deshacerConsumo(
       loteId: consumo.loteId,
       cantidad: consumo.cantidad,
       movimientoOrigenId: consumo.id,
+      // Spec 014: se revierte en el lugar del consumo, aunque ya se haya
+      // cambiado de lugar.
+      lugarId: consumo.lugarId,
     })
   })
 }

@@ -113,14 +113,29 @@ async function runCommand(line) {
             const req = indexedDB.open('inDENToryDB')
             req.onsuccess = () => {
               const db = req.result
-              const tx = db.transaction('usuarioActual', 'readwrite')
+              // Spec 014: el usuario y el lugar 1 del tenant 1 (Dexie v10).
+              const tablas = ['usuarioActual']
+              if (db.objectStoreNames.contains('lugares')) tablas.push('lugares')
+              const tx = db.transaction(tablas, 'readwrite')
               tx.objectStore('usuarioActual').put({
                 id: 'driver-seed-user',
                 email: 'driver@test.local',
                 nombre,
                 rol,
                 autenticadoEn: new Date().toISOString(),
+                tenantId: '00000000-0000-4000-8000-000000000001',
+                desactivadoEn: null,
               })
+              if (tablas.includes('lugares')) {
+                tx.objectStore('lugares').put({
+                  id: '00000000-0000-4000-8000-000000000011',
+                  tenantId: '00000000-0000-4000-8000-000000000001',
+                  nombre: 'Clínica',
+                  desactivadoEn: null,
+                  creadoEn: '2026-01-01T00:00:00.000Z',
+                  sincronizado: true,
+                })
+              }
               tx.oncomplete = () => resolve(undefined)
               tx.onerror = () => reject(tx.error)
             }
@@ -144,6 +159,7 @@ async function runCommand(line) {
               const tx = db.transaction('insumos', 'readwrite')
               tx.objectStore('insumos').put({
                 id,
+                tenantId: '00000000-0000-4000-8000-000000000001',
                 nombre,
                 categoria: 'Protección',
                 unidadMedida: 'caja',
@@ -167,14 +183,15 @@ async function runCommand(line) {
     }
 
     case 'seed-lote': {
-      // seed-lote <insumoId> <loteId> <diasHastaVencer|none> <cantidad>
-      const [insumoId, loteId, dias, cantidad] = rest
+      // seed-lote <insumoId> <loteId> <diasHastaVencer|none> <cantidad> [lugarId]
+      const [insumoId, loteId, dias, cantidad, lugarArg] = rest
+      const lugarId = lugarArg ?? '00000000-0000-4000-8000-000000000011'
       if (!insumoId || !loteId || !dias || !cantidad) {
         console.log('error: seed-lote <insumoId> <loteId> <diasHastaVencer|none> <cantidad>')
         break
       }
       await page.evaluate(
-        ({ insumoId, loteId, dias, cantidad }) =>
+        ({ insumoId, loteId, dias, cantidad, lugarId }) =>
           new Promise((resolve, reject) => {
             let fechaCaducidad = null
             if (dias !== 'none') {
@@ -188,8 +205,11 @@ async function runCommand(line) {
               const db = req.result
               const tx = db.transaction(['lotes', 'movimientos'], 'readwrite')
               const ahora = new Date().toISOString()
+              const tenantId = '00000000-0000-4000-8000-000000000001'
               tx.objectStore('lotes').put({
                 id: loteId,
+                tenantId,
+                lugarId,
                 insumoId,
                 numeroLote: loteId.toUpperCase(),
                 proveedor: 'Proveedor Demo',
@@ -200,6 +220,9 @@ async function runCommand(line) {
               })
               tx.objectStore('movimientos').put({
                 id: `ingreso-${loteId}`,
+                tenantId,
+                lugarId,
+                trasladoId: null,
                 tipo: 'ingreso',
                 loteId,
                 cantidad: Number(cantidad),
@@ -213,9 +236,39 @@ async function runCommand(line) {
             }
             req.onerror = () => reject(req.error)
           }),
-        { insumoId, loteId, dias, cantidad },
+        { insumoId, loteId, dias, cantidad, lugarId },
       )
       console.log(`ok: seeded lote ${loteId} for ${insumoId} (${cantidad} u.)`)
+      break
+    }
+
+    case 'seed-lugar': {
+      // Spec 014: seed-lugar <id> <nombre...> — un lugar más del tenant 1.
+      const [id, ...nombreParts] = rest
+      const nombre = nombreParts.join(' ') || 'Otro lugar'
+      await page.evaluate(
+        ({ id, nombre }) =>
+          new Promise((resolve, reject) => {
+            const req = indexedDB.open('inDENToryDB')
+            req.onsuccess = () => {
+              const db = req.result
+              const tx = db.transaction('lugares', 'readwrite')
+              tx.objectStore('lugares').put({
+                id,
+                tenantId: '00000000-0000-4000-8000-000000000001',
+                nombre,
+                desactivadoEn: null,
+                creadoEn: new Date().toISOString(),
+                sincronizado: true,
+              })
+              tx.oncomplete = () => resolve(undefined)
+              tx.onerror = () => reject(tx.error)
+            }
+            req.onerror = () => reject(req.error)
+          }),
+        { id, nombre },
+      )
+      console.log(`ok: seeded lugar ${id} (${nombre}) — call 'reload' next`)
       break
     }
 

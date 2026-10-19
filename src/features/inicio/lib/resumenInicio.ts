@@ -1,4 +1,4 @@
-import type { Insumo, ItemCompra, Lote, Movimiento } from '../../../lib/db'
+import type { Insumo, ItemCompra, Lote, Lugar, Movimiento } from '../../../lib/db'
 import { diasEntre } from '../../../lib/dateMath'
 import { computeAlertasCaducidad } from '../../alertas/lib/caducidad'
 import {
@@ -21,12 +21,16 @@ export interface AlertaInicio {
   diasRestantes: number | null
   /** Stock actual (stock bajo) — `null` para caducidad. */
   stockActual: number | null
+  /** Spec 014 — lugar de la alerta en la vista "Todos". */
+  lugar?: Lugar | null
 }
 
 export interface VencimientoInicio {
   insumo: Insumo
   lote: Lote
   diasRestantes: number
+  /** Spec 014 — lugar del lote en la vista "Todos". */
+  lugar?: Lugar | null
 }
 
 export interface ResumenInicio {
@@ -46,6 +50,8 @@ export interface EntradaResumenInicio {
   nivelesAvisoDias: number[]
   preferencias: PreferenciasNotificacion
   hoy?: Date
+  /** Spec 014 — lugar de estos datos, para etiquetar las filas en "Todos". */
+  lugar?: Lugar | null
 }
 
 /**
@@ -62,6 +68,71 @@ export function resumenInicio({
   nivelesAvisoDias,
   preferencias,
   hoy = new Date(),
+  lugar = null,
+}: EntradaResumenInicio): ResumenInicio {
+  return recortar(resumenCompleto({
+    insumos,
+    lotes,
+    movimientos,
+    itemsCompra,
+    nivelesAvisoDias,
+    preferencias,
+    hoy,
+    lugar,
+  }))
+}
+
+/**
+ * Spec 014 US3 (FR-013): Inicio en "Todos". Cada lugar se resume con sus
+ * propios datos y mínimos; los KPIs se suman y las listas se mezclan, con el
+ * lugar de cada fila, y se recortan después de ordenar.
+ */
+export function resumenInicioPorLugares(entradas: EntradaResumenInicio[]): ResumenInicio {
+  const resumenes = entradas.map(resumenCompleto)
+  const suma = (campo: 'bajoMinimo' | 'porVencer' | 'paraComprar' | 'alertas') =>
+    resumenes.reduce((total, r) => total + r[campo], 0)
+  const alertas = resumenes.flatMap((r) => r.listaAlertas)
+  return recortar({
+    bajoMinimo: suma('bajoMinimo'),
+    porVencer: suma('porVencer'),
+    paraComprar: suma('paraComprar'),
+    alertas: suma('alertas'),
+    listaAlertas: [
+      ...alertas.filter((a) => a.tipo !== 'stock-bajo').sort(porDias),
+      ...alertas.filter((a) => a.tipo === 'stock-bajo').sort(porNombre),
+    ],
+    proximosVencimientos: resumenes
+      .flatMap((r) => r.proximosVencimientos)
+      .sort((a, b) => a.diasRestantes - b.diasRestantes),
+  })
+}
+
+function porDias(a: AlertaInicio, b: AlertaInicio): number {
+  return (a.diasRestantes ?? 0) - (b.diasRestantes ?? 0)
+}
+
+function porNombre(a: AlertaInicio, b: AlertaInicio): number {
+  return a.insumo.nombre.localeCompare(b.insumo.nombre, 'es')
+}
+
+function recortar(resumen: ResumenInicio): ResumenInicio {
+  return {
+    ...resumen,
+    listaAlertas: resumen.listaAlertas.slice(0, MAX_ITEMS),
+    proximosVencimientos: resumen.proximosVencimientos.slice(0, MAX_ITEMS),
+  }
+}
+
+/** El resumen sin recortar las listas. */
+function resumenCompleto({
+  insumos,
+  lotes,
+  movimientos,
+  itemsCompra,
+  nivelesAvisoDias,
+  preferencias,
+  hoy = new Date(),
+  lugar = null,
 }: EntradaResumenInicio): ResumenInicio {
   const stockBajo = computeInsumosStockBajo(insumos, lotes, movimientos)
   const caducidad = computeAlertasCaducidad(
@@ -84,8 +155,9 @@ export function resumenInicio({
       lote,
       diasRestantes,
       stockActual: null,
+      lugar,
     }))
-    .sort((a, b) => (a.diasRestantes ?? 0) - (b.diasRestantes ?? 0))
+    .sort(porDias)
   const alertasStock: AlertaInicio[] = stockBajo
     .map(({ insumo, stockActual }) => ({
       insumo,
@@ -93,8 +165,9 @@ export function resumenInicio({
       lote: null,
       diasRestantes: null,
       stockActual,
+      lugar,
     }))
-    .sort((a, b) => a.insumo.nombre.localeCompare(b.insumo.nombre, 'es'))
+    .sort(porNombre)
 
   const insumosPorId = new Map(insumos.map((insumo) => [insumo.id, insumo]))
   const proximosVencimientos: VencimientoInicio[] = []
@@ -110,6 +183,7 @@ export function resumenInicio({
       insumo,
       lote,
       diasRestantes: diasEntre(lote.fechaCaducidad, hoy),
+      lugar,
     })
   }
   proximosVencimientos.sort((a, b) => a.diasRestantes - b.diasRestantes)
@@ -126,7 +200,7 @@ export function resumenInicio({
       preferencias,
     ),
     // Caducadas primero (diasRestantes negativos), luego por días; stock bajo al final.
-    listaAlertas: [...alertasCaducidad, ...alertasStock].slice(0, MAX_ITEMS),
-    proximosVencimientos: proximosVencimientos.slice(0, MAX_ITEMS),
+    listaAlertas: [...alertasCaducidad, ...alertasStock],
+    proximosVencimientos,
   }
 }

@@ -6,9 +6,11 @@ import {
   copiarAlPortapapeles,
   puedeCompartir,
 } from '../../../src/features/compras/lib/compartir'
+import { LUGAR_1, TENANT_1 } from '../../helpers/tenancy'
 
 function insumo(overrides: Partial<Insumo>): Insumo {
   return {
+    tenantId: TENANT_1,
     id: 'i1',
     nombre: 'Guantes M',
     categoria: 'Protección',
@@ -27,6 +29,8 @@ function insumo(overrides: Partial<Insumo>): Insumo {
 
 function itemCompra(overrides: Partial<ItemCompra>): ItemCompra {
   return {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
     id: 'item-1',
     nombre: 'Torundas',
     cantidad: null,

@@ -22,6 +22,9 @@ vi.mock('../../src/lib/db', async () => {
   const { createMemoryDb, MemoryTable } = await import('../helpers/memoryDb')
   return {
     db: createMemoryDb({
+      lugares: new MemoryTable(),
+      minimosLugar: new MemoryTable(),
+      lugarActivo: new MemoryTable(),
       insumos: new MemoryTable(),
       categorias: new MemoryTable(),
       lotes: new MemoryTable(),
@@ -53,6 +56,8 @@ import { darDeBajaInsumo } from '../../src/features/insumos/lib/catalogo'
 import { InventarioView } from '../../src/features/insumos/components/InventarioView'
 import { SearchPicker } from '../../src/features/insumos/components/SearchPicker'
 import { AvisosConsumo } from '../../src/app/AvisosConsumo'
+import { TENANT_1 } from '../helpers/tenancy'
+import { usarLugar1 } from '../helpers/lugarFalso'
 
 const insumosT = db.insumos as unknown as MemoryTable<Insumo>
 const categoriasT = db.categorias as unknown as MemoryTable<Categoria>
@@ -62,6 +67,7 @@ const borradoresT = db.borradores as unknown as MemoryTable<Borrador>
 
 function insumo(overrides: Partial<Insumo>): Insumo {
   return {
+    tenantId: TENANT_1,
     id: crypto.randomUUID(),
     nombre: 'Insumo',
     categoria: 'Fresas',
@@ -79,6 +85,8 @@ function insumo(overrides: Partial<Insumo>): Insumo {
 }
 
 const admin: UsuarioActual = {
+  tenantId: TENANT_1,
+  desactivadoEn: null,
   id: 'admin-1',
   email: 'a@x.cl',
   nombre: 'Admin',
@@ -157,6 +165,9 @@ afterEach(() => {
     useAvisosStore.getState().descartar(a.id)
   vi.useRealTimers()
 })
+
+// Spec 014: un tenant de un solo lugar, como la clínica original.
+beforeEach(usarLugar1)
 
 describe('AltaMaterialView — US1 (alta sin stock)', () => {
   it('"+ Material" focuses the name input and never requests the camera (FR-003/FR-020)', async () => {

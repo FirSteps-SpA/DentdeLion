@@ -21,6 +21,9 @@ vi.mock('../../src/lib/db', async () => {
   const { createMemoryDb, MemoryTable } = await import('../helpers/memoryDb')
   return {
     db: createMemoryDb({
+      lugares: new MemoryTable(),
+      minimosLugar: new MemoryTable(),
+      lugarActivo: new MemoryTable(),
       insumos: new MemoryTable(),
       lotes: new MemoryTable(),
       movimientos: new MemoryTable(),
@@ -43,6 +46,8 @@ import { AlertasView } from '../../src/features/alertas/components/AlertasView'
 import { ConsumoForm } from '../../src/features/insumos/components/ConsumoForm'
 import { AvisosConsumo } from '../../src/app/AvisosConsumo'
 import { computeStockLote } from '../../src/features/insumos/lib/stock'
+import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
+import { usarLugar1 } from '../helpers/lugarFalso'
 
 const insumosT = db.insumos as unknown as MemoryTable<Insumo>
 const lotesT = db.lotes as unknown as MemoryTable<Lote>
@@ -62,6 +67,7 @@ function insumo(
   overrides: Partial<Insumo> = {},
 ): Insumo {
   return {
+    tenantId: TENANT_1,
     id,
     nombre,
     categoria: 'Cirugía',
@@ -80,6 +86,8 @@ function insumo(
 
 function lote(id: string, insumoId: string, dias: number | null): Lote {
   return {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
     id,
     insumoId,
     numeroLote: id.toUpperCase(),
@@ -93,6 +101,9 @@ function lote(id: string, insumoId: string, dias: number | null): Lote {
 
 function ingreso(loteId: string, cantidad: number): Movimiento {
   return {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
+    trasladoId: null,
     id: crypto.randomUUID(),
     tipo: 'ingreso',
     loteId,
@@ -105,6 +116,8 @@ function ingreso(loteId: string, cantidad: number): Movimiento {
 }
 
 const personal: UsuarioActual = {
+  tenantId: TENANT_1,
+  desactivadoEn: null,
   id: 'personal-1',
   email: 'p@x.cl',
   nombre: 'Personal',
@@ -195,6 +208,9 @@ afterEach(() => {
     useAvisosStore.getState().descartar(a.id)
   vi.useRealTimers()
 })
+
+// Spec 014: un tenant de un solo lugar, como la clínica original.
+beforeEach(usarLugar1)
 
 describe('Consumir 1 (User Story 1)', () => {
   it('consumes 1 from the earliest vigente lot, attributed, with vibration and a notice', async () => {

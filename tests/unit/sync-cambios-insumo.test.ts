@@ -7,6 +7,9 @@ vi.mock('../../src/lib/db', async () => {
   const { createMemoryDb, MemoryTable } = await import('../helpers/memoryDb')
   return {
     db: createMemoryDb({
+      lugares: new MemoryTable(),
+      minimosLugar: new MemoryTable(),
+      lugarActivo: new MemoryTable(),
       insumos: new MemoryTable(),
       lotes: new MemoryTable(),
       movimientos: new MemoryTable(),
@@ -102,6 +105,8 @@ import {
 } from '../../src/features/insumos/lib/catalogo'
 import { useAuthStore } from '../../src/stores/authStore'
 import { useAvisosStore } from '../../src/stores/avisosStore'
+import { TENANT_1 } from '../helpers/tenancy'
+import { usarLugar1 } from '../helpers/lugarFalso'
 
 const insumosT = db.insumos as unknown as MemoryTable<Insumo>
 const cambiosT = db.cambiosInsumo as unknown as MemoryTable<CambioInsumo>
@@ -119,6 +124,8 @@ const dispositivos: Record<'A' | 'B', Dispositivo> = {} as Record<
 
 function usuario(id: string): UsuarioActual {
   return {
+    tenantId: TENANT_1,
+    desactivadoEn: null,
     id,
     email: `${id}@x.cl`,
     nombre: id,
@@ -141,6 +148,7 @@ async function en<T>(d: 'A' | 'B', fn: () => Promise<T>): Promise<T> {
 }
 
 const insumoE: Insumo = {
+  tenantId: TENANT_1,
   id: 'e',
   nombre: 'Guantes',
   categoria: 'Cirugía',
@@ -197,6 +205,9 @@ beforeEach(() => {
 function filaDe(d: 'A' | 'B', id = 'e'): Insumo {
   return dispositivos[d].insumos.find((i) => i.id === id)!
 }
+
+// Spec 014: un tenant de un solo lugar, como la clínica original.
+beforeEach(usarLugar1)
 
 describe('sync of cambios_insumo (spec 007 FR-021a/FR-021b)', () => {
   it('converges per field on both devices and keeps the losing cambio', async () => {

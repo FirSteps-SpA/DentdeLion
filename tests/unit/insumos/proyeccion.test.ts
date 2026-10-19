@@ -4,8 +4,10 @@ import {
   filaParaSubir,
   proyectarInsumo,
 } from '../../../src/features/insumos/lib/proyeccion'
+import { TENANT_1 } from '../../helpers/tenancy'
 
 const base: Insumo = {
+  tenantId: TENANT_1,
   id: 'i1',
   nombre: 'Anestesia',
   categoria: 'Cirugía',
@@ -24,6 +26,7 @@ let n = 0
 function cambio(overrides: Partial<CambioInsumo>): CambioInsumo {
   n += 1
   return {
+    tenantId: TENANT_1,
     id: `c-${String(n).padStart(3, '0')}`,
     insumoId: 'i1',
     campo: 'nombre',

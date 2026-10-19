@@ -15,9 +15,11 @@ import {
   marcarLoteResuelto,
 } from '../../../src/features/alertas/lib/revision'
 import type { Insumo, Lote, Movimiento } from '../../../src/lib/db'
+import { LUGAR_1, TENANT_1 } from '../../helpers/tenancy'
 
 function makeInsumo(overrides: Partial<Insumo>): Insumo {
   return {
+    tenantId: TENANT_1,
     id: 'insumo-1',
     nombre: 'Anestesia local',
     categoria: 'Farmacia',
@@ -36,6 +38,8 @@ function makeInsumo(overrides: Partial<Insumo>): Insumo {
 
 function makeLote(overrides: Partial<Lote>): Lote {
   return {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
     id: crypto.randomUUID(),
     insumoId: 'insumo-1',
     numeroLote: 'L1',
@@ -50,6 +54,9 @@ function makeLote(overrides: Partial<Lote>): Lote {
 
 function makeMovimiento(overrides: Partial<Movimiento>): Movimiento {
   return {
+    tenantId: TENANT_1,
+    lugarId: LUGAR_1,
+    trasladoId: null,
     id: crypto.randomUUID(),
     tipo: 'ingreso',
     loteId: 'lote-1',

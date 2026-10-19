@@ -7,6 +7,9 @@ vi.mock('../../src/lib/db', async () => {
   const { createMemoryDb, MemoryTable } = await import('../helpers/memoryDb')
   return {
     db: createMemoryDb({
+      lugares: new MemoryTable(),
+      minimosLugar: new MemoryTable(),
+      lugarActivo: new MemoryTable(),
       insumos: new MemoryTable(),
       lotes: new MemoryTable(),
       movimientos: new MemoryTable(),
@@ -97,12 +100,15 @@ import { db } from '../../src/lib/db'
 import { runSyncBatch } from '../../src/lib/sync'
 import { useAuthStore } from '../../src/stores/authStore'
 import { useAvisosStore } from '../../src/stores/avisosStore'
+import { TENANT_1 } from '../helpers/tenancy'
+import { usarLugar1 } from '../helpers/lugarFalso'
 
 const insumosT = db.insumos as unknown as MemoryTable<Insumo>
 const categoriasT = db.categorias as unknown as MemoryTable<Categoria>
 
 function categoria(overrides: Partial<Categoria>): Categoria {
   return {
+    tenantId: TENANT_1,
     id: crypto.randomUUID(),
     nombre: 'Ortodoncia',
     creadoPor: 'admin-1',
@@ -116,6 +122,7 @@ function categoria(overrides: Partial<Categoria>): Categoria {
 
 function insumo(overrides: Partial<Insumo>): Insumo {
   return {
+    tenantId: TENANT_1,
     id: crypto.randomUUID(),
     nombre: 'Insumo',
     categoria: 'Implantes',
@@ -133,6 +140,8 @@ function insumo(overrides: Partial<Insumo>): Insumo {
 }
 
 const admin: UsuarioActual = {
+  tenantId: TENANT_1,
+  desactivadoEn: null,
   id: 'admin-1',
   email: 'a@x.cl',
   nombre: 'Admin',
@@ -152,6 +161,9 @@ beforeEach(() => {
   useAuthStore.setState({ usuario: admin, isReady: true })
   useAvisosStore.setState({ avisos: [] })
 })
+
+// Spec 014: un tenant de un solo lugar, como la clínica original.
+beforeEach(usarLugar1)
 
 describe('pushCategorias (spec 008 contracts/supabase-schema.md step 0)', () => {
   it('pushes an unsynced row and marks it synced', async () => {

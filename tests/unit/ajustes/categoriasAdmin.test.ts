@@ -7,6 +7,9 @@ vi.mock('../../../src/lib/db', async () => {
   const { createMemoryDb, MemoryTable } = await import('../../helpers/memoryDb')
   return {
     db: createMemoryDb({
+      lugares: new MemoryTable(),
+      minimosLugar: new MemoryTable(),
+      lugarActivo: new MemoryTable(),
       insumos: new MemoryTable(),
       categorias: new MemoryTable(),
       cambiosInsumo: new MemoryTable(),
@@ -22,12 +25,14 @@ import {
   desactivarCategoria,
   reactivarCategoria,
 } from '../../../src/features/ajustes/lib/categoriasAdmin'
+import { TENANT_1 } from '../../helpers/tenancy'
 
 const insumosT = db.insumos as unknown as MemoryTable<Insumo>
 const categoriasT = db.categorias as unknown as MemoryTable<Categoria>
 
 function insumo(id: string, categoria: string, overrides: Partial<Insumo> = {}): Insumo {
   return {
+    tenantId: TENANT_1,
     id,
     nombre: `Insumo ${id}`,
     categoria,
@@ -46,6 +51,7 @@ function insumo(id: string, categoria: string, overrides: Partial<Insumo> = {}):
 
 function categoria(id: string, nombre: string, overrides: Partial<Categoria> = {}): Categoria {
   return {
+    tenantId: TENANT_1,
     id,
     nombre,
     creadoPor: 'admin-1',
@@ -60,6 +66,8 @@ function categoria(id: string, nombre: string, overrides: Partial<Categoria> = {
 beforeEach(() => {
   useAuthStore.setState({
     usuario: {
+      tenantId: TENANT_1,
+      desactivadoEn: null,
       id: 'admin-1',
       email: 'a@x.cl',
       nombre: 'Admin',
@@ -103,6 +111,8 @@ describe('crearCategoriaDesdeAjustes (FR-014)', () => {
   it('requires an administrador', async () => {
     useAuthStore.setState({
       usuario: {
+        tenantId: TENANT_1,
+        desactivadoEn: null,
         id: 'p1',
         email: 'p@x.cl',
         nombre: 'P',
@@ -170,6 +180,8 @@ describe('renombrarCategoria (FR-015/016)', () => {
     categoriasT.seed([categoria('c1', 'Ortodoncia')])
     useAuthStore.setState({
       usuario: {
+        tenantId: TENANT_1,
+        desactivadoEn: null,
         id: 'p1',
         email: 'p@x.cl',
         nombre: 'P',
@@ -208,6 +220,8 @@ describe('desactivarCategoria / reactivarCategoria (FR-017/018)', () => {
     categoriasT.seed([categoria('c1', 'Ortodoncia')])
     useAuthStore.setState({
       usuario: {
+        tenantId: TENANT_1,
+        desactivadoEn: null,
         id: 'p1',
         email: 'p@x.cl',
         nombre: 'P',

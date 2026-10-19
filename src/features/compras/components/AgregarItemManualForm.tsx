@@ -10,6 +10,8 @@ import { TouchButton } from '../../../components/ui/TouchButton'
 
 export interface AgregarItemManualFormProps {
   insumosActivos: Insumo[]
+  /** Spec 014 FR-014 — lugar de la lista (desde "Todos"); sin él, el activo. */
+  lugarId?: string
   onAgregado: () => void
   onCancelar: () => void
 }
@@ -21,6 +23,7 @@ export interface AgregarItemManualFormProps {
  */
 export function AgregarItemManualForm({
   insumosActivos,
+  lugarId,
   onAgregado,
   onCancelar,
 }: AgregarItemManualFormProps) {
@@ -44,7 +47,7 @@ export function AgregarItemManualForm({
     const input: ItemManualInput = { nombre, cantidad, nota, insumoId }
     setIsPending(true)
     try {
-      await agregarItemManual(input)
+      await agregarItemManual(input, { lugarId })
       onAgregado()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo guardar.')
