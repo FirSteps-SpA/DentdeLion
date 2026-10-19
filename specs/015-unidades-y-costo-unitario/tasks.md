@@ -151,10 +151,14 @@ verde.
   `ConsumoForm.tsx` (~64), `traslado.ts` (~81 y ~103) y `src/lib/sync/reconcileOverdraft.ts`.
   Agregar `db.insumos`, `db.lotes` y `db.cambiosInsumo` a las transacciones que lo necesiten.
 - [ ] T023 [P] Test de arquitectura `tests/unit/lecturas-movimientos.test.ts`: recorre `src/` con
-  `fs` y falla si `db.movimientos` aparece en un archivo fuera de la lista permitida
-  (`lib/db`, `lib/sync/index.ts`, `lib/tenancy`, `stock.ts`, `movements.ts`, y las escrituras de
-  `alta.ts`/`recepcion.ts`/`traslado.ts`/`consumoRapido.ts` que no leen stock), con un mensaje que
-  explique usar `movimientosNormalizadosDeLote`.
+  `fs` y busca **lecturas** de movimientos con la regex
+  `db\.movimientos\s*\.\s*(where|get|toArray|filter|each|toCollection|bulkGet)\b` (también
+  `tx.table('movimientos')` con esas operaciones). Falla si aparece una fuera de
+  `src/lib/db/`, `src/lib/sync/index.ts`, `src/lib/tenancy/` y `src/features/insumos/lib/stock.ts`
+  (donde vive `movimientosNormalizadosDeLote`), con un mensaje que explique usar ese helper. Las
+  escrituras (`add`, `bulkAdd`, `bulkUpdate`) y la mención de `db.movimientos` en la lista de tablas
+  de una transacción quedan permitidas en cualquier archivo. Incluir un caso que verifique que la
+  regex detecta una lectura de ejemplo y no detecta una escritura.
 - [ ] T024 En `src/features/insumos/lib/movements.ts`, `crearMovimiento` pone `unidad` = unidad de
   consumo actual del insumo del lote (input opcional `unidad`; si no viene, leer `lote → insumo`).
   En `traslado.ts`, ambas mitades con la misma `unidad`. Ajustar `tests/unit/movements.test.ts` y
@@ -181,8 +185,9 @@ presentación; stock y mínimo en cartuchos (quickstart 2, 3, 9).
   unidades fuerza contenido 1, "Caja × 50 cartuchos", "Kit" cuando son iguales,
   "Frasco × 500 mL".
 - [ ] T027 [P] [US1] Test de integración `tests/integration/presentacion.test.tsx`: alta con
-  presentación como administradora; alta de un Kit sin contenido; edición de contenido que no
-  cambia el stock y deja un `CambioInsumo` `contenido`; personal no ve controles de edición.
+  presentación como administradora y como personal (FR-006, US1-7); alta de un Kit sin contenido;
+  edición de contenido que no cambia el stock y deja un `CambioInsumo` `contenido`; personal no ve
+  controles de edición en `EditarInsumoForm`.
 
 ### Implementation for User Story 1
 
@@ -202,8 +207,9 @@ presentación; stock y mínimo en cartuchos (quickstart 2, 3, 9).
   selector de unidad de consumo, "Se compra por" (opción "Igual que la de consumo"), `Stepper` de
   contenido con sufijo plural, vista previa; controles ≥ 48 px; props controladas + errores.
 - [ ] T032 [US1] Usar `PresentacionFields` en `AltaMaterialView.tsx` (sección "Unidades", y en el
-  borrador de `useBorradorAlta.ts`) y en `EditarInsumoForm.tsx` (solo administración; personal ve
-  texto).
+  borrador de `useBorradorAlta.ts`), editable para **cualquier rol** (FR-006: el alta sigue abierta a
+  todos y el servidor no restringe el insert), y en `EditarInsumoForm.tsx` (solo administración;
+  personal ve texto).
 - [ ] T033 [US1] Mostrar la presentación: columna **Presentación** en `InventarioTabla.tsx` (orden
   DS §22, UI §3), línea secundaria en `InsumoCard.tsx` y cabecera de `InsumoDetalle.tsx`
   (`formatearPresentacion`). Ajustar `tests/integration/inventario-tabla.test.tsx`.
@@ -269,7 +275,10 @@ después 30 cartuchos con total $21.000 → $700; un lote sin precio no lo cambi
   reemplaza; `0` sí cuenta; `null` → "Sin precio"), `formatearCLP`.
 - [ ] T043 [P] [US3] Test de integración `tests/integration/ingreso-precio.test.tsx`: recepción con
   precio por caja y con total (vistas previas), columna Costo unitario y "Sin precio", todo con
-  personal (Q3).
+  personal (Q3). Incluir el caso de SC-002: recibir N cajas de un insumo con presentación, con la
+  unidad de compra por defecto y sin precio, requiere los mismos campos obligatorios y la misma
+  cantidad de interacciones (`userEvent`) que la recepción de la 2.3.0 de un insumo sin
+  presentación (contar las interacciones en ambos casos y compararlas).
 
 ### Implementation for User Story 3
 
@@ -442,8 +451,9 @@ cartucho → caja con 120 se rechaza (quickstart 10–12).
 - **US1** (T026–T033) depende de Foundational. MVP.
 - **US2** (T034–T041) depende de US1 (presentación en el insumo).
 - **US3** (T042–T049) depende de US2 (snapshot del lote y formularios de ingreso).
-- **US4** (T050–T055) depende de US1; independiente de US2/US3 (salvo T055, que toca
-  `RecibirItemForm.tsx` como T040/T047: hacerlos en serie).
+- **US4** (T050–T054) depende de US1 e independiente de US2/US3. **T055 depende de T040** (usa el
+  `CantidadIngresoField` de US2 para proponer la cantidad en unidad de compra) y toca
+  `RecibirItemForm.tsx` como T047: hacerlo después de ambos.
 - **US5** (T056–T061) depende de US3 (precio y costo).
 - **US1 cont. / conversión** (T062–T068) depende de Foundational (factores) y US1; conviene después
   de US2 para probar consumos sobre insumos con presentación. Separable si hay que recortar.
@@ -451,7 +461,7 @@ cartucho → caja con 120 se rechaza (quickstart 10–12).
 
 ```text
 Setup ─► Foundational ─► US1 ─┬─► US2 ─► US3 ─► US5 ─┐
-                              ├─► US4 ───────────────┼─► Polish
+                              ├─► US4 (T055 tras US2) ┼─► Polish
                               └─► US1 cont. (conversión) ┘
 ```
 

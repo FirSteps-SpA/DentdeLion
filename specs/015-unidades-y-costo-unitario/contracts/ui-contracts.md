@@ -15,7 +15,8 @@ sin red (FR-022). Ningún formulario activa la cámara (Constitución V).
 | Contenido | `Stepper`/número, sufijo con el plural de la unidad de consumo | `> 0`; entero si la unidad no admite decimales |
 | Vista previa | Texto | "Caja × 50 cartuchos" |
 
-Solo administración ve estos campos editables; personal ve la presentación en el detalle (US1-6).
+En el alta, cualquier rol define la presentación (FR-006, US1-7). En la edición, solo administración
+ve estos campos editables; personal ve la presentación en el detalle (US1-6).
 
 ## 2. Ingreso: alta con stock inicial y recepción de compras (US2, US3)
 

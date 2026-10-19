@@ -42,15 +42,16 @@ ver Assumptions); monedas distintas al peso chileno.
 
 ### Session 2026-10-19
 
-- Q: ¿Se puede cambiar la unidad de consumo de un insumo con stock e historial? → A: Sí. La administración puede cambiarla; la app convierte el stock y el mínimo con el contenido y deja un movimiento auditable de la conversión.
+- Q: ¿Se puede cambiar la unidad de consumo de un insumo con stock e historial? → A: Sí. La administración puede cambiarla; la app convierte el stock y el mínimo con el factor indicado y deja un registro auditable de la conversión en el historial del insumo.
 - Q: ¿Qué regla de costo unitario se usa cuando hay lotes con precios distintos? → A: El precio del último ingreso con precio.
 - Q: ¿Quién ve e ingresa precios y costos? → A: Todo el equipo del tenant los ve, los ingresa y los corrige; cada cambio queda auditado.
+- Q: ¿Quién define la presentación al dar de alta un insumo, si hoy cualquier usuario puede darlo de alta? → A: Quien da de alta el insumo (cualquier rol) define su presentación, igual que hoy elige la unidad; después, solo administración la modifica (análisis 2026-10-19, U1).
 
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Definir la presentación de compra de un insumo (Priority: P1)
 
-Como administradora, al dar de alta o editar un insumo quiero indicar en qué unidad se compra
+Como persona del equipo que da de alta un insumo, o como administradora que lo edita, quiero indicar en qué unidad se compra
 (Caja), cuántas unidades trae (50) y en qué unidad se consume (Cartucho), para que la app haga la
 conversión por mí.
 
@@ -75,12 +76,15 @@ en cartuchos.
    insumo.
 4. **Given** un insumo con stock contado en cajas (p. ej. 3 cajas de guantes de 100), **When** la
    administradora cambia su unidad de consumo a "Unidad" con contenido 100, **Then** el stock pasa a
-   300 unidades, el mínimo se convierte con el mismo factor y queda un movimiento auditable de la
-   conversión con autora y fecha.
+   300 unidades, el mínimo se convierte con el mismo factor y la conversión queda registrada en el
+   historial del insumo con autora, fecha y factor (no es un movimiento de inventario).
 5. **Given** el selector de unidades, **When** se despliega, **Then** ofrece el catálogo del DS
    §25: Caja, Frasco, Botella, Jeringa, Cartucho, Paquete, Kit, Unidad, Rollo, mL, L, g, mg, m, cm.
 6. **Given** un usuario sin rol de administración, **When** abre un insumo, **Then** ve su
    presentación pero no puede modificarla (igual que el resto del catálogo hoy).
+7. **Given** un usuario sin rol de administración, **When** da de alta un insumo nuevo, **Then**
+   puede definir su presentación (unidad de compra, contenido y unidad de consumo), igual que hoy
+   elige su unidad.
 
 ---
 
@@ -93,7 +97,7 @@ cartuchos al stock, sin hacer la cuenta a mano.
 clínica percibe primero.
 
 **Independent Test**: Con Articaína definida como Caja × 50, registrar un ingreso de 2 cajas (desde
-el registro de lote y desde la recepción de la lista de compras) y comprobar que el stock sube en
+el alta con stock inicial y desde la recepción de la lista de compras) y comprobar que el stock sube en
 100 cartuchos y que el movimiento muestra ambas expresiones.
 
 **Acceptance Scenarios**:
@@ -105,7 +109,7 @@ el registro de lote y desde la recepción de la lista de compras) y comprobar qu
    30 cartuchos sueltos), **Then** puede cambiar la unidad del ingreso y el stock aumenta en 30.
 3. **Given** un ítem de la lista de compras vinculado a un insumo, **When** se marca como recibido,
    **Then** la cantidad se pide en unidad de compra (con opción de unidad de consumo) y se convierte
-   igual que en el registro de lote.
+   igual que en el alta con stock inicial.
 4. **Given** un insumo cuya unidad de consumo no admite decimales, **When** la conversión daría un
    resultado no entero (p. ej. 0,5 caja de 25), **Then** se rechaza con un mensaje claro.
 5. **Given** que no hay conexión, **When** se registra un ingreso en unidad de compra, **Then** la
@@ -127,7 +131,7 @@ unitario".
 
 **Acceptance Scenarios**:
 
-1. **Given** el formulario de ingreso (registro de lote o recepción de compras), **When** se indica
+1. **Given** el formulario de ingreso (alta con stock inicial o recepción de compras), **When** se indica
    el precio por unidad de compra, **Then** se muestra el total ("2 × $32.500 = $65.000") y el costo
    unitario resultante ("$650 por cartucho") antes de guardar.
 2. **Given** el mismo formulario, **When** la persona prefiere ingresar el total pagado, **Then**
@@ -243,27 +247,28 @@ actualiza y el cambio queda en el historial con autor, fecha, valor anterior y n
   formulario NO DEBE pedirlo.
 - **FR-005**: El sistema DEBE mostrar la presentación del insumo en forma legible ("Caja × 50
   cartuchos") en la tabla de inventario (columna "Presentación", DS §22) y en el detalle.
-- **FR-006**: Solo los usuarios con rol de administración DEBEN poder definir o modificar la unidad
-  de compra y el contenido; cada cambio DEBE quedar en el historial de cambios del insumo con autor,
-  fecha, valor anterior y nuevo.
+- **FR-006**: Quien da de alta un insumo (cualquier rol) DEBE poder definir su presentación. Después
+  del alta, solo los usuarios con rol de administración DEBEN poder modificar la unidad de compra y
+  el contenido; cada cambio DEBE quedar en el historial de cambios del insumo con autor, fecha, valor
+  anterior y nuevo.
 - **FR-007**: Un cambio de unidad de compra o de contenido NO DEBE alterar el stock, los mínimos ni
   los movimientos ya registrados.
 - **FR-007a**: Los usuarios con rol de administración DEBEN poder cambiar la unidad de consumo de un
   insumo con stock e historial. El sistema DEBE convertir el stock de cada lote y el stock mínimo con
-  el factor indicado, registrar la conversión como un movimiento auditable (autor, fecha, unidad y
-  factor) y mostrar el historial previo en la unidad en que se registró. Los consumos registrados
+  el factor indicado, registrar la conversión en el historial de cambios del insumo (autor, fecha,
+  unidad anterior, unidad nueva y factor; no como movimiento de inventario) y mostrar el historial previo en la unidad en que se registró. Los consumos registrados
   sin conexión en la unidad anterior DEBEN convertirse con el mismo factor al sincronizar.
 
 **Stock y conversión**
 
 - **FR-008**: El stock, el stock mínimo, los consumos, los ajustes y los traslados DEBEN expresarse y
   guardarse en la **unidad de consumo**.
-- **FR-009**: Al registrar un ingreso (registro de lote o recepción desde la lista de compras), el
+- **FR-009**: Al registrar un ingreso (alta con stock inicial o recepción desde la lista de compras), el
   usuario DEBE poder indicar la cantidad en unidad de compra (por defecto) o en unidad de consumo; el
   sistema DEBE convertirla a unidades de consumo (cantidad × contenido) y mostrar la equivalencia
   antes de guardar.
-- **FR-010**: El movimiento de ingreso DEBE conservar la cantidad y la unidad en que se ingresó
-  además del valor convertido, para que el historial muestre "2 cajas (100 cartuchos)" aunque luego
+- **FR-010**: El lote creado por el ingreso DEBE conservar la cantidad y la unidad en que se ingresó
+  (y el contenido vigente) además del valor convertido que registra el movimiento de ingreso, para que el historial muestre "2 cajas (100 cartuchos)" aunque luego
   cambie la presentación.
 - **FR-011**: Los datos existentes DEBEN migrarse de modo que la unidad actual de cada insumo sea su
   unidad de consumo y de compra con contenido 1 ("pieza" pasa a "Unidad"), sin cambiar ninguna
@@ -314,12 +319,13 @@ actualiza y el cambio queda en el historial con autor, fecha, valor anterior y n
   decimales.
 - **Insumo** (existente, se amplía): agrega unidad de compra y contenido; su unidad actual pasa a ser
   la unidad de consumo. El costo unitario del insumo es un valor derivado, no se ingresa a mano.
-- **Lote** (existente, se amplía): agrega precio por unidad de compra (opcional) y el contenido
-  vigente al ingresarlo, de donde se deriva su costo por unidad de consumo.
+- **Lote** (existente, se amplía): conserva cómo se ingresó (cantidad y unidad ingresadas,
+  contenido y unidad de consumo vigentes) y el precio por unidad de compra (opcional), de donde se
+  deriva su costo por unidad de consumo. Cada lote tiene un solo ingreso.
 - **Conversión de unidad de consumo**: registro auditable del cambio de unidad de consumo de un
   insumo (unidad anterior, unidad nueva, factor, autor, fecha).
-- **Movimiento de ingreso** (existente, se amplía): conserva la cantidad y unidad ingresadas además
-  de la cantidad en unidad de consumo.
+- **Movimiento** (existente, se amplía): registra la cantidad en unidad de consumo y la unidad en que
+  está expresada, para convertirla si la unidad de consumo cambia después.
 - **Cambio de precio de lote**: registro auditable de cada corrección de precio (lote, valor
   anterior, valor nuevo, autor, fecha), análogo al historial de cambios de insumo.
 - **Ítem de compra** (existente): su cantidad sugerida se expresa en unidades de compra.
