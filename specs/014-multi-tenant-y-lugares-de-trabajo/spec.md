@@ -148,7 +148,7 @@ tenants.
 
 **Acceptance Scenarios**:
 
-1. **Given** una administradora, **When** invita a un correo y elige el rol, **Then** esa persona recibe un correo con un enlace para unirse al tenant.
+1. **Given** una administradora, **When** invita a un correo y elige el rol, **Then** la app le entrega un enlace de invitación que puede enviar por correo, WhatsApp o copiar, y esa persona lo usa para unirse al tenant.
 2. **Given** una invitación vigente, **When** la persona la acepta y define su contraseña, **Then** queda como usuaria del tenant con el rol indicado y ve todos sus lugares (aclaración 1).
 3. **Given** una invitación pendiente, **When** la administradora la revoca, **Then** el enlace deja de funcionar.
 4. **Given** una invitación de más de 7 días, **When** se usa el enlace, **Then** la app indica que venció y que se pida una nueva.
@@ -223,7 +223,7 @@ muestra el traslado vinculado.
 **Equipo y acceso (US5)**
 
 - **FR-015**: Todos los usuarios activos de un tenant DEBEN acceder a todos sus lugares activos. El modelo de membresía DEBE permitir, en una spec futura, restringir el acceso por lugar sin migrar datos.
-- **FR-019**: Una administradora DEBE poder invitar por correo a una persona con rol administrador o personal; la invitación vence a los 7 días y se puede revocar.
+- **FR-019**: Una administradora DEBE poder invitar a una persona con rol administrador o personal mediante un enlace personal que la app le permite enviar por correo, WhatsApp o copiar; la invitación vence a los 7 días y se puede revocar.
 - **FR-020**: Al aceptar la invitación, la persona define su contraseña y queda en el tenant que la invitó con el rol indicado. Un correo ya registrado en otro tenant no puede aceptarse.
 - **FR-021**: Una administradora DEBE poder desactivar y reactivar usuarios de su tenant y cambiar su rol. Un usuario desactivado no puede entrar ni sincronizar, y su autoría en el historial se conserva. Siempre queda al menos una administradora activa.
 
@@ -268,7 +268,7 @@ muestra el traslado vinculado.
 - "Todos" es una vista de lectura (pregunta 4 del roadmap): para modificar stock hay que estar en un lugar concreto.
 - El dispositivo sincroniza todos los lugares a los que el usuario tiene acceso (pregunta 5 del roadmap), para poder cambiar de lugar sin conexión. Los volúmenes por tenant son chicos (cientos de movimientos).
 - Un usuario pertenece a un solo tenant. Un profesional que trabaje para dos clientes distintos usa dos cuentas.
-- El correo de invitación lo envía el servicio de correo de autenticación ya usado por la app; su texto está en español.
+- La invitación no depende de un servidor de correo: la app genera el enlace y la administradora lo envía por el medio que prefiera (research R5).
 - El alta manual de un tenant la hace First Steps con un procedimiento documentado (crear tenant, primer lugar y administradora, y enviarle su invitación).
 - Los niveles de aviso de caducidad y el umbral de pendientes son uno por tenant; el nombre visible en el chip de la barra superior pasa a ser el del lugar activo.
 - El proveedor sigue siendo un dato del lote (texto); la gestión de proveedores por lugar del DS §28 queda para una spec posterior.
