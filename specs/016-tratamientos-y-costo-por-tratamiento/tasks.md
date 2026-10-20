@@ -280,7 +280,7 @@ anulado (quickstart 12).
 - [X] T050 [P] README: nota de despliegue de la 016 (respaldo → `db push` → front).
 - [X] T051 Recorrer los 13 escenarios de `quickstart.md` (automatizados o en el navegador).
 - [X] T052 Correr `npm run lint && npm run build && npm test && npm run test:rls`, todo verde.
-- [ ] T053 [P] En `../1stDocs`, actualizar roadmap y backlog al abrir el PR (incluida la decisión de
+- [X] T053 [P] *(Hecho: roadmap y backlog de 1stDocs en `457ac54`, con la decisión de la barra móvil y los pendientes del release.)* En `../1stDocs`, actualizar roadmap y backlog al abrir el PR (incluida la decisión de
   la barra inferior móvil, R7).
 - [X] T054 Descripción del PR: tablas, RLS y trigger (tabla de políticas), decisión de navegación,
   resultados de T045–T051.
