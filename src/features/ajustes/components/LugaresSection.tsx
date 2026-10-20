@@ -17,11 +17,17 @@ import { BottomSheet } from '../../../components/ui/BottomSheet'
 import { Card } from '../../../components/ui/Card'
 import { IconField } from '../../../components/ui/IconField'
 import { TouchButton } from '../../../components/ui/TouchButton'
+import { useAuthStore } from '../../../stores/authStore'
+import { usePendientesStore } from '../../../stores/pendientesStore'
+import { useTratamientosStore } from '../../../stores/tratamientosStore'
+import { fijarPorcentajeLugar } from '../../tratamientos/lib/catalogo'
+import { compararCambios } from '../../insumos/lib/proyeccion'
 
 type Modo =
   | { tipo: 'crear' }
   | { tipo: 'renombrar'; lugar: Lugar }
   | { tipo: 'desactivar'; lugar: Lugar; conStock: number }
+  | { tipo: 'porcentaje'; lugar: Lugar }
   | null
 
 /**
@@ -33,6 +39,12 @@ export function LugaresSection() {
   const lugares = useLugarStore((s) => s.lugares)
   const lotes = useInventoryStore((s) => s.lotes)
   const movimientos = useInventoryStore((s) => s.movimientos)
+  // Spec 016 US4 (FR-012, Q2): % profesional por lugar, con su historial.
+  const porcentajes = useTratamientosStore((s) => s.porcentajes)
+  const cambiosTratamiento = useTratamientosStore((s) => s.cambiosTratamiento)
+  const usuario = useAuthStore((s) => s.usuario)
+  const conocidos = usePendientesStore((s) => s.usuariosConocidos)
+  const [porcentajeInput, setPorcentajeInput] = useState('')
 
   const [nombreTenant, setNombreTenant] = useState<string | null>(null)
   const [cargandoTenant, setCargandoTenant] = useState(true)
@@ -150,12 +162,32 @@ export function LugaresSection() {
             <li key={lugar.id}>
               <Card className="flex flex-wrap items-center gap-2 px-3.5 py-2">
                 <MapPin size={16} className="shrink-0 text-text-muted" />
-                <span className="flex min-w-0 flex-1 flex-col">
+                <span className="flex min-w-40 flex-1 flex-col">
                   <span className="truncate text-sm font-bold text-text">{lugar.nombre}</span>
                   <span className="text-xs text-text-muted">
                     {conStock === 1 ? '1 insumo con stock' : `${conStock} insumos con stock`}
                   </span>
+                  <span className="text-xs text-text-muted">
+                    {porcentajes.has(lugar.id)
+                      ? `Profesional ${porcentajes.get(lugar.id)} % · Clínica ${
+                          100 - (porcentajes.get(lugar.id) ?? 0)
+                        } %`
+                      : 'Sin % profesional'}
+                  </span>
                 </span>
+                <TouchButton
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setPorcentajeInput(String(porcentajes.get(lugar.id) ?? ''))
+                    setError(null)
+                    setModo({ tipo: 'porcentaje', lugar })
+                  }}
+                  aria-label={`% profesional de ${lugar.nombre}`}
+                  className="px-3 text-xs"
+                >
+                  %
+                </TouchButton>
                 {desactivado && <Badge variant="warning-30">Desactivado</Badge>}
                 <TouchButton
                   type="button"
@@ -203,6 +235,78 @@ export function LugaresSection() {
         <Plus size={16} />
         Nuevo lugar
       </TouchButton>
+
+      {modo?.tipo === 'porcentaje' && (
+        <BottomSheet titulo={`% profesional en ${modo.lugar.nombre}`} onClose={() => setModo(null)}>
+          <form
+            data-sheet-body
+            noValidate
+            className="flex flex-col gap-3"
+            onSubmit={(event) => {
+              event.preventDefault()
+              const valor = porcentajeInput.trim() === '' ? null : Number(porcentajeInput)
+              void ejecutar(() =>
+                fijarPorcentajeLugar(
+                  modo.lugar.id,
+                  valor,
+                  porcentajes.get(modo.lugar.id) ?? null,
+                ),
+              )
+            }}
+          >
+            <IconField
+              label="% profesional (0–100)"
+              htmlFor="porcentaje-lugar"
+              error={error ?? undefined}
+              hint={
+                porcentajeInput.trim() !== '' &&
+                Number(porcentajeInput) >= 0 &&
+                Number(porcentajeInput) <= 100
+                  ? `Clínica: ${100 - Number(porcentajeInput)} %`
+                  : 'Vacío = sin porcentaje (no se calcula la ganancia estimada).'
+              }
+            >
+              <input
+                id="porcentaje-lugar"
+                type="number"
+                min={0}
+                max={100}
+                step="any"
+                value={porcentajeInput}
+                onChange={(event) => setPorcentajeInput(event.target.value)}
+                className="h-full w-full border-none bg-transparent text-sm text-text outline-none"
+              />
+            </IconField>
+            <TouchButton type="submit" disabled={ocupado}>
+              Guardar
+            </TouchButton>
+            <ul className="flex flex-col gap-0.5 text-xs text-text-muted">
+              {cambiosTratamiento
+                .filter(
+                  (c) =>
+                    c.campo === 'porcentajeProfesional' &&
+                    c.lugarId === modo.lugar.id &&
+                    c.rechazadoEn === null,
+                )
+                .sort(compararCambios)
+                .reverse()
+                .map((c) => (
+                  <li key={c.id}>
+                    {c.valorAnterior === null ? 'sin %' : `${c.valorAnterior} %`} →{' '}
+                    {c.valorNuevo === null ? 'sin %' : `${c.valorNuevo} %`} ·{' '}
+                    {c.usuarioId === usuario?.id
+                      ? usuario.nombre
+                      : (conocidos.find((k) => k.id === c.usuarioId)?.nombre ?? 'otra persona')}{' '}
+                    ·{' '}
+                    {new Intl.DateTimeFormat('es-CL', { dateStyle: 'medium' }).format(
+                      new Date(c.creadoEn),
+                    )}
+                  </li>
+                ))}
+            </ul>
+          </form>
+        </BottomSheet>
+      )}
 
       {(modo?.tipo === 'crear' || modo?.tipo === 'renombrar') && (
         <BottomSheet

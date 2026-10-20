@@ -30,6 +30,7 @@ import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
 
 function makeMovimiento(overrides: Partial<Movimiento>): Movimiento {
   return {
+    tratamientoRealizadoId: null,
     unidad: 'unidad',
     tenantId: TENANT_1,
     lugarId: LUGAR_1,

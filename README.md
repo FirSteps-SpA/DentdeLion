@@ -147,6 +147,12 @@ de un tenant ("Convertir unidad" en la edición de un insumo), confirmar que tod
 dispositivos ya cargaron la versión nueva (abrir la app una vez con red). Una versión anterior no
 conoce el factor de conversión y mostraría el stock sin convertir.
 
+**Spec 016 (tratamientos y costo por tratamiento):** mismo orden (respaldo → `db push` → front).
+La migración solo agrega tablas y la columna opcional `movimientos.tratamiento_realizado_id`, así
+que una versión anterior sigue sincronizando: ve los consumos de un tratamiento como consumos
+sueltos y no muestra el catálogo ni el historial hasta actualizarse. La barra inferior del celular
+cambia (Compras pasa a "Más"); avisar al equipo.
+
 ## ¿Quedó bien configurado mi entorno?
 
 Checklist manual (sin script) — cada punto debe poder confirmarse a simple vista en menos de 2

@@ -66,7 +66,7 @@ describe('Dexie v11 (spec 015 FR-011)', () => {
     const { db } = await import('../../src/lib/db')
     await db.open()
 
-    expect(db.verno).toBe(11)
+    expect(db.verno).toBe(12) // la v11 corre dentro de la cadena hasta la última versión
     expect(await db.insumos.get('i1')).toMatchObject({
       unidadMedida: 'unidad',
       unidadCompra: 'unidad',

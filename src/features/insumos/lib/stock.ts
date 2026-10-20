@@ -202,3 +202,13 @@ export async function movimientosNormalizadosDeLote(
   const cambios = await db.cambiosInsumo.where('insumoId').equals(insumo.id).toArray()
   return normalizarMovimientos(movimientos, [lote], [insumo], cambios)
 }
+
+/**
+ * Spec 016 (R5) — los movimientos generados por un tratamiento realizado
+ * (consumos y su reversión), para anularlo. No calcula stock.
+ */
+export async function movimientosDeTratamiento(
+  tratamientoRealizadoId: string,
+): Promise<Movimiento[]> {
+  return db.movimientos.where('tratamientoRealizadoId').equals(tratamientoRealizadoId).toArray()
+}

@@ -70,6 +70,7 @@ const lote: Lote = {
   creadoEn: 'x',
 }
 const ingreso: Movimiento = {
+  tratamientoRealizadoId: null,
   unidad: 'unidad',
   tenantId: TENANT_1,
   lugarId: LUGAR_1,

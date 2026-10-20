@@ -54,6 +54,7 @@ const lote: Lote = {
 
 function ingreso(cantidad: number): Movimiento {
   return {
+    tratamientoRealizadoId: null,
     unidad: 'unidad',
     tenantId: TENANT_1,
     lugarId: LUGAR_1,
@@ -71,6 +72,7 @@ function ingreso(cantidad: number): Movimiento {
 
 function consumo(cantidad: number): Movimiento {
   return {
+    tratamientoRealizadoId: null,
     unidad: 'unidad',
     tenantId: TENANT_1,
     lugarId: LUGAR_1,

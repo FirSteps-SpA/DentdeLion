@@ -22,6 +22,9 @@ vi.mock('../../src/lib/db', async () => {
       movimientos: new MemoryTable(),
       cambiosInsumo: new MemoryTable(),
       cambiosLote: new MemoryTable(),
+      tratamientos: new MemoryTable(),
+      cambiosTratamiento: new MemoryTable(),
+      tratamientosRealizados: new MemoryTable(),
       configuracionAlertas: new MemoryTable(),
       categorias: new MemoryTable(),
       usuarioActual: new MemoryTable(),
@@ -89,6 +92,7 @@ const lotes: Lote[] = [
 ]
 const movimientos: Movimiento[] = [
   {
+    tratamientoRealizadoId: null,
     unidad: 'unidad',
     tenantId: TENANT_1,
     lugarId: LUGAR_1,

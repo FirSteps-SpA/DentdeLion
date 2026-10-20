@@ -29,7 +29,7 @@ export function BottomNav({ active, onChange, alertasBadge }: BottomNavProps) {
       className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)]"
     >
       <div className="mx-auto flex h-20 w-full max-w-[480px] items-stretch px-2">
-        {SECCIONES.map(({ vista, etiquetaMovil, Icon }) => {
+        {SECCIONES.filter((seccion) => !seccion.soloLateral).map(({ vista, etiquetaMovil, Icon }) => {
           const activa = active === vista
           return (
             <button

@@ -34,6 +34,7 @@ import {
   ScanLine,
   Search as LucideSearch,
   Settings as LucideSettings,
+  Stethoscope as LucideStethoscope,
   Share2,
   ShoppingCart as LucideShoppingCart,
   Tag as LucideTag,
@@ -103,6 +104,8 @@ export const Package = deLucide(LucidePackage)
 export const PackageMinus = deLucide(LucidePackageMinus)
 export const ShoppingCart = deLucide(LucideShoppingCart)
 export const Bell = deLucide(LucideBell)
+/** Spec 016 — sección Tratamientos (DS §29). */
+export const Stethoscope = deLucide(LucideStethoscope)
 export const Settings = deLucide(LucideSettings)
 export const Menu = deLucide(LucideMenu)
 export const PanelLeftClose = deLucide(LucidePanelLeftClose)

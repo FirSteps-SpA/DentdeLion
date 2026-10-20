@@ -44,6 +44,7 @@ const lote = {
 } as Lote
 
 const ingreso: Movimiento = {
+  tratamientoRealizadoId: null,
   unidad: 'unidad',
   id: 'ing',
   tenantId: TENANT_1,

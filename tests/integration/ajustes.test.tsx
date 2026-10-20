@@ -23,6 +23,9 @@ vi.mock('../../src/lib/db', async () => {
       movimientos: new MemoryTable(),
       cambiosInsumo: new MemoryTable(),
       cambiosLote: new MemoryTable(),
+      tratamientos: new MemoryTable(),
+      cambiosTratamiento: new MemoryTable(),
+      tratamientosRealizados: new MemoryTable(),
       configuracionAlertas: new MemoryTable(),
       categorias: new MemoryTable(),
       usuarioActual: new MemoryTable(),
@@ -343,6 +346,7 @@ describe('Ajustes — Lugares de trabajo (spec 014 US4)', () => {
     ])
     movimientosT.seed([
       {
+        tratamientoRealizadoId: null,
         unidad: 'unidad',
         id: 'm1',
         tenantId: TENANT_1,

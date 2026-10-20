@@ -89,6 +89,7 @@ const haceHoras = (h: number) => new Date(Date.now() - h * 3_600_000).toISOStrin
 
 function consumo(id: string, usuarioId = 'B', creadoEn = new Date().toISOString()): Movimiento {
   return {
+    tratamientoRealizadoId: null,
     unidad: 'unidad',
     tenantId: TENANT_1,
     lugarId: LUGAR_1,

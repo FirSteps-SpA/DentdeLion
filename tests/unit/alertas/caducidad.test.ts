@@ -55,6 +55,7 @@ function makeLote(overrides: Partial<Lote>): Lote {
 
 function makeIngreso(loteId: string, cantidad: number): Movimiento {
   return {
+    tratamientoRealizadoId: null,
     unidad: 'unidad',
     tenantId: TENANT_1,
     lugarId: LUGAR_1,
@@ -172,6 +173,7 @@ describe('computeAlertasCaducidad', () => {
         loteId: lote.id,
         cantidad: 10,
         unidad: 'unidad',
+        tratamientoRealizadoId: null,
         usuarioId: 'usuario-1',
         movimientoOrigenId: null,
         creadoEn: new Date().toISOString(),

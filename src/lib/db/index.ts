@@ -154,6 +154,11 @@ export interface Movimiento {
    * cambio de unidad de consumo sin reescribirlos.
    */
   unidad: string
+  /**
+   * Spec 016 (research.md R4/R5) — tratamiento realizado que generó este
+   * consumo, o la reversión de su anulación. `null` en el resto.
+   */
+  tratamientoRealizadoId: string | null
   usuarioId: string
   movimientoOrigenId: string | null
   creadoEn: string
@@ -323,6 +328,92 @@ export interface CambioLote {
   sincronizado: boolean
 }
 
+/** Spec 016 data-model.md — material de la receta de un tratamiento. */
+export interface MaterialTratamiento {
+  insumoId: string
+  /** En `unidad` (la de consumo del insumo al definirlo; R2). */
+  cantidad: number
+  unidad: string
+}
+
+/**
+ * Spec 016 data-model.md — Tratamiento: solo identidad. Nombre, materiales,
+ * estado y precios por lugar viven en el ledger `CambioTratamiento` (R1).
+ */
+export interface Tratamiento {
+  id: string
+  tenantId: string
+  creadoPor: string
+  creadoEn: string
+  sincronizado: boolean
+  /** Local: el servidor lo rechazó por permisos. */
+  rechazadoEn: string | null
+}
+
+export type CampoTratamiento =
+  | 'nombre'
+  | 'materiales'
+  | 'activo'
+  | 'precio'
+  | 'porcentajeProfesional'
+
+/**
+ * Spec 016 data-model.md — ledger append-only del catálogo de tratamientos,
+ * sus precios por lugar y el % profesional de cada lugar (R1). Gana el de
+ * mayor `(creadoEn, id)` por campo (y por lugar).
+ */
+export interface CambioTratamiento {
+  id: string
+  tenantId: string
+  /** `null` solo en `porcentajeProfesional`. */
+  tratamientoId: string | null
+  /** Obligatorio en `precio` y `porcentajeProfesional`. */
+  lugarId: string | null
+  campo: CampoTratamiento
+  valorAnterior: string | number | boolean | MaterialTratamiento[] | null
+  valorNuevo: string | number | boolean | MaterialTratamiento[] | null
+  usuarioId: string
+  creadoEn: string
+  sincronizado: boolean
+  rechazadoEn: string | null
+}
+
+/** Spec 016 data-model.md — material usado, en el snapshot de un registro. */
+export interface MaterialUsado {
+  insumoId: string
+  nombre: string
+  cantidad: number
+  unidad: string
+  costoUnitario: number | null
+  /** El insumo estaba dado de baja: no se descontó (cantidad 0). */
+  dadoDeBaja?: true
+}
+
+/**
+ * Spec 016 data-model.md — tratamiento realizado con su snapshot inmutable
+ * (FR-016) y, si se deshizo, su anulación (R5).
+ */
+export interface TratamientoRealizado {
+  id: string
+  tenantId: string
+  lugarId: string
+  tratamientoId: string
+  nombre: string
+  precio: number | null
+  porcentajeProfesional: number | null
+  materiales: MaterialUsado[]
+  costoMateriales: number
+  costoCompleto: boolean
+  gananciaEstimada: number | null
+  usuarioId: string
+  creadoEn: string
+  anuladoEn: string | null
+  anuladoPor: string | null
+  sincronizado: boolean
+  /** Local: `false` = anulación aún sin subir. */
+  anulacionSincronizada: boolean
+}
+
 /** Spec 014 (research.md R10) — lugar elegido en este dispositivo. Local. */
 export interface LugarActivo {
   id: 'local'
@@ -352,6 +443,9 @@ export const db = new Dexie('inDENToryDB') as Dexie & {
   minimosLugar: Table<MinimoLugar, [string, string]>
   lugarActivo: EntityTable<LugarActivo, 'id'>
   cambiosLote: EntityTable<CambioLote, 'id'>
+  tratamientos: EntityTable<Tratamiento, 'id'>
+  cambiosTratamiento: EntityTable<CambioTratamiento, 'id'>
+  tratamientosRealizados: EntityTable<TratamientoRealizado, 'id'>
 }
 
 db.version(1).stores({
@@ -591,5 +685,25 @@ db.version(11)
         movimiento.unidad ??= unidadPorLote.get(movimiento.loteId as string) ?? 'unidad'
       })
   })
+
+// Version 12 (spec 016, data-model.md "Dexie v12"): tratamientos, su ledger y
+// los tratamientos realizados; índice para encontrar los consumos de un
+// registro. Ningún dato existente cambia.
+db.version(12)
+  .stores({
+    tratamientos: 'id, tenantId, creadoEn, sincronizado',
+    cambiosTratamiento: 'id, tratamientoId, lugarId, campo, creadoEn, sincronizado, tenantId',
+    tratamientosRealizados: 'id, tratamientoId, lugarId, creadoEn, sincronizado, tenantId',
+    movimientos:
+      'id, loteId, tipo, usuarioId, creadoEn, sincronizado, tenantId, lugarId, trasladoId, tratamientoRealizadoId',
+  })
+  .upgrade((tx) =>
+    tx
+      .table('movimientos')
+      .toCollection()
+      .modify((movimiento: Partial<Movimiento>) => {
+        movimiento.tratamientoRealizadoId ??= null
+      }),
+  )
 
 export type { EntityTable }

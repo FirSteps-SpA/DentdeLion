@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { deshacerConsumo } from '../features/insumos/lib/consumoRapido'
 import { deshacerTraslado } from '../features/insumos/lib/traslado'
+import { anularTratamiento } from '../features/tratamientos/lib/registro'
 
 export const DURACION_AVISO_MS = 8000
 export const DURACION_MATERIAL_CREADO_MS = 4000
@@ -13,10 +14,14 @@ export interface Aviso {
   tipo:
     | 'consumo'
     | 'traslado'
+    | 'tratamiento'
     | 'cambio-rechazado'
     | 'material-creado'
     | 'categoria-rechazada'
-  /** Consumo: el movimiento de consumo. Traslado (spec 014): la salida del par. */
+  /**
+   * Consumo: el movimiento de consumo. Traslado (spec 014): la salida del par.
+   * Tratamiento (spec 016): el tratamiento realizado.
+   */
   movimientoId: string | null
   loteId: string | null
   insumoNombre: string
@@ -100,6 +105,7 @@ export const useAvisosStore = create<AvisosState>((set, get) => ({
     marcar('revertido')
     try {
       if (aviso.tipo === 'traslado') await deshacerTraslado(aviso.movimientoId)
+      else if (aviso.tipo === 'tratamiento') await anularTratamiento(aviso.movimientoId)
       else await deshacerConsumo(aviso.movimientoId)
     } catch (error) {
       marcar('pendiente')

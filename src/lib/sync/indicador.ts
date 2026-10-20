@@ -1,8 +1,10 @@
 import type {
   CambioInsumo,
   CambioLote,
+  CambioTratamiento,
   Categoria,
   Movimiento,
+  TratamientoRealizado,
   UsuarioConocido,
 } from '../db'
 import type { ResultadoCiclo } from '../../stores/syncStore'
@@ -18,6 +20,8 @@ export interface PendientesPorAutor {
   categorias: number
   /** Spec 015 (R6) — correcciones de precio de lotes sin subir. */
   preciosLote?: number
+  /** Spec 016 — cambios de tratamientos, registros y anulaciones sin subir. */
+  tratamientos?: number
   /** `creadoEn` de cada pendiente, para calcular antigüedades con el reloj actual. */
   creados: string[]
 }
@@ -47,6 +51,7 @@ export interface Indicador {
     cambiosInsumo: number
     categorias: number
     preciosLote: number
+    tratamientos: number
   }
   ajenos: PendientesAjenos[]
   /** Pendientes (propios y ajenos) que superan el umbral (FR-010). */
@@ -66,6 +71,11 @@ export function agruparPendientes(
   categorias: Categoria[],
   /** Spec 015 — sin rechazos por rol: solo cuenta la bandera `sincronizado`. */
   cambiosLote: CambioLote[] = [],
+  /** Spec 016. */
+  tratamientos: { cambios: CambioTratamiento[]; realizados: TratamientoRealizado[] } = {
+    cambios: [],
+    realizados: [],
+  },
 ): PendientesPorAutor[] {
   const porAutor = new Map<string, PendientesPorAutor>()
   const de = (usuarioId: string) => {
@@ -100,11 +110,30 @@ export function agruparPendientes(
     grupo.preciosLote = (grupo.preciosLote ?? 0) + 1
     grupo.creados.push(cambio.creadoEn)
   }
+  const sumarTratamiento = (usuarioId: string, creadoEn: string) => {
+    const grupo = de(usuarioId)
+    grupo.tratamientos = (grupo.tratamientos ?? 0) + 1
+    grupo.creados.push(creadoEn)
+  }
+  for (const cambio of tratamientos.cambios) {
+    if (cambio.sincronizado || cambio.rechazadoEn !== null) continue
+    sumarTratamiento(cambio.usuarioId, cambio.creadoEn)
+  }
+  for (const registro of tratamientos.realizados) {
+    if (!registro.sincronizado) sumarTratamiento(registro.usuarioId, registro.creadoEn)
+    else if (!registro.anulacionSincronizada && registro.anuladoPor && registro.anuladoEn) {
+      sumarTratamiento(registro.anuladoPor, registro.anuladoEn)
+    }
+  }
   return [...porAutor.values()]
 }
 
 const totalDe = (grupo: PendientesPorAutor) =>
-  grupo.movimientos + grupo.cambiosInsumo + grupo.categorias + (grupo.preciosLote ?? 0)
+  grupo.movimientos +
+  grupo.cambiosInsumo +
+  grupo.categorias +
+  (grupo.preciosLote ?? 0) +
+  (grupo.tratamientos ?? 0)
 
 export interface EntradaIndicador {
   usuarioId: string
@@ -170,6 +199,7 @@ export function calcularIndicador(entrada: EntradaIndicador): Indicador {
       cambiosInsumo: propio?.cambiosInsumo ?? 0,
       categorias: propio?.categorias ?? 0,
       preciosLote: propio?.preciosLote ?? 0,
+      tratamientos: propio?.tratamientos ?? 0,
     },
     ajenos,
     antiguos: creadosAntiguos.length,

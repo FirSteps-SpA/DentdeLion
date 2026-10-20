@@ -15,6 +15,7 @@ import { etiquetaUnidad, formatearCantidad, formatearEquivalente } from '../../.
 import { formatearCLP, precioVigenteLote } from '../lib/precio'
 import { useCostosUnitarios } from '../lib/useCostosUnitarios'
 import { EditarPrecioDialog } from './EditarPrecioDialog'
+import { useTratamientosStore } from '../../../stores/tratamientosStore'
 
 export interface InsumoDetalleProps {
   insumo: Insumo
@@ -49,6 +50,22 @@ export function InsumoDetalle({
   // Spec 015 (FR-012/FR-017, UI §4): costo del insumo y precio de cada lote.
   const costo = useCostosUnitarios().get(insumo.id)
   const [loteEditandoPrecio, setLoteEditandoPrecio] = useState<Lote | null>(null)
+  // Spec 016 FR-018: consumos de un tratamiento realizado en el historial del lote.
+  const realizados = useTratamientosStore((s) => s.realizados)
+  function consumosDeTratamiento(loteId: string) {
+    return movimientos
+      .filter((m) => m.loteId === loteId && m.tratamientoRealizadoId && m.tipo === 'consumo')
+      .sort((a, b) => b.creadoEn.localeCompare(a.creadoEn))
+      .map((m) => {
+        const registro = realizados.find((r) => r.id === m.tratamientoRealizadoId)
+        return {
+          id: m.id,
+          texto: `${registro?.nombre ?? 'Tratamiento'} · ${cantidadConOriginal(m)}`,
+          anulado: Boolean(registro?.anuladoEn),
+          creadoEn: m.creadoEn,
+        }
+      })
+  }
   // Spec 015 (FR-007a, UI §4): conversiones de unidad en el historial.
   const cambiosInsumo = useInventoryStore((s) => s.cambiosInsumo)
   const delInsumo = cambiosInsumo.filter((c) => c.insumoId === insumo.id)
@@ -220,6 +237,14 @@ export function InsumoDetalle({
                 Editar precio
               </TouchButton>
             </span>
+            {consumosDeTratamiento(lote.id).map((consumo) => (
+              <span
+                key={consumo.id}
+                className={`text-xs text-text-muted ${consumo.anulado ? 'line-through' : ''}`}
+              >
+                {consumo.texto} · {fecha.format(new Date(consumo.creadoEn))}
+              </span>
+            ))}
             {trasladosDe(lote.id).map((traslado) => (
               <span key={traslado.id} className="text-xs text-text-muted">
                 {traslado.texto}: {traslado.cantidad} ·{' '}

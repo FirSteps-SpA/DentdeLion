@@ -62,6 +62,7 @@ const movimientosT = db.movimientos as unknown as MemoryTable<Movimiento>
 
 function movimiento(overrides: Partial<Movimiento>): Movimiento {
   return {
+    tratamientoRealizadoId: null,
     unidad: 'unidad',
     id: crypto.randomUUID(),
     tenantId: TENANT_1,

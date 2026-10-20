@@ -70,6 +70,7 @@ const lote = (id: string, lugarId: string): Lote => ({
 })
 
 const ingreso = (loteId: string, lugarId: string, cantidad: number): Movimiento => ({
+  tratamientoRealizadoId: null,
   unidad: 'unidad',
   id: crypto.randomUUID(),
   tenantId: TENANT_1,

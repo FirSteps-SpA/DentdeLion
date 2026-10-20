@@ -82,6 +82,7 @@ const lote = (id: string, insumoId: string, fecha: string | null): Lote => ({
   creadoEn: 'x',
 })
 const ingreso = (loteId: string, cantidad: number): Movimiento => ({
+  tratamientoRealizadoId: null,
   unidad: 'unidad',
   tenantId: TENANT_1,
   lugarId: LUGAR_1,

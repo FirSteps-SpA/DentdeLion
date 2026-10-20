@@ -58,6 +58,7 @@ function conversion(
 function mov(tipo: Movimiento['tipo'], cantidad: number, unidad: string): Movimiento {
   n += 1
   return {
+    tratamientoRealizadoId: null,
     id: `m${n}`,
     tenantId: TENANT_1,
     lugarId: LUGAR_1,
