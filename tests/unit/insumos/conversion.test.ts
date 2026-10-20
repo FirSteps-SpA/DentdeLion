@@ -96,6 +96,7 @@ let n = 0
 function mov(loteId: string, tipo: Movimiento['tipo'], cantidad: number, unidad = 'caja', lugarId = LUGAR_1): Movimiento {
   n += 1
   return {
+    tratamientoRealizadoId: null,
     id: `m${n}`,
     tenantId: TENANT_1,
     lugarId,

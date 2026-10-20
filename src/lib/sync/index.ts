@@ -5,6 +5,8 @@ import {
   db,
   type CambioInsumo,
   type CambioLote,
+  type CambioTratamiento,
+  type TratamientoRealizado,
   type Categoria,
   type ConfiguracionAlertas,
   type Insumo,
@@ -87,6 +89,284 @@ interface CambioInsumoRow {
   factor?: number | null
   usuario_id: string
   creado_en: string
+}
+
+// ---------------------------------------------------------------------------
+// Spec 016 (contracts/supabase-schema.md §5): tratamientos
+// ---------------------------------------------------------------------------
+
+interface TratamientoRow {
+  id: string
+  tenant_id: string
+  creado_por: string
+  creado_en: string
+}
+
+interface CambioTratamientoRow {
+  id: string
+  tenant_id: string
+  tratamiento_id: string | null
+  lugar_id: string | null
+  campo: CambioTratamiento['campo']
+  valor_anterior: CambioTratamiento['valorAnterior']
+  valor_nuevo: CambioTratamiento['valorNuevo']
+  usuario_id: string
+  creado_en: string
+}
+
+interface TratamientoRealizadoRow {
+  id: string
+  tenant_id: string
+  lugar_id: string
+  tratamiento_id: string
+  nombre: string
+  precio: number | null
+  porcentaje_profesional: number | null
+  materiales: TratamientoRealizado['materiales']
+  costo_materiales: number
+  costo_completo: boolean
+  ganancia_estimada: number | null
+  usuario_id: string
+  creado_en: string
+  anulado_en: string | null
+  anulado_por: string | null
+}
+
+const aNumero = (valor: number | string | null | undefined): number | null =>
+  valor === null || valor === undefined ? null : Number(valor)
+
+function toTratamientoRealizadoRow(r: TratamientoRealizado): TratamientoRealizadoRow {
+  return {
+    id: r.id,
+    tenant_id: r.tenantId,
+    lugar_id: r.lugarId,
+    tratamiento_id: r.tratamientoId,
+    nombre: r.nombre,
+    precio: r.precio,
+    porcentaje_profesional: r.porcentajeProfesional,
+    materiales: r.materiales,
+    costo_materiales: r.costoMateriales,
+    costo_completo: r.costoCompleto,
+    ganancia_estimada: r.gananciaEstimada,
+    usuario_id: r.usuarioId,
+    creado_en: r.creadoEn,
+    anulado_en: r.anuladoEn,
+    anulado_por: r.anuladoPor,
+  }
+}
+
+function fromTratamientoRealizadoRow(row: TratamientoRealizadoRow): TratamientoRealizado {
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    lugarId: row.lugar_id,
+    tratamientoId: row.tratamiento_id,
+    nombre: row.nombre,
+    precio: aNumero(row.precio),
+    porcentajeProfesional: aNumero(row.porcentaje_profesional),
+    materiales: row.materiales ?? [],
+    costoMateriales: Number(row.costo_materiales),
+    costoCompleto: row.costo_completo,
+    gananciaEstimada: aNumero(row.ganancia_estimada),
+    usuarioId: row.usuario_id,
+    creadoEn: row.creado_en,
+    anuladoEn: row.anulado_en ?? null,
+    anuladoPor: row.anulado_por ?? null,
+    sincronizado: true,
+    anulacionSincronizada: true,
+  }
+}
+
+/**
+ * Sube las altas de tratamientos pendientes del usuario (solo administración
+ * pasa el RLS). Un rechazo por permisos la marca `rechazadoEn` (la proyección
+ * la oculta) y no es error del ciclo; otro error la deja pendiente.
+ */
+async function pushTratamientos(client: SupabaseClient, ciclo: CicloSync): Promise<void> {
+  const usuarioId = usuarioActualId()
+  if (!usuarioId) return
+  const pendientes = delTenantActual(await db.tratamientos.toArray()).filter(
+    (t) => !t.sincronizado && t.rechazadoEn === null && t.creadoPor === usuarioId,
+  )
+  for (const tratamiento of pendientes) {
+    const fila: TratamientoRow = {
+      id: tratamiento.id,
+      tenant_id: tratamiento.tenantId,
+      creado_por: tratamiento.creadoPor,
+      creado_en: tratamiento.creadoEn,
+    }
+    const respuesta = await client
+      .from('tratamientos')
+      .upsert(fila, { onConflict: 'id', ignoreDuplicates: true })
+    if (!respuesta.error) {
+      await db.tratamientos.update(tratamiento.id, { sincronizado: true })
+    } else if (esRechazoDePermisos(respuesta.error)) {
+      await db.tratamientos.update(tratamiento.id, { rechazadoEn: new Date().toISOString() })
+    } else {
+      ciclo.registrar('push tratamientos', errorDe(respuesta))
+    }
+  }
+}
+
+async function pullTratamientos(client: SupabaseClient, ciclo: CicloSync): Promise<void> {
+  const respuesta = await client.from('tratamientos').select('*')
+  ciclo.registrar('pull tratamientos', errorDe(respuesta))
+  if (respuesta.error || !respuesta.data) return
+  await db.tratamientos.bulkPut(
+    (respuesta.data as TratamientoRow[]).map((row) => ({
+      id: row.id,
+      tenantId: row.tenant_id,
+      creadoPor: row.creado_por,
+      creadoEn: row.creado_en,
+      sincronizado: true,
+      rechazadoEn: null,
+    })),
+  )
+}
+
+/** Patrón de `pushCambiosInsumo`: lote completo y, ante RLS, fila por fila. */
+async function pushCambiosTratamiento(
+  client: SupabaseClient,
+  ciclo: CicloSync,
+): Promise<void> {
+  const usuarioId = usuarioActualId()
+  if (!usuarioId) return
+  const pendientes = delTenantActual(await db.cambiosTratamiento.toArray()).filter(
+    (c) => !c.sincronizado && c.rechazadoEn === null && c.usuarioId === usuarioId,
+  )
+  if (pendientes.length === 0) return
+  const fila = (c: CambioTratamiento): CambioTratamientoRow => ({
+    id: c.id,
+    tenant_id: c.tenantId,
+    tratamiento_id: c.tratamientoId,
+    lugar_id: c.lugarId,
+    campo: c.campo,
+    valor_anterior: c.valorAnterior,
+    valor_nuevo: c.valorNuevo,
+    usuario_id: c.usuarioId,
+    creado_en: c.creadoEn,
+  })
+  const subir = (filas: CambioTratamientoRow[]) =>
+    client
+      .from('cambios_tratamiento')
+      .upsert(filas, { onConflict: 'id', ignoreDuplicates: true })
+
+  const respuesta = await subir(pendientes.map(fila))
+  if (!respuesta.error) {
+    await db.cambiosTratamiento.bulkUpdate(
+      pendientes.map((c) => ({ key: c.id, changes: { sincronizado: true } })),
+    )
+    return
+  }
+  if (!esRechazoDePermisos(respuesta.error)) {
+    ciclo.registrar('push cambios_tratamiento', errorDe(respuesta))
+    return
+  }
+  for (const cambio of pendientes) {
+    const respuestaFila = await subir([fila(cambio)])
+    if (!respuestaFila.error) {
+      await db.cambiosTratamiento.update(cambio.id, { sincronizado: true })
+    } else if (esRechazoDePermisos(respuestaFila.error)) {
+      await db.cambiosTratamiento.update(cambio.id, { rechazadoEn: new Date().toISOString() })
+    } else {
+      ciclo.registrar('push cambio_tratamiento (fila)', errorDe(respuestaFila))
+    }
+  }
+}
+
+async function pullCambiosTratamiento(
+  client: SupabaseClient,
+  ciclo: CicloSync,
+): Promise<void> {
+  const respuesta = await client.from('cambios_tratamiento').select('*')
+  ciclo.registrar('pull cambios_tratamiento', errorDe(respuesta))
+  if (respuesta.error || !respuesta.data) return
+  await db.cambiosTratamiento.bulkPut(
+    (respuesta.data as CambioTratamientoRow[]).map((row) => ({
+      id: row.id,
+      tenantId: row.tenant_id,
+      tratamientoId: row.tratamiento_id ?? null,
+      lugarId: row.lugar_id ?? null,
+      campo: row.campo,
+      valorAnterior: row.valor_anterior,
+      valorNuevo: row.valor_nuevo,
+      usuarioId: row.usuario_id,
+      creadoEn: row.creado_en,
+      sincronizado: true,
+      rechazadoEn: null,
+    })),
+  )
+}
+
+/**
+ * Spec 016 (R4/R5): primero las altas de los registros propios (insert-only,
+ * `ignoreDuplicates`), luego las anulaciones hechas en este dispositivo
+ * (update de `anulado_en`/`anulado_por`; el servidor conserva la primera).
+ * Van antes que los movimientos, que los referencian. Un error deja todo
+ * pendiente y es error del ciclo.
+ */
+async function pushTratamientosRealizados(
+  client: SupabaseClient,
+  ciclo: CicloSync,
+): Promise<void> {
+  const usuarioId = usuarioActualId()
+  if (!usuarioId) return
+  const propios = delTenantActual(await db.tratamientosRealizados.toArray())
+  const altas = propios.filter((r) => !r.sincronizado && r.usuarioId === usuarioId)
+  if (altas.length > 0) {
+    const respuesta = await client
+      .from('tratamientos_realizados')
+      .upsert(altas.map(toTratamientoRealizadoRow), { onConflict: 'id', ignoreDuplicates: true })
+    ciclo.registrar('push tratamientos_realizados', errorDe(respuesta))
+    if (respuesta.error) return
+    await db.tratamientosRealizados.bulkUpdate(
+      altas.map((r) => ({
+        key: r.id,
+        // Una anulación hecha antes de subir ya viajó en el insert.
+        changes: { sincronizado: true, anulacionSincronizada: true },
+      })),
+    )
+  }
+  const anulaciones = propios.filter(
+    (r) =>
+      r.sincronizado &&
+      !r.anulacionSincronizada &&
+      r.anuladoPor === usuarioId &&
+      r.anuladoEn !== null,
+  )
+  for (const registro of anulaciones) {
+    const respuesta = await client
+      .from('tratamientos_realizados')
+      .update({ anulado_en: registro.anuladoEn, anulado_por: registro.anuladoPor })
+      .eq('id', registro.id)
+    ciclo.registrar('push anulación de tratamiento', errorDe(respuesta))
+    if (!respuesta.error) {
+      await db.tratamientosRealizados.update(registro.id, { anulacionSincronizada: true })
+    }
+  }
+}
+
+/** Baja los registros sin pisar una anulación local aún sin subir. */
+async function pullTratamientosRealizados(
+  client: SupabaseClient,
+  ciclo: CicloSync,
+): Promise<void> {
+  const respuesta = await client.from('tratamientos_realizados').select('*')
+  ciclo.registrar('pull tratamientos_realizados', errorDe(respuesta))
+  if (respuesta.error || !respuesta.data) return
+  const locales = new Map(
+    (await db.tratamientosRealizados.toArray()).map((r) => [r.id, r]),
+  )
+  await db.tratamientosRealizados.bulkPut(
+    (respuesta.data as TratamientoRealizadoRow[]).map((row) => {
+      const remoto = fromTratamientoRealizadoRow(row)
+      const local = locales.get(row.id)
+      if (local && !local.anulacionSincronizada && remoto.anuladoEn === null) {
+        return { ...remoto, anuladoEn: local.anuladoEn, anuladoPor: local.anuladoPor, anulacionSincronizada: false }
+      }
+      return remoto
+    }),
+  )
 }
 
 interface CambioLoteRow {
@@ -219,6 +499,7 @@ interface MovimientoRow {
   lote_id: string
   cantidad: number
   unidad?: string | null
+  tratamiento_realizado_id?: string | null
   usuario_id: string
   movimiento_origen_id: string | null
   creado_en: string
@@ -430,6 +711,7 @@ function toMovimientoRow(movimiento: Movimiento): MovimientoRow {
     lote_id: movimiento.loteId,
     cantidad: movimiento.cantidad,
     unidad: movimiento.unidad,
+    tratamiento_realizado_id: movimiento.tratamientoRealizadoId,
     usuario_id: movimiento.usuarioId,
     movimiento_origen_id: movimiento.movimientoOrigenId,
     creado_en: movimiento.creadoEn,
@@ -438,6 +720,7 @@ function toMovimientoRow(movimiento: Movimiento): MovimientoRow {
 
 function fromMovimientoRow(row: MovimientoRow): Movimiento {
   return {
+    tratamientoRealizadoId: row.tratamiento_realizado_id ?? null,
     id: row.id,
     tenantId: row.tenant_id,
     lugarId: row.lugar_id,
@@ -1247,7 +1530,13 @@ async function subirPendientesPrevios(
   const preciosPrevios = delTenantActual(await db.cambiosLote.toArray()).filter(
     (c) => !c.sincronizado && c.usuarioId === usuarioId && c.creadoEn < desactivadoEn,
   )
-  if (previos.length === 0 && preciosPrevios.length === 0) return
+  // Spec 016: los tratamientos realizados previos, antes que sus consumos.
+  const realizadosPrevios = delTenantActual(await db.tratamientosRealizados.toArray()).filter(
+    (r) => !r.sincronizado && r.usuarioId === usuarioId && r.creadoEn < desactivadoEn,
+  )
+  if (previos.length === 0 && preciosPrevios.length === 0 && realizadosPrevios.length === 0) {
+    return
+  }
   const yaArriba = (error: { code?: string } | null) => !error || error.code === '23505'
 
   const loteIds = new Set([
@@ -1257,6 +1546,17 @@ async function subirPendientesPrevios(
   for (const lote of await db.lotes.bulkGet([...loteIds])) {
     if (!lote || lote.creadoEn >= desactivadoEn) continue
     await client.from('lotes').insert(toLoteRow(lote))
+  }
+  for (const registro of realizadosPrevios) {
+    const { error } = await client
+      .from('tratamientos_realizados')
+      .insert(toTratamientoRealizadoRow(registro))
+    if (yaArriba(error)) {
+      await db.tratamientosRealizados.update(registro.id, {
+        sincronizado: true,
+        anulacionSincronizada: true,
+      })
+    }
   }
   for (const unidad of await unidadesDeSubida(previos)) {
     const { error } = await client.from('movimientos').insert(unidad.map(toMovimientoRow))
@@ -1335,10 +1635,15 @@ async function ejecutarCiclo(
   await moverASinCategoria(rechazadasCategorias)
 
   await pushInsumos(client, ciclo)
+  // Spec 016: el catálogo de tratamientos referencia insumos y lugares.
+  await pushTratamientos(client, ciclo)
+  await pushCambiosTratamiento(client, ciclo)
   const rechazados = await pushCambiosInsumo(client, ciclo)
   await pullCambiosInsumo(client, ciclo)
   await pullInsumos(client, ciclo)
   await pullCategorias(client, ciclo)
+  await pullTratamientos(client, ciclo)
+  await pullCambiosTratamiento(client, ciclo)
   await reproyectarInsumos()
   if (rechazados.length > 0) await notificarRechazos(client, rechazados)
   if (rechazadasCategorias.length > 0) {
@@ -1350,6 +1655,8 @@ async function ejecutarCiclo(
   await pushItemsCompra(client, ciclo)
   await pushMinimosLugar(client, ciclo)
   await pushConfiguracionAlertas(client, ciclo)
+  // Spec 016: los registros antes que sus consumos (FK).
+  await pushTratamientosRealizados(client, ciclo)
   for (const loteId of await pushMovimientos(client, ciclo)) {
     loteIdsTocados.add(loteId)
   }
@@ -1359,6 +1666,7 @@ async function ejecutarCiclo(
   await pullItemsCompra(client, ciclo)
   await pullMinimosLugar(client, ciclo)
   await pullConfiguracionAlertas(client, ciclo)
+  await pullTratamientosRealizados(client, ciclo)
   for (const loteId of await pullMovimientos(client, ciclo)) {
     loteIdsTocados.add(loteId)
   }

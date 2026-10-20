@@ -19,6 +19,8 @@ export interface CrearMovimientoInput {
    * unidad de consumo actual del insumo del lote.
    */
   unidad?: string
+  /** Spec 016 (R4/R5) — consumos de un tratamiento realizado y su reversión. */
+  tratamientoRealizadoId?: string
 }
 
 /**
@@ -63,6 +65,7 @@ export async function crearMovimiento(
     loteId: input.loteId,
     cantidad: input.cantidad,
     unidad,
+    tratamientoRealizadoId: input.tratamientoRealizadoId ?? null,
     usuarioId,
     movimientoOrigenId: input.movimientoOrigenId ?? null,
     creadoEn: new Date().toISOString(),

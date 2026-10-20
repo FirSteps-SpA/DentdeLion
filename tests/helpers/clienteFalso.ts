@@ -25,6 +25,8 @@ export interface EstadoClienteFalso {
   esperarSesion: Promise<void> | null
   llamadasSesion: number
   upserts: { tabla: string; filas: Fila[] }[]
+  /** Spec 016 — `update(...).eq('id', …)` aplicados (anulaciones de tratamientos). */
+  updates: { tabla: string; id: string; cambios: Record<string, unknown> }[]
   /** Si se define, cualquier upsert lanza (simula un fallo inesperado). */
   lanzar: Error | null
 }
@@ -41,6 +43,7 @@ export function crearEstado(): EstadoClienteFalso {
     esperarSesion: null,
     llamadasSesion: 0,
     upserts: [],
+    updates: [],
     lanzar: null,
   }
 }
@@ -83,6 +86,18 @@ export function crearClienteFalso(estado: EstadoClienteFalso) {
           }
           for (const fila of lista) tabla(nombre).set(fila.id, structuredClone(fila))
           return { error: null, status: 201 }
+        },
+        update(cambios: Record<string, unknown>) {
+          return {
+            async eq(_columna: string, id: string): Promise<Respuesta> {
+              estado.updates.push({ tabla: nombre, id, cambios: structuredClone(cambios) })
+              const errorTabla = estado.errorUpsert[nombre]
+              if (errorTabla) return { error: errorTabla, status: status() }
+              const fila = tabla(nombre).get(id)
+              if (fila) tabla(nombre).set(id, { ...fila, ...structuredClone(cambios) })
+              return { error: null, status: 204 }
+            },
+          }
         },
         select() {
           const error = estado.errorSelect[nombre] ?? null

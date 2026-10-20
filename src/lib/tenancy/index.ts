@@ -2,6 +2,7 @@ import {
   db,
   type CambioInsumo,
   type CambioLote,
+  type CambioTratamiento,
   type Categoria,
   type Insumo,
   type ItemCompra,
@@ -9,6 +10,8 @@ import {
   type Lugar,
   type MinimoLugar,
   type Movimiento,
+  type Tratamiento,
+  type TratamientoRealizado,
 } from '../db'
 
 /** Tablas de Dexie indexadas por `tenantId` (spec 014 Dexie v10). */
@@ -23,6 +26,10 @@ interface TablasPorTenant {
   minimosLugar: MinimoLugar
   /** Spec 015 (Dexie v11). */
   cambiosLote: CambioLote
+  /** Spec 016 (Dexie v12). */
+  tratamientos: Tratamiento
+  cambiosTratamiento: CambioTratamiento
+  tratamientosRealizados: TratamientoRealizado
 }
 
 /** Lo mínimo de una tabla Dexie indexada por `tenantId` que necesita `delTenant`. */
@@ -76,6 +83,9 @@ export async function aislarDatosLocales(tenantId: string): Promise<void> {
       db.lugares,
       db.minimosLugar,
       db.cambiosLote,
+      db.tratamientos,
+      db.cambiosTratamiento,
+      db.tratamientosRealizados,
       db.configuracionAlertas,
       db.configuracionClinica,
     ],
@@ -110,6 +120,32 @@ export async function aislarDatosLocales(tenantId: string): Promise<void> {
       )
       await db.cambiosInsumo.bulkDelete(
         cambiosAjenos.filter((c) => c.sincronizado).map((c) => c.id),
+      )
+      // Spec 016: se conservan los pendientes (registros, anulaciones y cambios
+      // de catálogo) y los tratamientos que referencian.
+      const realizadosAjenos = (await db.tratamientosRealizados.toArray()).filter(ajeno)
+      const realizadosConservados = realizadosAjenos.filter(
+        (r) => !r.sincronizado || !r.anulacionSincronizada,
+      )
+      const cambiosTratamientoAjenos = (await db.cambiosTratamiento.toArray()).filter(ajeno)
+      const tratamientosConservados = new Set([
+        ...realizadosConservados.map((r) => r.tratamientoId),
+        ...cambiosTratamientoAjenos
+          .filter((c) => !c.sincronizado && c.tratamientoId)
+          .map((c) => c.tratamientoId as string),
+      ])
+      await db.tratamientosRealizados.bulkDelete(
+        realizadosAjenos
+          .filter((r) => !realizadosConservados.includes(r))
+          .map((r) => r.id),
+      )
+      await db.cambiosTratamiento.bulkDelete(
+        cambiosTratamientoAjenos.filter((c) => c.sincronizado).map((c) => c.id),
+      )
+      await db.tratamientos.bulkDelete(
+        (await db.tratamientos.toArray())
+          .filter((t) => ajeno(t) && t.sincronizado && !tratamientosConservados.has(t.id))
+          .map((t) => t.id),
       )
       await db.cambiosLote.bulkDelete(
         cambiosLoteAjenos.filter((c) => c.sincronizado).map((c) => c.id),

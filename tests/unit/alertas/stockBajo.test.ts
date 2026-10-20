@@ -47,6 +47,7 @@ function makeLote(overrides: Partial<Lote>): Lote {
 
 function makeMovimiento(overrides: Partial<Movimiento>): Movimiento {
   return {
+    tratamientoRealizadoId: null,
     unidad: 'unidad',
     tenantId: TENANT_1,
     lugarId: LUGAR_1,

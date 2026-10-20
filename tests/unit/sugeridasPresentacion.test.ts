@@ -82,6 +82,7 @@ describe('presentaciones sugeridas (R8, FR-020)', () => {
       precioCompra: null,
     }
     const movimiento: Movimiento = {
+      tratamientoRealizadoId: null,
       id: 'm1',
       tenantId: TENANT_1,
       lugarId: LUGAR_1,

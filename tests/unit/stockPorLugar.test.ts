@@ -53,6 +53,7 @@ const mov = (
   tipo: Movimiento['tipo'],
   cantidad: number,
 ): Movimiento => ({
+  tratamientoRealizadoId: null,
   unidad: 'unidad',
   id: crypto.randomUUID(),
   tenantId: TENANT_1,

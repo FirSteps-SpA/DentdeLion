@@ -52,6 +52,7 @@ const lote: Lote = {
 }
 
 const movimiento: Movimiento = {
+  tratamientoRealizadoId: null,
   unidad: 'unidad',
   tenantId: TENANT_1,
   lugarId: LUGAR_1,
