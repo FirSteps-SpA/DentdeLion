@@ -97,7 +97,10 @@ src/
 │   ├── alertas/
 │   │   ├── lib/textoCaducidad.ts  # NUEVO: textoTiempoCaducidad, formatearFechaCaducidad (R3, R4)
 │   │   ├── lib/etiquetaStock.ts   # NUEVO: "Sin stock" / "Bajo mínimo" (R6)
-│   │   └── components/AlertasView.tsx       # renglones sin lote, botón → InsumoDetalle
+│   │   └── components/
+│   │       ├── AlertasView.tsx              # renglones sin lote, botón → InsumoDetalle
+│   │       ├── RenglonAlerta.tsx            # NUEVO: renglón-botón compartido con Inicio (UI §4)
+│   │       └── DetalleDesdeAlerta.tsx       # NUEVO: InsumoDetalle con la vista del lugar (R5)
 │   ├── inicio/components/InicioView.tsx     # resumen y próximos vencimientos alineados
 │   ├── insumos/components/
 │   │   ├── AltaMaterialView.tsx             # interruptor "¿Caduca?" antes de la fecha (R7)
