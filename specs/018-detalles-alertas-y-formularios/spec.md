@@ -40,6 +40,15 @@ cómo se calcula qué lote alerta; cambiar las tarjetas de Inventario (que sigue
 próximo a vencer); quitar la escritura con teclado de los campos numéricos (ver Assumptions); los
 demás pedidos de la tanda (Ajustes por secciones, paginación, proveedores, compras: specs 019–022).
 
+## Clarifications
+
+### Session 2026-10-22
+
+- Q: ¿Se quita la escritura en los campos numéricos (solo + y −) o basta con que la rueda no cambie el valor? → A: La rueda no cambia el valor; se mantienen la escritura, el teclado numérico y las flechas, además de + y −, en todos los campos.
+- Q: ¿Desde cuántos días el tiempo restante se muestra en meses? → A: Días por debajo de 60; meses enteros (redondeados hacia abajo) desde 60, tanto para "vence en" como para "caducado hace".
+- Q: ¿Tocar una alerta de caducidad abre el detalle del insumo de Inventario o una hoja nueva? → A: El detalle del insumo que ya existe en Inventario, con los lotes del lugar de la alerta; al cerrarlo se vuelve a la pantalla desde donde se abrió.
+- Q: ¿La lista de "próximos vencimientos" de Inicio sigue el mismo formato que las alertas? → A: Sí: nombre, fecha, tiempo restante y sin lote; al tocarla abre el detalle del insumo.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Cargar cantidades sin que la rueda las cambie (Priority: P1)
@@ -97,8 +106,9 @@ Inicio y comprobar el texto de cada renglón; tocar una alerta y ver el número 
    insumo, donde se ve cada lote con su número, fecha y stock.
 6. **Given** dos lotes del mismo material que alertan, **When** se abre Alertas, **Then** se ven dos
    renglones con el mismo nombre y fechas distintas, y el detalle permite distinguirlos por lote.
-7. **Given** el resumen de alertas en Inicio, **When** se muestra una alerta de caducidad, **Then**
-   sigue el mismo formato (nombre, fecha, tiempo restante, sin lote).
+7. **Given** el resumen de alertas o la lista de próximos vencimientos en Inicio, **When** se muestra un
+   lote por vencer o caducado, **Then** sigue el mismo formato (nombre, fecha, tiempo restante, sin
+   lote) y al tocarlo abre el detalle del insumo.
 
 ---
 
@@ -195,12 +205,15 @@ desaparece.
 - **FR-006**: Cada alerta de caducidad DEBE mostrar el nombre del material, la fecha de vencimiento en
   formato de fecha legible en español y el tiempo restante o transcurrido.
 - **FR-007**: El tiempo DEBE expresarse así: "vence hoy"; "vence en N día(s)" por debajo de 60 días;
-  "vence en N meses" (meses enteros) desde 60 días; "caducado hace N día(s)" por debajo de 60 días y
+  "vence en N meses" (meses enteros completos, redondeados hacia abajo: 60–89 días = 2 meses) desde 60
+  días; "caducado hace N día(s)" por debajo de 60 días y
   "caducado hace N meses" desde 60 días. Singular y plural correctos.
-- **FR-008**: Las alertas de caducidad NO DEBEN mostrar el número de lote en el listado, ni en Alertas
-  ni en el resumen de Inicio.
-- **FR-009**: Tocar una alerta de caducidad DEBE llevar al detalle del insumo, donde se ven sus lotes
-  con número, fecha de vencimiento y stock.
+- **FR-008**: Las alertas de caducidad NO DEBEN mostrar el número de lote en el listado: ni en Alertas,
+  ni en el resumen de alertas de Inicio, ni en la lista de próximos vencimientos de Inicio, que siguen
+  el formato de FR-006 y FR-007.
+- **FR-009**: Tocar una alerta de caducidad o un próximo vencimiento (en Alertas o en Inicio) DEBE abrir el mismo detalle del
+  insumo que se usa en Inventario, con sus lotes del lugar de la alerta (número, fecha de vencimiento y
+  stock). Al cerrarlo, la persona DEBE volver a la pantalla desde donde lo abrió.
 - **FR-010**: Las alertas de caducidad DEBEN conservar su distinción visual por nivel (color, ícono y
   etiqueta) y el chip de lugar en la vista "Todos".
 
@@ -241,8 +254,8 @@ desaparece.
   el valor sin cambios (verificado por prueba en cada componente).
 - **SC-002**: Una persona puede decir cuánto le falta a cada material de Alertas para vencer sin hacer
   cálculos, leyendo un solo renglón.
-- **SC-003**: Ningún renglón del listado de alertas de caducidad (Alertas e Inicio) muestra el número de
-  lote; el lote se alcanza en 1 toque desde la alerta.
+- **SC-003**: Ningún renglón de alertas de caducidad ni de próximos vencimientos (Alertas e Inicio)
+  muestra el número de lote; el lote se alcanza en 1 toque desde la alerta.
 - **SC-004**: El 100 % de los insumos con stock 0 aparece como "Sin stock" y ninguno con stock mayor que
   0 aparece así.
 - **SC-005**: En el alta de material, el interruptor de caducidad queda antes de la fecha de
@@ -254,17 +267,17 @@ desaparece.
 
 - **Escritura con teclado se mantiene** (pregunta 1 del roadmap): la clienta propuso "solo + y −", pero
   escribir 200 con botones es impracticable. Se bloquea solo la rueda y se conservan escritura, teclado
-  numérico y flechas. A confirmar en `/speckit-clarify`.
-- **Umbral días/meses en 60 días** (pregunta 2 del roadmap), con meses enteros redondeados hacia abajo.
-  A confirmar en `/speckit-clarify`.
+  numérico y flechas (confirmado en Clarifications).
+- **Umbral días/meses en 60 días** (pregunta 2 del roadmap), con meses enteros redondeados hacia abajo
+  (confirmado en Clarifications).
 - **El detalle es el del insumo en Inventario** (pregunta 3 del roadmap): ya muestra cada lote con su
-  número, fecha y stock, así que no hace falta una hoja nueva. A confirmar en `/speckit-clarify`.
+  número, fecha y stock, así que no hace falta una hoja nueva (confirmado en Clarifications).
 - La etiqueta del interruptor pasa a "¿Caduca?" (como la llama la clienta y como ya se llama en la
   edición de insumo); hoy en el alta dice "Sujeto a caducidad".
 - El formato de fecha legible sigue el que la app ya usa en otras vistas en español (día, mes abreviado y
   año).
 - El resumen de alertas de Inicio y la lista de próximos vencimientos se alinean con Alertas para que el
-  mismo dato no se lea distinto en dos pantallas.
+  mismo dato no se lea distinto en dos pantallas (confirmado en Clarifications).
 - Las tarjetas y la tabla de Inventario, la recepción de compras y el detalle del insumo no cambian su
   forma de mostrar lotes.
 - Sin migración ni versión nueva de la base local: es solo de front.
