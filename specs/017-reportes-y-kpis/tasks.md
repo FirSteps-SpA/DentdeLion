@@ -295,9 +295,9 @@ $X · ↑/↓ N % vs. mes anterior" y al tocarla abre Reportes.
   research.md R12. Agregar al driver un comando de semilla de reportes si hace falta.
 - [X] T044 *(Hecho 2026-10-22, automatizado: §2 y §4 en `tests/integration/reportes.test.tsx` (base, sin precio, vacío, aviso de sync, período fuera de la ventana) y `tests/unit/reportes/kpis.test.ts` (anulado, deshacer); §3 en `reportes.test.tsx` "Todos"; §5 en el ensayo de T042; §6 en `inicio-valor-inventario.test.tsx` y las capturas de T043. Modo avión: todo se calcula desde los stores locales, sin red.)* Recorrer los escenarios de `quickstart.md` §2–§6 (automatizados o en el navegador).
 - [X] T045 *(Hecho 2026-10-22: lint sin avisos, build, 750 pruebas en verde en dos corridas seguidas y `test:rls` "Todos los controles OK". La prueba de rendimiento fallaba a veces con la suite en paralelo (337 ms); se optimizó `resumenReportes` (fechas parseadas una vez, serie mensual en una pasada) y se mide el mejor de 3.)* Correr `npm run lint && npm run build && npm test && npm run test:rls`, todo verde.
-- [ ] T046 [P] En `../1stDocs`, actualizar roadmap (017 en curso/hecha) y backlog, incluido el
+- [X] T046 [P] *(Hecho: roadmap y backlog de 1stDocs en `1fa1789`, con las decisiones de la spec y los pendientes del release.)* En `../1stDocs`, actualizar roadmap (017 en curso/hecha) y backlog, incluido el
   hallazgo de los pulls truncados en 1.000 filas (R9) y la decisión de 13 meses (Clarifications Q5).
-- [ ] T047 Descripción del PR: qué calcula cada KPI (Clarifications Q1–Q2), pulls paginados (R9) con
+- [X] T047 *(Hecho: PR #13.)* Descripción del PR: qué calcula cada KPI (Clarifications Q1–Q2), pulls paginados (R9) con
   las mediciones de T042, decisión de gráficos sin dependencias (R7), capturas de T043.
 
 ---
