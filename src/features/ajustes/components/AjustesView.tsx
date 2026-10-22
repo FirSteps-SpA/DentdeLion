@@ -6,7 +6,7 @@ import { EquipoSection } from './EquipoSection'
 import { CategoriasSection } from './CategoriasSection'
 import { InsumosBajaSection } from './InsumosBajaSection'
 import { NotificacionesSection } from './NotificacionesSection'
-import { ShoppingCart } from '../../../components/icons'
+import { ChartColumn, ShoppingCart } from '../../../components/icons'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import type { Vista } from '../../../app/navegacion'
 
@@ -35,6 +35,18 @@ export function AjustesView({ onNavegar }: { onNavegar?: (vista: Vista) => void 
         >
           <ShoppingCart size={18} />
           Compras
+        </TouchButton>
+      )}
+      {/* Spec 017 (R11): en móvil, Reportes también se abre desde "Más". */}
+      {onNavegar && (
+        <TouchButton
+          type="button"
+          variant="secondary"
+          onClick={() => onNavegar('reportes')}
+          className="w-full md:hidden"
+        >
+          <ChartColumn size={18} />
+          Reportes
         </TouchButton>
       )}
       {/* Spec 013 FR-011: perfil y notificaciones en 2 columnas desde tablet. */}

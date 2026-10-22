@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { consultaFalsa } from '../helpers/consultaFalsa'
 import type { Categoria, ItemCompra, UsuarioActual } from '../../src/lib/db'
 import type { MemoryTable } from '../helpers/memoryDb'
 import { authFalso } from '../helpers/authFalso'
@@ -51,11 +52,9 @@ const client = {
         return { error: null }
       },
       select() {
-        const resultado = Promise.resolve({
-          data: redCaida
-            ? null
-            : [...tabla(nombre).values()].map((r) => structuredClone(r)),
-          error: redCaida ? { message: 'fetch failed' } : null,
+        const resultado = consultaFalsa({
+          filas: () => [...tabla(nombre).values()],
+          error: () => (redCaida ? { message: 'fetch failed' } : null),
         })
         return Object.assign(resultado, {
           eq: () => ({
