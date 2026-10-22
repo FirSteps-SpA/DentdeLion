@@ -153,6 +153,16 @@ que una versión anterior sigue sincronizando: ve los consumos de un tratamiento
 sueltos y no muestra el catálogo ni el historial hasta actualizarse. La barra inferior del celular
 cambia (Compras pasa a "Más"); avisar al equipo.
 
+**Spec 017 (reportes y KPIs):** sin migración. Agrega Reportes (en la sidebar y en "Más" en el
+celular) y "Valor de inventario" en Inicio. La sincronización ahora pagina las descargas: antes,
+pasadas las 1.000 filas por tabla (`max_rows` de PostgREST), un dispositivo nuevo bajaba la
+historia truncada sin error. Los dispositivos ya instalados recuperan lo que les faltara en su
+primera sincronización con la versión nueva.
+
+**Release 2.4.0 (specs 015, 016 y 017):** un solo `supabase db push --linked` aplica las
+migraciones `20261021000000_unidades_y_costo` y `20261022000000_tratamientos`, en ese orden.
+Respaldo → `db push` → merge a `main`.
+
 ## ¿Quedó bien configurado mi entorno?
 
 Checklist manual (sin script) — cada punto debe poder confirmarse a simple vista en menos de 2
