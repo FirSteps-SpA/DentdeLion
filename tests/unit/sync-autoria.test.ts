@@ -39,6 +39,7 @@ const rlsComoAutor = (campo: string) => (fila: Record<string, unknown>) =>
 
 function cambio(id: string, usuarioId: string): CambioInsumo {
   return {
+    factor: null,
     tenantId: TENANT_1,
     id,
     insumoId: 'i1',

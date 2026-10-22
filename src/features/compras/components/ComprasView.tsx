@@ -23,7 +23,7 @@ import { nombreLugar, useLugarStore } from '../../../stores/lugarStore'
 // Spec 014: cada acción lleva el lugar donde se registra (el de la fila, o el
 // elegido en "¿En qué lugar?" desde "Todos").
 type Overlay =
-  | { tipo: 'recibir'; insumoId: string; lugarId?: string }
+  | { tipo: 'recibir'; insumoId: string; lugarId?: string; cantidadSugerida?: number }
   | { tipo: 'recibirManual'; itemId: string }
   | { tipo: 'vincularOCrear'; itemId: string }
   | { tipo: 'elegirLugarManual' }
@@ -176,7 +176,12 @@ export function ComprasView() {
                   itemSugerido={item}
                   stockTotal={stockTotalDe(item.insumo.id, item.lugar?.id ?? null)}
                   onRecibir={(insumoId) =>
-                    setOverlay({ tipo: 'recibir', insumoId, lugarId: item.lugar?.id })
+                    setOverlay({
+                      tipo: 'recibir',
+                      insumoId,
+                      lugarId: item.lugar?.id,
+                      cantidadSugerida: item.presentacionesSugeridas ?? undefined,
+                    })
                   }
                 />
               </li>
@@ -227,6 +232,7 @@ export function ComprasView() {
           insumo={insumoOverlay}
           itemCompraId={null}
           lugarId={overlay.lugarId}
+          cantidadSugerida={overlay.cantidadSugerida}
           onRecibido={() => setOverlay(null)}
           onCancelar={() => setOverlay(null)}
         />

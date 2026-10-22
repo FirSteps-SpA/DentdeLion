@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { consultaFalsa } from '../helpers/consultaFalsa'
 import type { Lote, Movimiento } from '../../src/lib/db'
 import type { MemoryTable } from '../helpers/memoryDb'
 import { authFalso } from '../helpers/authFalso'
@@ -30,7 +31,7 @@ const client = {
   from(tabla: string) {
     return {
       select() {
-        const resultado = Promise.resolve({ data: [], error: null })
+        const resultado = consultaFalsa({ filas: () => [], error: () => null })
         return Object.assign(resultado, {
           eq: () => ({
             single: async () => ({
@@ -73,6 +74,8 @@ import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
 const movimientosT = db.movimientos as unknown as MemoryTable<Movimiento>
 
 const movimiento = (id: string, creadoEn: string): Movimiento => ({
+  tratamientoRealizadoId: null,
+  unidad: 'unidad',
   id,
   tenantId: TENANT_1,
   lugarId: LUGAR_1,
@@ -87,6 +90,11 @@ const movimiento = (id: string, creadoEn: string): Movimiento => ({
 })
 
 const lote: Lote = {
+  cantidadIngresada: null,
+  unidadIngresada: null,
+  contenido: 1,
+  unidadConsumo: 'unidad',
+  precioCompra: null,
   id: 'l1',
   tenantId: TENANT_1,
   lugarId: LUGAR_1,

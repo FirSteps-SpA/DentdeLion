@@ -49,6 +49,8 @@ export function SyncSheet({ indicador, onClose }: SyncSheetProps) {
     ['Consumos e ingresos', desglose.movimientos],
     ['Cambios de insumo', desglose.cambiosInsumo],
     ['Categorías nuevas', desglose.categorias],
+    ['Precios de lotes', desglose.preciosLote],
+    ['Tratamientos', desglose.tratamientos],
   ] as const
 
   return (

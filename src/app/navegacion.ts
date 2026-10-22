@@ -1,14 +1,23 @@
 import {
   Bell,
   Boxes,
+  ChartColumn,
   House,
   Settings,
   ShoppingCart,
+  Stethoscope,
   type IconProps,
 } from '../components/icons'
 import type { ComponentType } from 'react'
 
-export type Vista = 'inicio' | 'inventario' | 'compras' | 'alertas' | 'mas'
+export type Vista =
+  | 'inicio'
+  | 'inventario'
+  | 'tratamientos'
+  | 'compras'
+  | 'reportes'
+  | 'alertas'
+  | 'mas'
 
 export interface Seccion {
   vista: Vista
@@ -17,6 +26,11 @@ export interface Seccion {
   /** Sidebar (tablet y desktop). */
   etiquetaLateral: string
   Icon: ComponentType<IconProps>
+  /**
+   * Spec 016 (research.md R7): solo en la sidebar; en móvil la barra tiene 5
+   * ítems y esta sección se abre desde "Más" (y desde Inicio).
+   */
+  soloLateral?: boolean
 }
 
 /**
@@ -37,10 +51,25 @@ export const SECCIONES: Seccion[] = [
     Icon: Boxes,
   },
   {
+    vista: 'tratamientos',
+    etiquetaMovil: 'Tratamientos',
+    etiquetaLateral: 'Tratamientos',
+    Icon: Stethoscope,
+  },
+  {
     vista: 'compras',
     etiquetaMovil: 'Compras',
     etiquetaLateral: 'Compras',
     Icon: ShoppingCart,
+    soloLateral: true,
+  },
+  {
+    // Spec 017 (research.md R11): sidebar en tablet/desktop; en móvil, desde "Más".
+    vista: 'reportes',
+    etiquetaMovil: 'Reportes',
+    etiquetaLateral: 'Reportes',
+    Icon: ChartColumn,
+    soloLateral: true,
   },
   {
     vista: 'alertas',

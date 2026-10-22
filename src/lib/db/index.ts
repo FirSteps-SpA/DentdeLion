@@ -33,7 +33,12 @@ export interface Insumo {
   tenantId: string
   nombre: string
   categoria: string
+  /** Spec 015 (research.md R2) — unidad de consumo: la del stock, mínimos y movimientos. */
   unidadMedida: string
+  /** Spec 015 (R5) — unidad en que se compra; igual a `unidadMedida` si no hay presentación. */
+  unidadCompra: string
+  /** Spec 015 (R5) — unidades de consumo por unidad de compra (`1` si son iguales). */
+  contenido: number
   permiteDecimales: boolean
   /** Whether this type of supply expires at all (FR-002b) — false for e.g. reusable instruments. */
   caduca: boolean
@@ -57,6 +62,8 @@ export type CampoEditableInsumo =
   | 'nombre'
   | 'categoria'
   | 'unidadMedida'
+  | 'unidadCompra'
+  | 'contenido'
   | 'stockMinimo'
   | 'codigoFabricante'
   | 'caduca'
@@ -76,6 +83,12 @@ export interface CambioInsumo {
   campo: CampoEditableInsumo | 'baja'
   valorAnterior: string | number | boolean | null
   valorNuevo: string | number | boolean | null
+  /**
+   * Spec 015 (research.md R3) — solo en `campo: 'unidadMedida'`: unidades
+   * nuevas por unidad anterior (conversión). `null` = cambio de etiqueta
+   * anterior a la spec 015, que vale 1.
+   */
+  factor: number | null
   usuarioId: string
   creadoEn: string
   sincronizado: boolean
@@ -101,6 +114,22 @@ export interface Lote {
   codigoFabricante: string | null
   estado: 'activo' | 'revision'
   creadoEn: string
+  /**
+   * Spec 015 (research.md R5) — snapshot del único ingreso del lote, inmutable
+   * (el servidor lo protege). `cantidadIngresada`/`unidadIngresada` son lo que
+   * escribió la persona ("2" "caja"); `null` en lotes anteriores a la spec.
+   */
+  cantidadIngresada: number | null
+  unidadIngresada: string | null
+  /** Contenido de la presentación vigente al ingresar (`1` en lotes anteriores). */
+  contenido: number
+  /** Unidad de consumo del insumo al ingresar. */
+  unidadConsumo: string
+  /**
+   * Spec 015 (R6) — pesos por unidad de compra del snapshot. `null` = sin
+   * precio, `0` = gratis. Las correcciones van en `CambioLote`.
+   */
+  precioCompra: number | null
 }
 
 /** Feature 002 data-model.md — Movimiento (append-only ledger entry). */
@@ -119,6 +148,17 @@ export interface Movimiento {
   trasladoId: string | null
   loteId: string
   cantidad: number
+  /**
+   * Spec 015 (research.md R2) — unidad en que está `cantidad`: la de consumo
+   * vigente al registrarlo. Permite convertir los movimientos anteriores a un
+   * cambio de unidad de consumo sin reescribirlos.
+   */
+  unidad: string
+  /**
+   * Spec 016 (research.md R4/R5) — tratamiento realizado que generó este
+   * consumo, o la reversión de su anulación. `null` en el resto.
+   */
+  tratamientoRealizadoId: string | null
   usuarioId: string
   movimientoOrigenId: string | null
   creadoEn: string
@@ -271,6 +311,109 @@ export interface MinimoLugar {
   sincronizado: boolean
 }
 
+/**
+ * Spec 015 data-model.md — CambioLote. Ledger append-only de correcciones del
+ * precio de un lote (research.md R6): gana el de mayor `(creadoEn, id)`; sin
+ * cambios, vale `Lote.precioCompra`. Lo escribe cualquier miembro del tenant.
+ */
+export interface CambioLote {
+  id: string
+  tenantId: string
+  loteId: string
+  campo: 'precioCompra'
+  valorAnterior: number | null
+  valorNuevo: number | null
+  usuarioId: string
+  creadoEn: string
+  sincronizado: boolean
+}
+
+/** Spec 016 data-model.md — material de la receta de un tratamiento. */
+export interface MaterialTratamiento {
+  insumoId: string
+  /** En `unidad` (la de consumo del insumo al definirlo; R2). */
+  cantidad: number
+  unidad: string
+}
+
+/**
+ * Spec 016 data-model.md — Tratamiento: solo identidad. Nombre, materiales,
+ * estado y precios por lugar viven en el ledger `CambioTratamiento` (R1).
+ */
+export interface Tratamiento {
+  id: string
+  tenantId: string
+  creadoPor: string
+  creadoEn: string
+  sincronizado: boolean
+  /** Local: el servidor lo rechazó por permisos. */
+  rechazadoEn: string | null
+}
+
+export type CampoTratamiento =
+  | 'nombre'
+  | 'materiales'
+  | 'activo'
+  | 'precio'
+  | 'porcentajeProfesional'
+
+/**
+ * Spec 016 data-model.md — ledger append-only del catálogo de tratamientos,
+ * sus precios por lugar y el % profesional de cada lugar (R1). Gana el de
+ * mayor `(creadoEn, id)` por campo (y por lugar).
+ */
+export interface CambioTratamiento {
+  id: string
+  tenantId: string
+  /** `null` solo en `porcentajeProfesional`. */
+  tratamientoId: string | null
+  /** Obligatorio en `precio` y `porcentajeProfesional`. */
+  lugarId: string | null
+  campo: CampoTratamiento
+  valorAnterior: string | number | boolean | MaterialTratamiento[] | null
+  valorNuevo: string | number | boolean | MaterialTratamiento[] | null
+  usuarioId: string
+  creadoEn: string
+  sincronizado: boolean
+  rechazadoEn: string | null
+}
+
+/** Spec 016 data-model.md — material usado, en el snapshot de un registro. */
+export interface MaterialUsado {
+  insumoId: string
+  nombre: string
+  cantidad: number
+  unidad: string
+  costoUnitario: number | null
+  /** El insumo estaba dado de baja: no se descontó (cantidad 0). */
+  dadoDeBaja?: true
+}
+
+/**
+ * Spec 016 data-model.md — tratamiento realizado con su snapshot inmutable
+ * (FR-016) y, si se deshizo, su anulación (R5).
+ */
+export interface TratamientoRealizado {
+  id: string
+  tenantId: string
+  lugarId: string
+  tratamientoId: string
+  nombre: string
+  precio: number | null
+  porcentajeProfesional: number | null
+  materiales: MaterialUsado[]
+  costoMateriales: number
+  costoCompleto: boolean
+  gananciaEstimada: number | null
+  usuarioId: string
+  creadoEn: string
+  anuladoEn: string | null
+  anuladoPor: string | null
+  sincronizado: boolean
+  /** Local: `false` = anulación aún sin subir. */
+  anulacionSincronizada: boolean
+}
+
 /** Spec 014 (research.md R10) — lugar elegido en este dispositivo. Local. */
 export interface LugarActivo {
   id: 'local'
@@ -299,6 +442,10 @@ export const db = new Dexie('inDENToryDB') as Dexie & {
   lugares: EntityTable<Lugar, 'id'>
   minimosLugar: Table<MinimoLugar, [string, string]>
   lugarActivo: EntityTable<LugarActivo, 'id'>
+  cambiosLote: EntityTable<CambioLote, 'id'>
+  tratamientos: EntityTable<Tratamiento, 'id'>
+  cambiosTratamiento: EntityTable<CambioTratamiento, 'id'>
+  tratamientosRealizados: EntityTable<TratamientoRealizado, 'id'>
 }
 
 db.version(1).stores({
@@ -486,5 +633,77 @@ db.version(10)
       sincronizado: true,
     } satisfies Lugar)
   })
+
+// Version 11 (spec 015, data-model.md "Dexie v11"): presentación de compra,
+// snapshot del ingreso en el lote, unidad en cada movimiento y el ledger de
+// precios `cambiosLote`. Contenido 1 y la misma unidad: ningún stock cambia
+// (SC-001). `pieza` pasa a `unidad`, como en el servidor. `sincronizado` no se
+// toca: el backfill del servidor deja los mismos valores.
+db.version(11)
+  .stores({
+    cambiosLote: 'id, loteId, creadoEn, sincronizado, tenantId',
+  })
+  .upgrade(async (tx) => {
+    const normalizar = (valor: unknown) => (valor === 'pieza' ? 'unidad' : valor)
+    const unidadPorInsumo = new Map<string, string>()
+    await tx
+      .table('insumos')
+      .toCollection()
+      .modify((insumo: Partial<Insumo>) => {
+        insumo.unidadMedida = normalizar(insumo.unidadMedida) as string
+        insumo.unidadCompra ??= insumo.unidadMedida
+        insumo.unidadCompra = normalizar(insumo.unidadCompra) as string
+        insumo.contenido ??= 1
+        unidadPorInsumo.set(insumo.id as string, insumo.unidadMedida)
+      })
+    await tx
+      .table('cambiosInsumo')
+      .toCollection()
+      .modify((cambio: Partial<CambioInsumo>) => {
+        cambio.factor ??= null
+        if (cambio.campo === 'unidadMedida') {
+          cambio.valorAnterior = normalizar(cambio.valorAnterior) as CambioInsumo['valorAnterior']
+          cambio.valorNuevo = normalizar(cambio.valorNuevo) as CambioInsumo['valorNuevo']
+        }
+      })
+    const unidadPorLote = new Map<string, string>()
+    await tx
+      .table('lotes')
+      .toCollection()
+      .modify((lote: Partial<Lote>) => {
+        lote.cantidadIngresada ??= null
+        lote.unidadIngresada ??= null
+        lote.contenido ??= 1
+        lote.unidadConsumo ??= unidadPorInsumo.get(lote.insumoId as string) ?? 'unidad'
+        lote.precioCompra ??= null
+        unidadPorLote.set(lote.id as string, lote.unidadConsumo)
+      })
+    await tx
+      .table('movimientos')
+      .toCollection()
+      .modify((movimiento: Partial<Movimiento>) => {
+        movimiento.unidad ??= unidadPorLote.get(movimiento.loteId as string) ?? 'unidad'
+      })
+  })
+
+// Version 12 (spec 016, data-model.md "Dexie v12"): tratamientos, su ledger y
+// los tratamientos realizados; índice para encontrar los consumos de un
+// registro. Ningún dato existente cambia.
+db.version(12)
+  .stores({
+    tratamientos: 'id, tenantId, creadoEn, sincronizado',
+    cambiosTratamiento: 'id, tratamientoId, lugarId, campo, creadoEn, sincronizado, tenantId',
+    tratamientosRealizados: 'id, tratamientoId, lugarId, creadoEn, sincronizado, tenantId',
+    movimientos:
+      'id, loteId, tipo, usuarioId, creadoEn, sincronizado, tenantId, lugarId, trasladoId, tratamientoRealizadoId',
+  })
+  .upgrade((tx) =>
+    tx
+      .table('movimientos')
+      .toCollection()
+      .modify((movimiento: Partial<Movimiento>) => {
+        movimiento.tratamientoRealizadoId ??= null
+      }),
+  )
 
 export type { EntityTable }

@@ -89,6 +89,8 @@ const haceHoras = (h: number) => new Date(Date.now() - h * 3_600_000).toISOStrin
 
 function consumo(id: string, usuarioId = 'B', creadoEn = new Date().toISOString()): Movimiento {
   return {
+    tratamientoRealizadoId: null,
+    unidad: 'unidad',
     tenantId: TENANT_1,
     lugarId: LUGAR_1,
     trasladoId: null,
@@ -232,6 +234,11 @@ describe('US2 — última sincronización exitosa', () => {
 
     estado.errorUpsert.lotes = { message: 'Failed to fetch' }
     await db.lotes.put({
+      cantidadIngresada: null,
+      unidadIngresada: null,
+      contenido: 1,
+      unidadConsumo: 'unidad',
+      precioCompra: null,
       tenantId: TENANT_1,
       lugarId: LUGAR_1,
       id: 'l1',
@@ -252,6 +259,7 @@ describe('US2 — última sincronización exitosa', () => {
     await db.movimientos.add(consumo('m1'))
     await db.movimientos.add(consumo('m2'))
     await db.cambiosInsumo.add({
+      factor: null,
       tenantId: TENANT_1,
       id: 'c1',
       insumoId: 'i1',
@@ -274,6 +282,8 @@ describe('US2 — última sincronización exitosa', () => {
 
   it('(e) abrir y cerrar el panel conserva lo escrito en el formulario de consumo', async () => {
     const insumo: Insumo = {
+      unidadCompra: 'mL',
+      contenido: 1,
       tenantId: TENANT_1,
       id: 'i1',
       nombre: 'Anestesia local',

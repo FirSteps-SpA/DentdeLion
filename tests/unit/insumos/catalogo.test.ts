@@ -17,6 +17,10 @@ vi.mock('../../../src/lib/db', async () => {
       lugarActivo: new MemoryTable(),
       insumos: new MemoryTable(),
       cambiosInsumo: new MemoryTable(),
+      cambiosLote: new MemoryTable(),
+      tratamientos: new MemoryTable(),
+      cambiosTratamiento: new MemoryTable(),
+      tratamientosRealizados: new MemoryTable(),
       lotes: new MemoryTable(),
       movimientos: new MemoryTable(),
       categorias: new MemoryTable(),
@@ -43,6 +47,8 @@ const categoriasT = db.categorias as unknown as MemoryTable<Categoria>
 
 function insumo(overrides: Partial<Insumo>): Insumo {
   return {
+    unidadCompra: 'caja',
+    contenido: 1,
     tenantId: TENANT_1,
     id: 'i1',
     nombre: 'Anestesia',

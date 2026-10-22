@@ -46,6 +46,8 @@ function insumo(
   extra: Partial<Insumo> = {},
 ): Insumo {
   return {
+    unidadCompra: 'u',
+    contenido: 1,
     tenantId: TENANT_1,
     id,
     nombre,
@@ -63,6 +65,11 @@ function insumo(
   }
 }
 const lote = (id: string, insumoId: string, fecha: string | null): Lote => ({
+  cantidadIngresada: null,
+  unidadIngresada: null,
+  contenido: 1,
+  unidadConsumo: 'unidad',
+  precioCompra: null,
   tenantId: TENANT_1,
   lugarId: LUGAR_1,
   id,
@@ -75,6 +82,8 @@ const lote = (id: string, insumoId: string, fecha: string | null): Lote => ({
   creadoEn: 'x',
 })
 const ingreso = (loteId: string, cantidad: number): Movimiento => ({
+  tratamientoRealizadoId: null,
+  unidad: 'unidad',
   tenantId: TENANT_1,
   lugarId: LUGAR_1,
   trasladoId: null,

@@ -66,6 +66,14 @@
   --color-info-bg: #EDF7FD;
   --color-info-icon: #3F8BC2;
 
+  /* Gráficos (DS §35, spec 017 research.md R7): paleta validada del donut
+     (3 turquesas + gris "Otras"), una serie en chart-1, negativos en rojo. */
+  --color-chart-1: #12B8AE;
+  --color-chart-2: #0D5360;
+  --color-chart-3: #B8E7E2;
+  --color-chart-otras: #8CA0A5;
+  --color-chart-negativo: #E96767;
+
   /* Radios (DS §10) */
   --radius-sm: 8px;
   --radius-md: 10px;

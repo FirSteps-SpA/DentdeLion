@@ -5,7 +5,7 @@ import { useAvisosStore } from '../../../stores/avisosStore'
 import { lugarParaEscribirOFallar } from '../../../stores/lugarStore'
 import { compararFefo, type LoteConStock } from './fefo'
 import { crearMovimiento } from './movements'
-import { computeStockLote } from './stock'
+import { computeStockLote, movimientosNormalizadosDeLote } from './stock'
 
 export type DisponibilidadConsumoRapido =
   | { ok: true; lote: Lote }
@@ -74,15 +74,14 @@ export async function consumirUno(
   const lugarId = lugarParaEscribirOFallar(opciones.lugarId)
   const movimiento = await db.transaction(
     'rw',
-    db.lotes,
-    db.movimientos,
+    [db.lotes, db.movimientos, db.insumos, db.cambiosInsumo],
     async () => {
       const lotes = await db.lotes.where('insumoId').equals(insumo.id).toArray()
       const lotesConStock = await Promise.all(
         lotes.map(async (lote) => ({
           lote,
           stockDisponible: computeStockLote(
-            (await db.movimientos.where('loteId').equals(lote.id).toArray()).filter(
+            (await movimientosNormalizadosDeLote(lote.id)).filter(
               (m) => m.lugarId === lugarId,
             ),
           ),
@@ -95,6 +94,7 @@ export async function consumirUno(
         loteId: disponibilidad.lote.id,
         cantidad: 1,
         lugarId,
+        unidad: insumo.unidadMedida,
       })
     },
   )
@@ -121,14 +121,14 @@ export async function consumirUno(
 export async function deshacerConsumo(
   movimientoConsumoId: string,
 ): Promise<Movimiento | null> {
-  return db.transaction('rw', db.movimientos, async () => {
+  return db.transaction(
+    'rw',
+    [db.movimientos, db.lotes, db.insumos, db.cambiosInsumo],
+    async () => {
     const consumo = await db.movimientos.get(movimientoConsumoId)
     if (!consumo || consumo.tipo !== 'consumo') return null
 
-    const delLote = await db.movimientos
-      .where('loteId')
-      .equals(consumo.loteId)
-      .toArray()
+    const delLote = await movimientosNormalizadosDeLote(consumo.loteId)
     const yaRevertido = delLote.some(
       (movimiento) =>
         movimiento.tipo === 'ajuste' &&
@@ -140,10 +140,13 @@ export async function deshacerConsumo(
       tipo: 'ajuste',
       loteId: consumo.loteId,
       cantidad: consumo.cantidad,
+      // Spec 015: en la unidad del consumo, aunque después se haya convertido.
+      unidad: consumo.unidad,
       movimientoOrigenId: consumo.id,
       // Spec 014: se revierte en el lugar del consumo, aunque ya se haya
       // cambiado de lugar.
       lugarId: consumo.lugarId,
     })
-  })
+    },
+  )
 }

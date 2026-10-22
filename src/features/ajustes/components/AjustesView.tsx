@@ -6,6 +6,9 @@ import { EquipoSection } from './EquipoSection'
 import { CategoriasSection } from './CategoriasSection'
 import { InsumosBajaSection } from './InsumosBajaSection'
 import { NotificacionesSection } from './NotificacionesSection'
+import { ChartColumn, ShoppingCart } from '../../../components/icons'
+import { TouchButton } from '../../../components/ui/TouchButton'
+import type { Vista } from '../../../app/navegacion'
 
 /**
  * Vista "Ajustes" (spec 010 FR-001/002/003): reemplaza el puente temporal
@@ -16,12 +19,36 @@ import { NotificacionesSection } from './NotificacionesSection'
  * Insumos dados de baja) — ocultas por completo para `personal`, no solo
  * deshabilitadas, mismo criterio que ya usa `AlertasView`.
  */
-export function AjustesView() {
+export function AjustesView({ onNavegar }: { onNavegar?: (vista: Vista) => void } = {}) {
   const usuario = useAuthStore((s) => s.usuario)
   const esAdministrador = usuario?.rol === 'administrador'
 
   return (
     <div className="flex w-full flex-col gap-6 text-left">
+      {/* Spec 016 (R7): en móvil, Compras se abre desde "Más". */}
+      {onNavegar && (
+        <TouchButton
+          type="button"
+          variant="secondary"
+          onClick={() => onNavegar('compras')}
+          className="w-full md:hidden"
+        >
+          <ShoppingCart size={18} />
+          Compras
+        </TouchButton>
+      )}
+      {/* Spec 017 (R11): en móvil, Reportes también se abre desde "Más". */}
+      {onNavegar && (
+        <TouchButton
+          type="button"
+          variant="secondary"
+          onClick={() => onNavegar('reportes')}
+          className="w-full md:hidden"
+        >
+          <ChartColumn size={18} />
+          Reportes
+        </TouchButton>
+      )}
       {/* Spec 013 FR-011: perfil y notificaciones en 2 columnas desde tablet. */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start">
         <PerfilSection />

@@ -135,6 +135,34 @@ que en `.env` local (producción, no las de desarrollo):
 CI (`.github/workflows/ci.yml`) corre `lint`, `test` y `build` en cada push/PR a `main` y
 `develop`, independiente del deploy.
 
+### Orden de despliegue con cambios de esquema
+
+1. Respaldo: `~/1STEPS/1stDocs/004-operacion/respaldo/respaldo.sh DentdeLion`.
+2. Migraciones: `supabase db push --linked`.
+3. Recién después, el front (merge a `main` → Netlify). Los clientes en caché siguen funcionando:
+   el servidor completa las columnas nuevas que no envían.
+
+**Spec 015 (unidades y costo unitario):** antes de la **primera conversión de unidad de consumo**
+de un tenant ("Convertir unidad" en la edición de un insumo), confirmar que todos sus
+dispositivos ya cargaron la versión nueva (abrir la app una vez con red). Una versión anterior no
+conoce el factor de conversión y mostraría el stock sin convertir.
+
+**Spec 016 (tratamientos y costo por tratamiento):** mismo orden (respaldo → `db push` → front).
+La migración solo agrega tablas y la columna opcional `movimientos.tratamiento_realizado_id`, así
+que una versión anterior sigue sincronizando: ve los consumos de un tratamiento como consumos
+sueltos y no muestra el catálogo ni el historial hasta actualizarse. La barra inferior del celular
+cambia (Compras pasa a "Más"); avisar al equipo.
+
+**Spec 017 (reportes y KPIs):** sin migración. Agrega Reportes (en la sidebar y en "Más" en el
+celular) y "Valor de inventario" en Inicio. La sincronización ahora pagina las descargas: antes,
+pasadas las 1.000 filas por tabla (`max_rows` de PostgREST), un dispositivo nuevo bajaba la
+historia truncada sin error. Los dispositivos ya instalados recuperan lo que les faltara en su
+primera sincronización con la versión nueva.
+
+**Release 2.4.0 (specs 015, 016 y 017):** un solo `supabase db push --linked` aplica las
+migraciones `20261021000000_unidades_y_costo` y `20261022000000_tratamientos`, en ese orden.
+Respaldo → `db push` → merge a `main`.
+
 ## ¿Quedó bien configurado mi entorno?
 
 Checklist manual (sin script) — cada punto debe poder confirmarse a simple vista en menos de 2

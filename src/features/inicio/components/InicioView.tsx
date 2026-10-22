@@ -8,6 +8,7 @@ import {
   Clock,
   Package,
   ShoppingCart,
+  Wallet,
 } from '../../../components/icons'
 import { Badge } from '../../../components/ui/Badge'
 import { Card, KpiCard } from '../../../components/ui/Card'
@@ -17,6 +18,9 @@ import { useAuthStore } from '../../../stores/authStore'
 import { resumenInicioPorLugares, type AlertaInicio } from '../lib/resumenInicio'
 import { useVistasDeLugar } from '../../insumos/lib/vistaLugar'
 import { ChipLugar } from '../../../app/ChipLugar'
+import { useValorInventario } from '../../reportes/useReportes'
+import { formatearMonto, textoVariacion } from '../../reportes/lib/formato'
+import type { ValorInventario } from '../../reportes/lib/valorInventario'
 
 export interface InicioViewProps {
   onNavegar: (vista: Vista) => void
@@ -114,6 +118,8 @@ export function InicioView({ onNavegar }: InicioViewProps) {
   const primerNombre = usuario?.nombre.trim().split(/\s+/)[0] ?? ''
   const hoy = fecha.format(new Date())
 
+  const valorInventario = useValorInventario()
+
   const kpis = [
     {
       titulo: 'Productos bajo mínimo',
@@ -160,8 +166,16 @@ export function InicioView({ onNavegar }: InicioViewProps) {
 
       <section
         aria-label="Resumen"
-        className="grid grid-cols-2 gap-3 desk:grid-cols-4 desk:gap-6"
+        className="grid grid-cols-2 gap-3 desk:grid-cols-5 desk:gap-6"
       >
+        {valorInventario && (
+          <div className="col-span-2 grid desk:col-span-1">
+            <TarjetaValorInventario
+              valor={valorInventario}
+              onClick={() => onNavegar('reportes')}
+            />
+          </div>
+        )}
         {kpis.map(({ titulo, valor, Icono, tono, destino, seccion }) => (
           <KpiCard
             key={titulo}
@@ -277,5 +291,45 @@ export function InicioView({ onNavegar }: InicioViewProps) {
         </Card>
       )}
     </div>
+  )
+}
+
+/**
+ * Spec 017 (US4, FR-015, UI §4) — Valor de inventario (DS §20): Σ stock ×
+ * costo de los lotes no caducados del lugar activo, con su variación frente al
+ * cierre del mes anterior en tono neutro (subir o bajar no es bueno ni malo
+ * por sí mismo). Lleva a Reportes.
+ */
+function TarjetaValorInventario({
+  valor,
+  onClick,
+}: {
+  valor: ValorInventario
+  onClick: () => void
+}) {
+  const sinPrecios = valor.lotesSinPrecio > 0 && valor.valor === 0
+  const monto = sinPrecios
+    ? 'Sin precios'
+    : valor.lotesSinPrecio > 0
+      ? `desde ${formatearMonto(valor.valor)}`
+      : formatearMonto(valor.valor)
+  const nota = sinPrecios
+    ? 'Ingresa el precio al recibir compras'
+    : valor.lotesSinPrecio > 0
+      ? `${valor.lotesSinPrecio} ${valor.lotesSinPrecio === 1 ? 'lote sin precio' : 'lotes sin precio'}`
+      : undefined
+  const variacion = sinPrecios ? null : textoVariacion(valor.variacion, 'vs. mes anterior')
+  return (
+    <KpiCard
+      titulo="Valor de inventario"
+      valor={monto}
+      Icono={Wallet}
+      variacion={variacion ? { texto: variacion, tono: 'muted' } : undefined}
+      nota={nota}
+      ariaLabel={[`Valor de inventario: ${monto}`, variacion, nota, 'Ver Reportes']
+        .filter(Boolean)
+        .join('. ')}
+      onClick={onClick}
+    />
   )
 }

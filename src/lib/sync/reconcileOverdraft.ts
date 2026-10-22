@@ -1,5 +1,8 @@
 import { db } from '../db'
-import { computeStockLote } from '../../features/insumos/lib/stock'
+import {
+  computeStockLote,
+  movimientosNormalizadosDeLote,
+} from '../../features/insumos/lib/stock'
 
 /**
  * Recomputes a lot's derived stock from its full movement history and flags
@@ -10,10 +13,8 @@ import { computeStockLote } from '../../features/insumos/lib/stock'
  * in any of them.
  */
 export async function reconcileOverdraft(loteId: string): Promise<void> {
-  const movimientos = await db.movimientos
-    .where('loteId')
-    .equals(loteId)
-    .toArray()
+  // Spec 015 (R4): en la unidad actual, por si hubo una conversión.
+  const movimientos = await movimientosNormalizadosDeLote(loteId)
   const porLugar = new Map<string, typeof movimientos>()
   for (const movimiento of movimientos) {
     const grupo = porLugar.get(movimiento.lugarId) ?? []

@@ -23,6 +23,10 @@ vi.mock('../../src/lib/db', async () => {
       lotes: new MemoryTable(),
       movimientos: new MemoryTable(),
       cambiosInsumo: new MemoryTable(),
+      cambiosLote: new MemoryTable(),
+      tratamientos: new MemoryTable(),
+      cambiosTratamiento: new MemoryTable(),
+      tratamientosRealizados: new MemoryTable(),
       configuracionAlertas: new MemoryTable(),
       borradores: new MemoryTable(),
       itemsCompra: new MemoryTable(),
@@ -60,6 +64,8 @@ function fechaEnDias(dias: number): string {
 
 function makeInsumo(overrides: Partial<Insumo>): Insumo {
   return {
+    unidadCompra: 'pieza',
+    contenido: 1,
     tenantId: TENANT_1,
     id: crypto.randomUUID(),
     nombre: 'Insumo',
@@ -79,6 +85,11 @@ function makeInsumo(overrides: Partial<Insumo>): Insumo {
 
 function makeLote(overrides: Partial<Lote>): Lote {
   return {
+    cantidadIngresada: null,
+    unidadIngresada: null,
+    contenido: 1,
+    unidadConsumo: 'unidad',
+    precioCompra: null,
     tenantId: TENANT_1,
     lugarId: LUGAR_1,
     id: crypto.randomUUID(),
@@ -95,6 +106,8 @@ function makeLote(overrides: Partial<Lote>): Lote {
 
 function makeIngreso(loteId: string, cantidad: number): Movimiento {
   return {
+    tratamientoRealizadoId: null,
+    unidad: 'unidad',
     tenantId: TENANT_1,
     lugarId: LUGAR_1,
     trasladoId: null,
@@ -229,7 +242,7 @@ describe('ComprasView — Marcar un ítem sugerido como recibido (User Story 2)'
     // Sin campo de fecha porque el insumo no caduca.
     expect(screen.queryByLabelText('Fecha de vencimiento')).not.toBeInTheDocument()
 
-    fireEvent.change(screen.getByLabelText('Cantidad (pieza)'), {
+    fireEvent.change(screen.getByLabelText('Cantidad (unidades)'), {
       target: { value: '30' },
     })
     fireEvent.change(screen.getByLabelText('Número de lote'), {
@@ -503,6 +516,34 @@ describe('ComprasView — Agregar y gestionar ítems manuales (User Story 3)', (
 })
 
 describe('ComprasView — Compartir la lista de compras (User Story 4)', () => {
+  it('spec 015: sugiere cajas completas y la recepción las propone en cajas (FR-020)', async () => {
+    insumosT.seed([
+      makeInsumo({
+        id: 'i1',
+        nombre: 'Articaína',
+        unidadMedida: 'cartucho',
+        unidadCompra: 'caja',
+        contenido: 50,
+        stockMinimo: 120,
+        caduca: false,
+      }),
+    ])
+    lotesT.seed([makeLote({ id: 'l1', insumoId: 'i1', fechaCaducidad: null })])
+    movimientosT.seed([makeIngreso('l1', 20)])
+    reflejarStore()
+    render(<ComprasView />)
+
+    expect(screen.getByText('Pedir 2 cajas (100 cartuchos)')).toBeInTheDocument()
+    expect(screen.queryByText(/≈/)).not.toBeInTheDocument()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Marcar Articaína como comprado o recibido/ }),
+    )
+    await screen.findByRole('heading', { name: 'Recibir Articaína' })
+    expect(screen.getByLabelText('Cantidad (cajas)')).toHaveValue(2)
+    expect(screen.getByText('2 cajas = 100 cartuchos')).toBeInTheDocument()
+  })
+
   it('shares the pending items text via navigator.share when available (FR-021)', async () => {
     const share = vi.fn().mockResolvedValue(undefined)
     vi.stubGlobal('navigator', { share })
@@ -532,7 +573,8 @@ describe('ComprasView — Compartir la lista de compras (User Story 4)', () => {
 
     await waitFor(() => expect(share).toHaveBeenCalledTimes(1))
     const texto = share.mock.calls[0][0].text as string
-    expect(texto).toContain('Guantes M (Sugerido)')
+    // Spec 015 FR-020: con las presentaciones sugeridas (mínimo 20, stock 5).
+    expect(texto).toContain('Guantes M — pedir 15 unidades (Sugerido)')
     expect(texto).toContain('Torundas x3 (Manual)')
   })
 

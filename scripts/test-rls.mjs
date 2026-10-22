@@ -684,6 +684,367 @@ check(
   `HTTP ${r.status}`,
 )
 
+// ---------------------------------------------------------------------------
+// Spec 015 — unidades y costo unitario (contracts/supabase-schema.md §8)
+// ---------------------------------------------------------------------------
+
+const [loteSinColumnas] = await leer(`lotes?id=eq.${lote}&select=unidad_consumo,contenido,precio_compra`)
+check(
+  'un lote de un cliente 2.3.0 recibe la unidad de consumo del insumo',
+  loteSinColumnas?.unidad_consumo === 'cartucho' &&
+    Number(loteSinColumnas?.contenido) === 1 &&
+    loteSinColumnas?.precio_compra === null,
+)
+
+const loteConPrecio = randomUUID()
+r = await http('POST', '/rest/v1/lotes', {
+  token: per.token,
+  body: {
+    id: loteConPrecio,
+    insumo_id: insumo,
+    numero_lote: 'P1',
+    proveedor: 'P',
+    cantidad_ingresada: 2,
+    unidad_ingresada: 'caja',
+    contenido: 50,
+    unidad_consumo: 'cartucho',
+    precio_compra: 32500,
+  },
+})
+check('personal crea un lote con precio', r.status === 201, `HTTP ${r.status}`)
+
+const cambioLote = (usuario_id, valor_nuevo = 30000) => ({
+  id: randomUUID(),
+  lote_id: loteConPrecio,
+  campo: 'precioCompra',
+  valor_anterior: 32500,
+  valor_nuevo,
+  usuario_id,
+  creado_en: new Date().toISOString(),
+})
+
+// 2. Cualquier miembro corrige precios, como sí mismo (Q3).
+r = await http('POST', '/rest/v1/cambios_lote', { token: per.token, body: cambioLote(per.id) })
+check('personal inserta una corrección de precio como sí mismo', r.status === 201, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/cambios_lote', { token: per.token, body: cambioLote(adm.id) })
+check('personal no inserta una corrección a nombre de otro', r.status >= 400, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/cambios_lote', {
+  token: per.token,
+  body: cambioLote(per.id, -5),
+})
+check('un precio negativo se rechaza', r.status >= 400, `HTTP ${r.status}`)
+
+// 1. Aislamiento entre tenants.
+r = await http('GET', `/rest/v1/cambios_lote?lote_id=eq.${loteConPrecio}`, { token: admB.token })
+check(
+  'otro tenant no lee las correcciones de precio',
+  Array.isArray(r.data) && r.data.length === 0,
+  `HTTP ${r.status}`,
+)
+r = await http('POST', '/rest/v1/cambios_lote', { token: admB.token, body: cambioLote(admB.id) })
+check('otro tenant no corrige precios de lotes ajenos', r.status >= 400, `HTTP ${r.status}`)
+
+// 3. El precio y el snapshot del lote son inmutables.
+r = await http('PATCH', `/rest/v1/lotes?id=eq.${loteConPrecio}`, {
+  token: adm.token,
+  body: { precio_compra: 1, contenido: 10, cantidad_ingresada: 9 },
+})
+const [loteTrasPatch] = await leer(
+  `lotes?id=eq.${loteConPrecio}&select=precio_compra,contenido,cantidad_ingresada`,
+)
+check(
+  'ni administración cambia el precio ni el snapshot de un lote',
+  Number(loteTrasPatch?.precio_compra) === 32500 &&
+    Number(loteTrasPatch?.contenido) === 50 &&
+    Number(loteTrasPatch?.cantidad_ingresada) === 2,
+  `HTTP ${r.status}`,
+)
+
+// 4. Presentación: solo administración.
+await http('PATCH', `/rest/v1/insumos?id=eq.${insumo}`, {
+  token: per.token,
+  body: { unidad_compra: 'caja', contenido: 50 },
+})
+let [presentacion] = await leer(`insumos?id=eq.${insumo}&select=unidad_compra,contenido`)
+check(
+  'personal no cambia la presentación de un insumo',
+  presentacion?.unidad_compra === 'cartucho' && Number(presentacion?.contenido) === 1,
+)
+await http('PATCH', `/rest/v1/insumos?id=eq.${insumo}`, {
+  token: adm.token,
+  body: { unidad_compra: 'caja', contenido: 50 },
+})
+;[presentacion] = await leer(`insumos?id=eq.${insumo}&select=unidad_compra,contenido`)
+check(
+  'administración cambia la presentación de un insumo',
+  presentacion?.unidad_compra === 'caja' && Number(presentacion?.contenido) === 50,
+)
+
+// 5. Un movimiento sin unidad (cliente 2.3.0) toma la del insumo.
+const movSinUnidad = randomUUID()
+r = await http('POST', '/rest/v1/movimientos', {
+  token: per.token,
+  body: {
+    id: movSinUnidad,
+    tipo: 'ingreso',
+    lote_id: loteConPrecio,
+    cantidad: 100,
+    usuario_id: per.id,
+    creado_en: new Date().toISOString(),
+  },
+})
+const [movLeido] = await leer(`movimientos?id=eq.${movSinUnidad}&select=unidad`)
+check(
+  'un movimiento sin unidad recibe la del insumo',
+  r.status === 201 && movLeido?.unidad === 'cartucho',
+  `HTTP ${r.status}`,
+)
+
+// 6. Un traslado con unidades distintas en sus mitades se rechaza.
+const trasladoId015 = randomUUID()
+const mitadConUnidad = (tipo, lugar_id, unidad) => ({
+  id: randomUUID(),
+  tipo,
+  lote_id: loteConPrecio,
+  cantidad: 1,
+  unidad,
+  lugar_id,
+  traslado_id: trasladoId015,
+  usuario_id: per.id,
+  creado_en: new Date().toISOString(),
+})
+r = await http('POST', '/rest/v1/movimientos', {
+  token: per.token,
+  body: [
+    mitadConUnidad('traslado_salida', LUGAR_1, 'cartucho'),
+    mitadConUnidad('traslado_entrada', LUGAR_A2, 'caja'),
+  ],
+})
+check('un traslado con unidades distintas se rechaza', r.status >= 400, `HTTP ${r.status}`)
+
+// 7. `pieza` se normaliza a `unidad` (clientes 2.3.0).
+const insumoPieza = randomUUID()
+await http('POST', '/rest/v1/insumos', {
+  token: adm.token,
+  body: {
+    id: insumoPieza,
+    nombre: `Fresa ${run}`,
+    categoria: 'Fresas',
+    unidad_medida: 'pieza',
+    permite_decimales: false,
+  },
+})
+const [pieza] = await leer(`insumos?id=eq.${insumoPieza}&select=unidad_medida,unidad_compra`)
+check(
+  'un insumo en pieza queda en unidad, también como unidad de compra',
+  pieza?.unidad_medida === 'unidad' && pieza?.unidad_compra === 'unidad',
+)
+
+// 8. El factor solo va en un cambio de unidad de consumo.
+r = await http('POST', '/rest/v1/cambios_insumo', {
+  token: adm.token,
+  body: {
+    id: randomUUID(),
+    insumo_id: insumo,
+    campo: 'nombre',
+    valor_anterior: 'Anestesia',
+    valor_nuevo: 'Anestesia B',
+    factor: 2,
+    usuario_id: adm.id,
+    creado_en: new Date().toISOString(),
+  },
+})
+check('un factor fuera de un cambio de unidad se rechaza', r.status >= 400, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/cambios_insumo', {
+  token: adm.token,
+  body: {
+    id: randomUUID(),
+    insumo_id: insumo,
+    campo: 'unidadMedida',
+    valor_anterior: 'cartucho',
+    valor_nuevo: 'mL',
+    factor: 1.8,
+    usuario_id: adm.id,
+    creado_en: new Date().toISOString(),
+  },
+})
+check('administración registra una conversión con factor', r.status === 201, `HTTP ${r.status}`)
+
+// ---------------------------------------------------------------------------
+// Spec 016 — tratamientos y costo por tratamiento (contracts/supabase-schema.md §6)
+// ---------------------------------------------------------------------------
+
+const tratamiento016 = randomUUID()
+const cambioTratamiento = (usuario_id, extra) => ({
+  id: randomUUID(),
+  tratamiento_id: tratamiento016,
+  lugar_id: null,
+  campo: 'nombre',
+  valor_anterior: null,
+  valor_nuevo: `Restauración ${run}`,
+  usuario_id,
+  creado_en: new Date().toISOString(),
+  ...extra,
+})
+
+// 2. Solo administración define tratamientos.
+r = await http('POST', '/rest/v1/tratamientos', {
+  token: per.token,
+  body: { id: randomUUID(), creado_por: per.id, creado_en: new Date().toISOString() },
+})
+check('personal no crea tratamientos', r.status >= 400, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/tratamientos', {
+  token: adm.token,
+  body: { id: tratamiento016, creado_por: adm.id, creado_en: new Date().toISOString() },
+})
+check('administración crea un tratamiento', r.status === 201, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/cambios_tratamiento', {
+  token: per.token,
+  body: cambioTratamiento(per.id),
+})
+check('personal no cambia la definición de un tratamiento', r.status >= 400, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/cambios_tratamiento', {
+  token: adm.token,
+  body: cambioTratamiento(adm.id),
+})
+check('administración nombra el tratamiento', r.status === 201, `HTTP ${r.status}`)
+
+// 7. Forma de los cambios: precio con lugar; % entre 0 y 100.
+r = await http('POST', '/rest/v1/cambios_tratamiento', {
+  token: adm.token,
+  body: cambioTratamiento(adm.id, { campo: 'precio', valor_nuevo: 45000 }),
+})
+check('un precio sin lugar se rechaza', r.status >= 400, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/cambios_tratamiento', {
+  token: adm.token,
+  body: cambioTratamiento(adm.id, { campo: 'precio', lugar_id: LUGAR_1, valor_nuevo: 45000 }),
+})
+check('administración fija un precio por lugar', r.status === 201, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/cambios_tratamiento', {
+  token: adm.token,
+  body: cambioTratamiento(adm.id, {
+    tratamiento_id: null,
+    campo: 'porcentajeProfesional',
+    lugar_id: LUGAR_1,
+    valor_nuevo: 120,
+  }),
+})
+check('un % profesional de 120 se rechaza', r.status >= 400, `HTTP ${r.status}`)
+
+// 3. Registro como sí mismo.
+const realizado = (usuario_id, extra) => ({
+  id: randomUUID(),
+  lugar_id: LUGAR_1,
+  tratamiento_id: tratamiento016,
+  nombre: `Restauración ${run}`,
+  precio: 45000,
+  porcentaje_profesional: 40,
+  materiales: [{ insumoId: insumo, nombre: 'Anestesia', cantidad: 1, unidad: 'cartucho', costoUnitario: 650 }],
+  costo_materiales: 650,
+  costo_completo: true,
+  ganancia_estimada: 17350,
+  usuario_id,
+  creado_en: new Date().toISOString(),
+  ...extra,
+})
+const registro016 = realizado(per.id)
+r = await http('POST', '/rest/v1/tratamientos_realizados', { token: per.token, body: registro016 })
+check('personal registra un tratamiento como sí mismo', r.status === 201, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/tratamientos_realizados', {
+  token: per.token,
+  body: realizado(adm.id),
+})
+check('personal no registra un tratamiento a nombre de otro', r.status >= 400, `HTTP ${r.status}`)
+
+// 1. Aislamiento entre tenants en las tres tablas.
+for (const tabla of ['tratamientos', 'cambios_tratamiento', 'tratamientos_realizados']) {
+  r = await http('GET', `/rest/v1/${tabla}?select=id`, { token: admB.token })
+  const ajenas = Array.isArray(r.data) ? r.data.filter((f) => [tratamiento016, registro016.id].includes(f.id)) : null
+  check(`otro tenant no lee ${tabla}`, ajenas?.length === 0, `HTTP ${r.status}`)
+}
+r = await http('POST', '/rest/v1/tratamientos_realizados', {
+  token: perB.token,
+  body: realizado(perB.id),
+})
+check('otro tenant no registra con un tratamiento ajeno', r.status >= 400, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/cambios_tratamiento', {
+  token: admB.token,
+  body: cambioTratamiento(admB.id),
+})
+check('otro tenant no cambia un tratamiento ajeno', r.status >= 400, `HTTP ${r.status}`)
+
+// 6. Un consumo no se vincula a un registro de otro tenant (FK compuesta).
+r = await http('POST', '/rest/v1/movimientos', {
+  token: perB.token,
+  body: {
+    id: randomUUID(),
+    tipo: 'consumo',
+    lote_id: loteB,
+    cantidad: 1,
+    tratamiento_realizado_id: registro016.id,
+    usuario_id: perB.id,
+    creado_en: new Date().toISOString(),
+  },
+})
+check('un consumo vinculado a un registro de otro tenant se rechaza', r.status >= 400, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/movimientos', {
+  token: per.token,
+  body: {
+    id: randomUUID(),
+    tipo: 'consumo',
+    lote_id: lote,
+    cantidad: 1,
+    tratamiento_realizado_id: registro016.id,
+    usuario_id: per.id,
+    creado_en: new Date().toISOString(),
+  },
+})
+check('un consumo se vincula a su registro', r.status === 201, `HTTP ${r.status}`)
+
+// 4. El snapshot del registro es inmutable.
+await http('PATCH', `/rest/v1/tratamientos_realizados?id=eq.${registro016.id}`, {
+  token: adm.token,
+  body: { precio: 1, materiales: [], costo_materiales: 1 },
+})
+const [snapshot] = await leer(
+  `tratamientos_realizados?id=eq.${registro016.id}&select=precio,materiales,costo_materiales`,
+)
+check(
+  'ni administración cambia el precio, los materiales ni el costo de un registro',
+  Number(snapshot?.precio) === 45000 &&
+    snapshot?.materiales?.length === 1 &&
+    Number(snapshot?.costo_materiales) === 650,
+  JSON.stringify(snapshot),
+)
+
+// 5. La primera anulación se conserva.
+const primeraAnulacion = new Date(Date.now() - 1000).toISOString()
+r = await http('PATCH', `/rest/v1/tratamientos_realizados?id=eq.${registro016.id}`, {
+  token: per.token,
+  body: { anulado_en: primeraAnulacion, anulado_por: per.id },
+})
+check('personal anula un registro como sí mismo', r.status < 300, `HTTP ${r.status}`)
+await http('PATCH', `/rest/v1/tratamientos_realizados?id=eq.${registro016.id}`, {
+  token: adm.token,
+  body: { anulado_en: new Date().toISOString(), anulado_por: adm.id },
+})
+const [anulado] = await leer(
+  `tratamientos_realizados?id=eq.${registro016.id}&select=anulado_en,anulado_por`,
+)
+check(
+  'una segunda anulación no reemplaza la primera',
+  anulado?.anulado_por === per.id &&
+    new Date(anulado?.anulado_en).getTime() === new Date(primeraAnulacion).getTime(),
+  JSON.stringify(anulado),
+)
+const otroRegistro = realizado(per.id)
+await http('POST', '/rest/v1/tratamientos_realizados', { token: per.token, body: otroRegistro })
+r = await http('PATCH', `/rest/v1/tratamientos_realizados?id=eq.${otroRegistro.id}`, {
+  token: per.token,
+  body: { anulado_en: new Date().toISOString(), anulado_por: adm.id },
+})
+check('nadie anula a nombre de otra persona', r.status >= 400, `HTTP ${r.status}`)
+
 r = await http('GET', '/rest/v1/insumos?select=id')
 check(
   'sin sesión no se lee el inventario',

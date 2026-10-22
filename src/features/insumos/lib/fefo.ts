@@ -43,3 +43,41 @@ export function selectFefoLot(
     conStock[0]
   )
 }
+
+export interface RepartoFefo {
+  partes: { lote: Lote; cantidad: number }[]
+  /** Lo que no alcanzó a cubrirse con lotes vigentes (0 si alcanza). */
+  faltante: number
+  /** Stock en lotes caducados (no se usa; sirve para avisar "solo caducado"). */
+  stockCaducado: number
+}
+
+/**
+ * Spec 016 (research.md R4) — reparte `cantidad` entre los lotes **vigentes**
+ * en orden FEFO, completando con el siguiente si uno no alcanza. Los
+ * caducados nunca se usan (Constitución IV, mismo criterio que "Consumir 1");
+ * `vigente` decide cuáles lo están.
+ */
+export function repartirFefo(
+  lotesConStock: LoteConStock[],
+  cantidad: number,
+  vigente: (lote: Lote) => boolean,
+): RepartoFefo {
+  const ordenados = [...lotesConStock]
+    .filter((entry) => entry.stockDisponible > 0)
+    .sort((a, b) => compararFefo(a.lote.fechaCaducidad, b.lote.fechaCaducidad))
+  const stockCaducado = ordenados
+    .filter((entry) => !vigente(entry.lote))
+    .reduce((total, entry) => total + entry.stockDisponible, 0)
+
+  const partes: RepartoFefo['partes'] = []
+  let restante = cantidad
+  for (const entry of ordenados) {
+    if (restante <= 0) break
+    if (!vigente(entry.lote)) continue
+    const tomar = Math.min(entry.stockDisponible, restante)
+    partes.push({ lote: entry.lote, cantidad: Math.round(tomar * 1e9) / 1e9 })
+    restante = Math.round((restante - tomar) * 1e9) / 1e9
+  }
+  return { partes, faltante: Math.max(0, restante), stockCaducado }
+}

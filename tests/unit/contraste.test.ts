@@ -79,6 +79,17 @@ const PARES: [string, string[], string[], number][] = [
     3,
   ],
   ['Logotipo', ['teal-dark'], ['surface', 'bg'], 4.5],
+  // Spec 017 (research.md R7): los textos de los gráficos van en tinta de texto,
+  // también sobre la fila resaltada; la variación de los KPIs en verde/rojo.
+  [
+    'Reportes: leyendas, ejes y valores (también la fila resaltada)',
+    ['text', 'text-muted'],
+    ['surface', 'bg-secondary'],
+    4.5,
+  ],
+  ['Reportes: variación', ['success-text', 'danger'], ['surface'], 4.5],
+  ['Reportes: aviso de sincronización', ['text'], ['info-bg'], 4.5],
+  ['Reportes: serie oscura del donut', ['chart-2'], ['surface'], 3],
 ]
 
 const casos = PARES.flatMap(([uso, frentes, fondos, minimo]) =>
@@ -88,6 +99,15 @@ const casos = PARES.flatMap(([uso, frentes, fondos, minimo]) =>
 )
 
 describe('contraste de los tokens del Design System (spec 013 FR-005)', () => {
+  it('los colores de los gráficos son los del DS §35 (spec 017 FR-013)', () => {
+    const ds = ['#12B8AE', '#0D5360', '#7ACCC5', '#B8E7E2', '#F2B84B', '#E96767']
+    for (const token of ['chart-1', 'chart-2', 'chart-3', 'chart-negativo']) {
+      expect(ds).toContain(color(token).toUpperCase())
+    }
+    // "Otras" en un gris del sistema (text-faint), no un tono inventado.
+    expect(color('chart-otras').toUpperCase()).toBe(color('text-faint').toUpperCase())
+  })
+
   it.each(casos)('%s: %s sobre %s ≥ %s:1', (_uso, frente, fondo, minimo) => {
     expect(contraste(color(frente), color(fondo))).toBeGreaterThanOrEqual(
       minimo,

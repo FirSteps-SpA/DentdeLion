@@ -16,6 +16,8 @@ function fechaEnDias(dias: number): string {
 
 function makeInsumo(overrides: Partial<Insumo>): Insumo {
   return {
+    unidadCompra: 'pieza',
+    contenido: 1,
     tenantId: TENANT_1,
     id: crypto.randomUUID(),
     nombre: 'Insumo',
@@ -35,6 +37,11 @@ function makeInsumo(overrides: Partial<Insumo>): Insumo {
 
 function makeLote(overrides: Partial<Lote>): Lote {
   return {
+    cantidadIngresada: null,
+    unidadIngresada: null,
+    contenido: 1,
+    unidadConsumo: 'unidad',
+    precioCompra: null,
     tenantId: TENANT_1,
     lugarId: LUGAR_1,
     id: crypto.randomUUID(),
@@ -51,6 +58,8 @@ function makeLote(overrides: Partial<Lote>): Lote {
 
 function makeIngreso(loteId: string, cantidad: number): Movimiento {
   return {
+    tratamientoRealizadoId: null,
+    unidad: 'unidad',
     tenantId: TENANT_1,
     lugarId: LUGAR_1,
     trasladoId: null,

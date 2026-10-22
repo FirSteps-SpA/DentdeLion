@@ -2,11 +2,27 @@ import { db, type Insumo, type Lote } from '../../../lib/db'
 import { getUsuarioActualId, tenantActualOFallar } from '../../../stores/authStore'
 import { lugarParaEscribirOFallar } from '../../../stores/lugarStore'
 import { crearMovimiento } from '../../insumos/lib/movements'
-import { validateQuantity } from '../../insumos/lib/quantity'
+import {
+  convertirIngreso,
+  snapshotIngreso,
+  type CantidadIngreso,
+} from '../../insumos/lib/ingreso'
+import {
+  precioPorUnidadCompra,
+  validarPrecio,
+  type PrecioIngreso,
+} from '../../insumos/lib/precio'
 
 /** Formulario de recepción de un ítem de Compras (spec 009 contracts/ui-contracts.md). */
 export interface RecepcionInput {
   cantidad: number
+  /**
+   * Spec 015 (FR-009) — unidad de `cantidad`: la de compra del insumo (por
+   * defecto) o la de consumo. Se convierte a unidades de consumo al guardar.
+   */
+  unidadIngreso?: string
+  /** Spec 015 (FR-013/FR-014) — opcional: por unidad de compra o total pagado. */
+  precio?: PrecioIngreso
   numeroLote: string
   proveedor: string
   /** Ignorada si `insumo.caduca === false`. */
@@ -14,7 +30,12 @@ export interface RecepcionInput {
   confirmarCaducado: boolean
 }
 
-export type CampoRecepcion = 'cantidad' | 'numeroLote' | 'proveedor' | 'fechaCaducidad'
+export type CampoRecepcion =
+  | 'cantidad'
+  | 'precio'
+  | 'numeroLote'
+  | 'proveedor'
+  | 'fechaCaducidad'
 
 export type ValidacionRecepcion =
   | { valido: true; advertencias: { loteCaducado: boolean } }
@@ -37,10 +58,12 @@ export function validarRecepcion(
 ): ValidacionRecepcion {
   const errores: Partial<Record<CampoRecepcion, string>> = {}
 
-  const cantidad = validateQuantity(input.cantidad, insumo.unidadMedida)
-  if (!cantidad.valid) {
-    errores.cantidad = cantidad.error ?? 'Cantidad inválida.'
+  const conversion = convertirIngreso(insumo, ingresoDe(input, insumo))
+  if (conversion.error) {
+    errores.cantidad = conversion.error
   }
+  const errorPrecio = validarPrecio(input.precio ?? null)
+  if (errorPrecio) errores.precio = errorPrecio
   if (!input.numeroLote.trim()) {
     errores.numeroLote = 'Ingresa el número de lote.'
   }
@@ -71,6 +94,11 @@ export function validarRecepcion(
  * lote por llamada — un pedido con varios lotes repite la acción
  * (research.md R4). Cualquier excepción aborta todo.
  */
+/** Spec 015 — la cantidad de la recepción con su unidad (por defecto, la de compra). */
+export function ingresoDe(input: RecepcionInput, insumo: Insumo): CantidadIngreso {
+  return { cantidad: input.cantidad, unidad: input.unidadIngreso ?? insumo.unidadCompra }
+}
+
 export async function recibirEnInsumo(
   insumo: Insumo,
   input: RecepcionInput,
@@ -96,6 +124,8 @@ export async function recibirEnInsumo(
 
   const tenantId = tenantActualOFallar()
   const lugarId = lugarParaEscribirOFallar(opciones.lugarId)
+  const ingreso = ingresoDe(input, insumo)
+  const { cantidadConsumo, presentaciones } = convertirIngreso(insumo, ingreso)
   return db.transaction(
     'rw',
     db.lotes,
@@ -113,13 +143,16 @@ export async function recibirEnInsumo(
         codigoFabricante: insumo.codigoFabricante,
         estado: 'activo',
         creadoEn: new Date().toISOString(),
+        ...snapshotIngreso(insumo, ingreso),
+        precioCompra: precioPorUnidadCompra(input.precio ?? null, presentaciones),
       }
       await db.lotes.add(lote)
       await crearMovimiento({
         tipo: 'ingreso',
         loteId: lote.id,
-        cantidad: input.cantidad,
+        cantidad: cantidadConsumo,
         lugarId,
+        unidad: insumo.unidadMedida,
       })
 
       if (itemCompraId !== null) {

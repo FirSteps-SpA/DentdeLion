@@ -19,4 +19,8 @@ export const tablasMemoria = [
   'lugares',
   'minimosLugar',
   'lugarActivo',
+  'cambiosLote',
+  'tratamientos',
+  'cambiosTratamiento',
+  'tratamientosRealizados',
 ] as const

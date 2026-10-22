@@ -8,6 +8,7 @@ import {
   Boxes as LucideBoxes,
   Building2,
   Calendar as LucideCalendar,
+  ChartColumn as LucideChartColumn,
   Check as LucideCheck,
   ChevronDown as LucideChevronDown,
   ChevronRight as LucideChevronRight,
@@ -34,6 +35,7 @@ import {
   ScanLine,
   Search as LucideSearch,
   Settings as LucideSettings,
+  Stethoscope as LucideStethoscope,
   Share2,
   ShoppingCart as LucideShoppingCart,
   Tag as LucideTag,
@@ -47,6 +49,7 @@ import {
   MapPin as LucideMapPin,
   MessageCircle as LucideMessageCircle,
   Users as LucideUsers,
+  Wallet as LucideWallet,
 } from 'lucide-react'
 
 export interface IconProps {
@@ -103,6 +106,10 @@ export const Package = deLucide(LucidePackage)
 export const PackageMinus = deLucide(LucidePackageMinus)
 export const ShoppingCart = deLucide(LucideShoppingCart)
 export const Bell = deLucide(LucideBell)
+/** Spec 016 — sección Tratamientos (DS §29). */
+export const Stethoscope = deLucide(LucideStethoscope)
+/** Spec 017 — sección Reportes (DS §34). */
+export const ChartColumn = deLucide(LucideChartColumn)
 export const Settings = deLucide(LucideSettings)
 export const Menu = deLucide(LucideMenu)
 export const PanelLeftClose = deLucide(LucidePanelLeftClose)
@@ -142,6 +149,8 @@ export const Lock = deLucide(LucideLock)
 export const Tag = deLucide(LucideTag)
 export const User = deLucide(CircleUserRound)
 export const Building = deLucide(Building2)
+/** Spec 017 — Valor de inventario (DS §20). */
+export const Wallet = deLucide(LucideWallet)
 // Spec 014: lugares de trabajo, traslados, equipo e invitaciones.
 export const MapPin = deLucide(LucideMapPin)
 export const Traslado = deLucide(ArrowRightLeft)

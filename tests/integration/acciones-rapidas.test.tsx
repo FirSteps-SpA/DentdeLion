@@ -28,6 +28,10 @@ vi.mock('../../src/lib/db', async () => {
       lotes: new MemoryTable(),
       movimientos: new MemoryTable(),
       cambiosInsumo: new MemoryTable(),
+      cambiosLote: new MemoryTable(),
+      tratamientos: new MemoryTable(),
+      cambiosTratamiento: new MemoryTable(),
+      tratamientosRealizados: new MemoryTable(),
       configuracionAlertas: new MemoryTable(),
       categorias: new MemoryTable(),
       usuarioActual: new MemoryTable(),
@@ -67,6 +71,8 @@ function insumo(
   overrides: Partial<Insumo> = {},
 ): Insumo {
   return {
+    unidadCompra: 'caja',
+    contenido: 1,
     tenantId: TENANT_1,
     id,
     nombre,
@@ -86,6 +92,11 @@ function insumo(
 
 function lote(id: string, insumoId: string, dias: number | null): Lote {
   return {
+    cantidadIngresada: null,
+    unidadIngresada: null,
+    contenido: 1,
+    unidadConsumo: 'unidad',
+    precioCompra: null,
     tenantId: TENANT_1,
     lugarId: LUGAR_1,
     id,
@@ -101,6 +112,8 @@ function lote(id: string, insumoId: string, dias: number | null): Lote {
 
 function ingreso(loteId: string, cantidad: number): Movimiento {
   return {
+    tratamientoRealizadoId: null,
+    unidad: 'unidad',
     tenantId: TENANT_1,
     lugarId: LUGAR_1,
     trasladoId: null,

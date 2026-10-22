@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { consultaFalsa } from '../helpers/consultaFalsa'
 import type { CambioInsumo, Insumo, UsuarioActual } from '../../src/lib/db'
 import type { MemoryTable } from '../helpers/memoryDb'
 import { authFalso } from '../helpers/authFalso'
@@ -16,6 +17,10 @@ vi.mock('../../src/lib/db', async () => {
       configuracionAlertas: new MemoryTable(),
       configuracionClinica: new MemoryTable(),
       cambiosInsumo: new MemoryTable(),
+      cambiosLote: new MemoryTable(),
+      tratamientos: new MemoryTable(),
+      cambiosTratamiento: new MemoryTable(),
+      tratamientosRealizados: new MemoryTable(),
       categorias: new MemoryTable(),
       itemsCompra: new MemoryTable(),
       usuarioActual: new MemoryTable(),
@@ -69,11 +74,9 @@ const client = {
         return { error: null }
       },
       select() {
-        const resultado = Promise.resolve({
-          data: redCaida
-            ? null
-            : [...tabla(nombre).values()].map((r) => structuredClone(r)),
-          error: redCaida ? { message: 'fetch failed' } : null,
+        const resultado = consultaFalsa({
+          filas: () => [...tabla(nombre).values()],
+          error: () => (redCaida ? { message: 'fetch failed' } : null),
         })
         return Object.assign(resultado, {
           eq: () => ({
@@ -148,6 +151,8 @@ async function en<T>(d: 'A' | 'B', fn: () => Promise<T>): Promise<T> {
 }
 
 const insumoE: Insumo = {
+  unidadCompra: 'caja',
+  contenido: 1,
   tenantId: TENANT_1,
   id: 'e',
   nombre: 'Guantes',

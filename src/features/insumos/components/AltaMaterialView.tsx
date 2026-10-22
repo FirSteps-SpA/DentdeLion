@@ -3,10 +3,11 @@ import type { Insumo } from '../../../lib/db'
 import { mesesRestantes } from '../../../lib/dateMath'
 import { useAuthStore } from '../../../stores/authStore'
 import { findInsumoPorCodigo, useInventoryStore } from '../../../stores/inventoryStore'
-import { ETIQUETAS_UNIDAD, UNIDADES_MEDIDA } from '../lib/catalogo'
 import { catalogoCategorias, resolverCategoria } from '../lib/categorias'
 import {
   darDeAltaMaterial,
+  presentacionDeAlta,
+  stockInicialDe,
   sugerirMateriales,
   validarAltaMaterial,
   type AltaMaterialInput,
@@ -21,6 +22,10 @@ import { TouchButton } from '../../../components/ui/TouchButton'
 import { BottomSheet } from '../../../components/ui/BottomSheet'
 import { Stepper } from '../../../components/ui/Stepper'
 import { ConfirmarLoteCaducadoDialog } from './ConfirmarLoteCaducadoDialog'
+import { PresentacionFields } from './PresentacionFields'
+import { CantidadIngresoField } from './CantidadIngresoField'
+import { PrecioIngresoField } from './PrecioIngresoField'
+import { convertirIngreso } from '../lib/ingreso'
 
 export interface AltaMaterialViewProps {
   nombreInicial?: string
@@ -40,8 +45,11 @@ const ORDEN_CAMPOS: CampoAlta[] = [
   'nombre',
   'categoria',
   'unidadMedida',
+  'unidadCompra',
+  'contenido',
   'stockMinimo',
   'stockInicial',
+  'precio',
   'numeroLote',
   'proveedor',
   'fechaCaducidad',
@@ -50,9 +58,12 @@ const ORDEN_CAMPOS: CampoAlta[] = [
 const ID_POR_CAMPO: Record<CampoAlta, string> = {
   nombre: 'alta-nombre',
   categoria: 'alta-categoria',
-  unidadMedida: 'alta-unidad-grupo',
+  unidadMedida: 'alta-unidad-consumo',
+  unidadCompra: 'alta-unidad-compra',
+  contenido: 'alta-contenido',
   stockMinimo: 'alta-stock-minimo',
   stockInicial: 'alta-stock-inicial',
+  precio: 'alta-precio',
   numeroLote: 'alta-lote-numero',
   proveedor: 'alta-lote-proveedor',
   fechaCaducidad: 'alta-lote-fecha',
@@ -101,6 +112,15 @@ export function AltaMaterialView({
 
   const catalogo = catalogoCategorias(categoriasRows, insumos)
   const permiteDecimalesUnidad = permiteDecimales(datos.unidadMedida)
+  // Spec 015 FR-009: el stock inicial se ingresa como cualquier ingreso.
+  const presentacionAlta = presentacionDeAlta(datos)
+  const presentacionIngreso = {
+    ...presentacionAlta,
+    contenido:
+      presentacionAlta.contenido !== null && presentacionAlta.contenido > 0
+        ? presentacionAlta.contenido
+        : 1,
+  }
   const vidaUtil = datos.caduca ? mesesRestantes(datos.lote.fechaCaducidad) : null
   const sugerencias = sugerirMateriales(insumos, datos.nombre)
   const esAdmin = usuario?.rol === 'administrador'
@@ -358,28 +378,21 @@ export function AltaMaterialView({
             <ErrorCampo id="error-categoria" mensaje={errores.categoria} />
           </div>
 
-          <div className="flex flex-col gap-1.5 text-sm font-bold text-text">
-            <p id="alta-unidad-label">Unidad de medida</p>
-            <div
-              id="alta-unidad-grupo"
-              role="group"
-              aria-labelledby="alta-unidad-label"
-              className="grid grid-cols-3 gap-2"
-            >
-              {UNIDADES_MEDIDA.map((u) => (
-                <TouchButton
-                  key={u}
-                  type="button"
-                  variant={datos.unidadMedida === u ? 'primary' : 'ghost'}
-                  aria-pressed={datos.unidadMedida === u}
-                  onClick={() => setDatos({ unidadMedida: u })}
-                >
-                  {ETIQUETAS_UNIDAD[u]}
-                </TouchButton>
-              ))}
-            </div>
-            <ErrorCampo id="error-unidadMedida" mensaje={errores.unidadMedida} />
-          </div>
+          {/* Spec 015 FR-006: cualquier rol define la presentación en el alta. */}
+          <PresentacionFields
+            idPrefix="alta"
+            valor={{
+              unidadMedida: datos.unidadMedida,
+              unidadCompra: datos.unidadCompra ?? null,
+              contenido: datos.contenido ?? null,
+            }}
+            onChange={(cambio) => setDatos(cambio as Partial<AltaMaterialInput>)}
+            errores={{
+              unidadMedida: errores.unidadMedida,
+              unidadCompra: errores.unidadCompra,
+              contenido: errores.contenido,
+            }}
+          />
 
           <div className="flex flex-col gap-1">
             <Stepper
@@ -395,22 +408,34 @@ export function AltaMaterialView({
             <ErrorCampo id="error-stockMinimo" mensaje={errores.stockMinimo} />
           </div>
 
-          <div className="flex flex-col gap-1">
-            <Stepper
-              id="alta-stock-inicial"
-              label="Stock inicial"
-              value={datos.stockInicial}
-              onChange={(v) => setDatos({ stockInicial: v ?? 0 })}
-              min={0}
-              permiteDecimales={permiteDecimalesUnidad}
-              {...errorProps('stockInicial')}
-            />
-            <ErrorCampo id="error-stockInicial" mensaje={errores.stockInicial} />
-          </div>
+          <CantidadIngresoField
+            id="alta-stock-inicial"
+            label="Stock inicial"
+            presentacion={presentacionIngreso}
+            cantidad={datos.stockInicial}
+            unidad={stockInicialDe(datos).unidad}
+            onChange={(cambio) =>
+              setDatos({
+                ...(cambio.cantidad !== undefined ? { stockInicial: cambio.cantidad } : {}),
+                ...(cambio.unidad !== undefined ? { unidadStockInicial: cambio.unidad } : {}),
+              })
+            }
+            error={errores.stockInicial}
+          />
 
           {datos.stockInicial > 0 && (
             <Card className="flex flex-col gap-3 p-3.5">
               <p className="text-sm font-bold text-text">Primer lote</p>
+              <PrecioIngresoField
+                id="alta-precio"
+                presentacion={presentacionIngreso}
+                presentaciones={
+                  convertirIngreso(presentacionIngreso, stockInicialDe(datos)).presentaciones
+                }
+                precio={datos.precio ?? null}
+                onChange={(precio) => setDatos({ precio })}
+                error={errores.precio}
+              />
               <div className="flex flex-col gap-1">
                 <IconField
                   label="Número de lote"

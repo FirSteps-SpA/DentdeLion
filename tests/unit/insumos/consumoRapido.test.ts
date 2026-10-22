@@ -11,6 +11,12 @@ vi.mock('../../../src/lib/db', async () => {
       lugarActivo: new MemoryTable(),
       lotes: new MemoryTable(),
       movimientos: new MemoryTable(),
+      insumos: new MemoryTable(),
+      cambiosInsumo: new MemoryTable(),
+      cambiosLote: new MemoryTable(),
+      tratamientos: new MemoryTable(),
+      cambiosTratamiento: new MemoryTable(),
+      tratamientosRealizados: new MemoryTable(),
     }),
   }
 })
@@ -52,6 +58,11 @@ function lote(
   insumoId = 'insumo-1',
 ): Lote {
   return {
+    cantidadIngresada: null,
+    unidadIngresada: null,
+    contenido: 1,
+    unidadConsumo: 'unidad',
+    precioCompra: null,
     tenantId: TENANT_1,
     lugarId: LUGAR_1,
     id,
@@ -67,6 +78,8 @@ function lote(
 
 function ingreso(loteId: string, cantidad: number): Movimiento {
   return {
+    tratamientoRealizadoId: null,
+    unidad: 'unidad',
     tenantId: TENANT_1,
     lugarId: LUGAR_1,
     trasladoId: null,
@@ -82,6 +95,8 @@ function ingreso(loteId: string, cantidad: number): Movimiento {
 }
 
 const insumo: Insumo = {
+  unidadCompra: 'caja',
+  contenido: 1,
   tenantId: TENANT_1,
   id: 'insumo-1',
   nombre: 'Anestesia',

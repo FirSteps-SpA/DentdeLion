@@ -36,6 +36,8 @@ import { useLayoutStore } from '../../src/stores/layoutStore'
 import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
 
 const insumoBajo: Insumo = {
+  unidadCompra: 'caja',
+  contenido: 1,
   tenantId: TENANT_1,
   id: 'i1',
   nombre: 'Guantes nitrilo M',
@@ -51,6 +53,11 @@ const insumoBajo: Insumo = {
   creadoPor: null,
 }
 const lote: Lote = {
+  cantidadIngresada: null,
+  unidadIngresada: null,
+  contenido: 1,
+  unidadConsumo: 'unidad',
+  precioCompra: null,
   tenantId: TENANT_1,
   lugarId: LUGAR_1,
   id: 'l1',
@@ -63,6 +70,8 @@ const lote: Lote = {
   creadoEn: 'x',
 }
 const ingreso: Movimiento = {
+  tratamientoRealizadoId: null,
+  unidad: 'unidad',
   tenantId: TENANT_1,
   lugarId: LUGAR_1,
   trasladoId: null,

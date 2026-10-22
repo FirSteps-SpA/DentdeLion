@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { consultaFalsa } from '../helpers/consultaFalsa'
 import type { Insumo, Lote } from '../../src/lib/db'
 import type { MemoryTable } from '../helpers/memoryDb'
 import { authFalso } from '../helpers/authFalso'
@@ -16,6 +17,10 @@ vi.mock('../../src/lib/db', async () => {
       configuracionAlertas: new MemoryTable(),
       configuracionClinica: new MemoryTable(),
       cambiosInsumo: new MemoryTable(),
+      cambiosLote: new MemoryTable(),
+      tratamientos: new MemoryTable(),
+      cambiosTratamiento: new MemoryTable(),
+      tratamientosRealizados: new MemoryTable(),
       categorias: new MemoryTable(),
       itemsCompra: new MemoryTable(),
       usuarioActual: new MemoryTable(),
@@ -36,7 +41,7 @@ const client = {
         return { error: null }
       },
       select() {
-        const resultado = Promise.resolve({ data: [], error: null })
+        const resultado = consultaFalsa({ filas: () => [], error: () => null })
         return Object.assign(resultado, {
           eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
         })
@@ -59,6 +64,8 @@ const insumosT = db.insumos as unknown as MemoryTable<Insumo>
 const lotesT = db.lotes as unknown as MemoryTable<Lote>
 
 const insumoA: Insumo = {
+  unidadCompra: 'caja',
+  contenido: 1,
   tenantId: TENANT_1,
   id: 'a',
   nombre: 'Guantes',
@@ -76,6 +83,11 @@ const insumoA: Insumo = {
 const insumoB: Insumo = { ...insumoA, id: 'b', nombre: 'Bisturí' }
 
 const loteA: Lote = {
+  cantidadIngresada: null,
+  unidadIngresada: null,
+  contenido: 1,
+  unidadConsumo: 'unidad',
+  precioCompra: null,
   tenantId: TENANT_1,
   lugarId: LUGAR_1,
   id: 'lote-a',

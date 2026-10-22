@@ -1,14 +1,29 @@
 import { db, type CambioInsumo, type Insumo } from '../../../lib/db'
 import { permiteDecimales } from './quantity'
+import { normalizarUnidad } from '../../../lib/unidades'
 
 /** Orden total y determinista del ledger: `(creadoEn, id)` (research.md R9). */
-function compararCambios(a: CambioInsumo, b: CambioInsumo): number {
+export function compararCambios(
+  a: { creadoEn: string; id: string },
+  b: { creadoEn: string; id: string },
+): number {
   if (a.creadoEn !== b.creadoEn) return a.creadoEn < b.creadoEn ? -1 : 1
   if (a.id === b.id) return 0
   return a.id < b.id ? -1 : 1
 }
 
 type FilaEditable = Record<string, unknown>
+
+/**
+ * Spec 015 (research.md R1): `pieza` → `unidad`, por si un cambio o una fila
+ * anterior a la migración la trae. Sin `unidadCompra` (fila sin la columna),
+ * vale la unidad de consumo con contenido 1.
+ */
+function normalizarUnidades(fila: Insumo): void {
+  fila.unidadMedida = normalizarUnidad(fila.unidadMedida)
+  fila.unidadCompra = normalizarUnidad(fila.unidadCompra ?? fila.unidadMedida)
+  fila.contenido ??= 1
+}
 
 /**
  * Deshace sobre `fila` los `cambios` dados, campo por campo, devolviendo cada
@@ -75,6 +90,7 @@ export function proyectarInsumo(
     proyectado.dadoDeBajaEn = null
     proyectado.dadoDeBajaPor = null
   }
+  normalizarUnidades(proyectado)
   proyectado.permiteDecimales = permiteDecimales(proyectado.unidadMedida)
   return proyectado
 }
@@ -116,6 +132,7 @@ export function filaParaSubir(insumo: Insumo, cambios: CambioInsumo[]): Insumo {
       fila.dadoDeBajaPor = null
     }
   }
+  normalizarUnidades(fila)
   fila.permiteDecimales = permiteDecimales(fila.unidadMedida)
   return fila
 }

@@ -1,12 +1,12 @@
+import { unidadAdmiteDecimales } from '../../../lib/unidades'
+
 /**
  * Units that allow a fractional (decimal) quantity — mL/g-style units, as
  * opposed to countable units (pieza/caja) where only whole numbers make
  * sense (FR-016, research.md).
  */
-const UNIDADES_DECIMALES = new Set(['mL', 'g'])
-
 export function permiteDecimales(unidadMedida: string): boolean {
-  return UNIDADES_DECIMALES.has(unidadMedida)
+  return unidadAdmiteDecimales(unidadMedida)
 }
 
 export interface QuantityValidation {

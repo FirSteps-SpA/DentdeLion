@@ -14,6 +14,11 @@ function textoAviso(aviso: Aviso): string {
   if (aviso.tipo === 'traslado') {
     return aviso.estado === 'revertido' ? 'Traslado revertido' : (aviso.detalle ?? 'Traslado registrado')
   }
+  if (aviso.tipo === 'tratamiento') {
+    return aviso.estado === 'revertido'
+      ? 'Tratamiento deshecho'
+      : `Registrado: ${aviso.insumoNombre}`
+  }
   if (aviso.estado === 'revertido') return 'Consumo revertido'
   return `Consumido 1 ${aviso.unidadMedida ?? ''} de ${aviso.insumoNombre}`.replace(
     '  ',
@@ -51,11 +56,18 @@ export function AvisosConsumo() {
             <CircleCheck size={18} className="shrink-0 text-success" />
           )}
           <span className="flex-1 py-2">{textoAviso(aviso)}</span>
-          {(aviso.tipo === 'consumo' || aviso.tipo === 'traslado') && aviso.estado === 'pendiente' && (
+          {(aviso.tipo === 'consumo' ||
+            aviso.tipo === 'traslado' ||
+            aviso.tipo === 'tratamiento') &&
+            aviso.estado === 'pendiente' && (
             <button
               type="button"
               onClick={() => void deshacer(aviso.id).catch(() => undefined)}
-              aria-label={`Deshacer consumo de ${aviso.insumoNombre}`}
+              aria-label={
+                aviso.tipo === 'tratamiento'
+                  ? `Deshacer registro de ${aviso.insumoNombre}`
+                  : `Deshacer consumo de ${aviso.insumoNombre}`
+              }
               className="touch-target flex shrink-0 items-center justify-center gap-2 rounded-md border border-white/30 px-3.5 text-sm font-bold text-white hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-brand"
             >
               <Undo size={16} />

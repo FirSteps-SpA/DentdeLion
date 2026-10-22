@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { consultaFalsa } from '../helpers/consultaFalsa'
 import type { Movimiento } from '../../src/lib/db'
 import type { MemoryTable } from '../helpers/memoryDb'
 import { authFalso } from '../helpers/authFalso'
@@ -16,6 +17,10 @@ vi.mock('../../src/lib/db', async () => {
       configuracionAlertas: new MemoryTable(),
       configuracionClinica: new MemoryTable(),
       cambiosInsumo: new MemoryTable(),
+      cambiosLote: new MemoryTable(),
+      tratamientos: new MemoryTable(),
+      cambiosTratamiento: new MemoryTable(),
+      tratamientosRealizados: new MemoryTable(),
       categorias: new MemoryTable(),
       itemsCompra: new MemoryTable(),
       usuarioActual: new MemoryTable(),
@@ -46,7 +51,7 @@ const client = {
         return { error: errorMovimientos }
       },
       select() {
-        const resultado = Promise.resolve({ data: [], error: null })
+        const resultado = consultaFalsa({ filas: () => [], error: () => null })
         return Object.assign(resultado, {
           eq: () => ({
             maybeSingle: async () => ({ data: null, error: null }),
@@ -70,6 +75,8 @@ import { usarLugar1 } from '../helpers/lugarFalso'
 const movimientosT = db.movimientos as unknown as MemoryTable<Movimiento>
 
 const consumoOffline: Movimiento = {
+  tratamientoRealizadoId: null,
+  unidad: 'unidad',
   tenantId: TENANT_1,
   lugarId: LUGAR_1,
   trasladoId: null,

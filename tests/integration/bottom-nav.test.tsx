@@ -53,7 +53,7 @@ function NavHarness() {
       {vista === 'inventario' && <InventarioView />}
       {vista === 'compras' && <ComprasView />}
       {vista === 'alertas' && <AlertasView />}
-      {vista === 'mas' && <AjustesView />}
+      {vista === 'mas' && <AjustesView onNavegar={setVista} />}
     </div>
   )
 }
@@ -89,12 +89,10 @@ describe('4-tab navigation (User Story 4)', () => {
     )
     expect(screen.getByText('Stock bajo')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /Compras/ }))
-    expect(screen.getByRole('button', { name: /Compras/ })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
-    expect(screen.getByRole('heading', { name: 'Compras' })).toBeInTheDocument()
+    // Spec 016 (R7): la barra móvil tiene Tratamientos; Compras está en "Más".
+    expect(
+      screen.getAllByRole('button', { pressed: false }).map((b) => b.textContent),
+    ).toEqual(['Inicio', 'Inventario', 'Tratamientos', 'Más'])
 
     fireEvent.click(screen.getByRole('button', { name: /Más/ }))
     expect(screen.getByRole('button', { name: /Más/ })).toHaveAttribute(
@@ -106,7 +104,9 @@ describe('4-tab navigation (User Story 4)', () => {
   it('shows the full Compras view instead of an error or blank screen (spec 009 FR-001/FR-002)', () => {
     render(<NavHarness />)
 
-    fireEvent.click(screen.getByRole('button', { name: /Compras/ }))
+    // Spec 016 (R7): en móvil, Compras se abre desde "Más".
+    fireEvent.click(screen.getByRole('button', { name: /Más/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Compras' }))
 
     expect(screen.getByRole('heading', { name: 'Compras' })).toBeInTheDocument()
     expect(screen.getByText('Sugeridos por el Sistema')).toBeInTheDocument()
@@ -129,6 +129,8 @@ const insumoBajo = {
   nombre: 'Guantes',
   categoria: 'Cirugía',
   unidadMedida: 'caja',
+  unidadCompra: 'caja',
+  contenido: 1,
   permiteDecimales: false,
   caduca: false,
   codigoFabricante: null,
@@ -149,6 +151,11 @@ const loteBajo = {
   codigoFabricante: null,
   estado: 'activo' as const,
   creadoEn: '2026-01-01T00:00:00.000Z',
+  cantidadIngresada: null,
+  unidadIngresada: null,
+  contenido: 1,
+  unidadConsumo: 'caja',
+  precioCompra: null,
 }
 const ingresoBajo = {
   tenantId: TENANT_1,
@@ -158,6 +165,8 @@ const ingresoBajo = {
   tipo: 'ingreso' as const,
   loteId: 'l-bajo',
   cantidad: 1,
+  unidad: 'caja',
+  tratamientoRealizadoId: null,
   usuarioId: 'u1',
   movimientoOrigenId: null,
   creadoEn: '2026-01-01T00:00:00.000Z',

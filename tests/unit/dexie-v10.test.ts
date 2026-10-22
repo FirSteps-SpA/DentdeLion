@@ -68,7 +68,7 @@ describe('Dexie v10 (spec 014 FR-016/FR-018)', () => {
     const { db } = await import('../../src/lib/db')
     await db.open()
 
-    expect(db.verno).toBe(10)
+    expect(db.verno).toBe(12) // la v10 corre dentro de la cadena hasta la última versión
     const [movimientoSubido, consumoPendiente] = await db.movimientos.bulkGet(['m1', 'm2'])
     expect(movimientoSubido).toMatchObject({
       tenantId: TENANT_1,

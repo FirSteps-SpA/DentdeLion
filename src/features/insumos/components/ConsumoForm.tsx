@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { db, type Insumo, type Lote } from '../../../lib/db'
+import type { Insumo, Lote } from '../../../lib/db'
 import { selectFefoLot, type LoteConStock } from '../lib/fefo'
 import { crearMovimiento } from '../lib/movements'
-import { computeStockLote } from '../lib/stock'
+import { computeStockLote, movimientosNormalizadosDeLote } from '../lib/stock'
 import { validateQuantity } from '../lib/quantity'
 import {
   lotesDeInsumo,
@@ -60,9 +60,9 @@ export function ConsumoForm({ insumoInicial, onDone, lugarId: lugarElegido }: Co
       const lotesDelInsumo = lotesDeInsumo(lotesCache, insumo!.id)
       const conStock = await Promise.all(
         lotesDelInsumo.map(async (lote) => {
-          const movimientos = (
-            await db.movimientos.where('loteId').equals(lote.id).toArray()
-          ).filter((movimiento) => !lugarId || movimiento.lugarId === lugarId)
+          const movimientos = (await movimientosNormalizadosDeLote(lote.id)).filter(
+            (movimiento) => !lugarId || movimiento.lugarId === lugarId,
+          )
           return { lote, stockDisponible: computeStockLote(movimientos) }
         }),
       )
@@ -133,6 +133,7 @@ export function ConsumoForm({ insumoInicial, onDone, lugarId: lugarElegido }: Co
         loteId: loteSeleccionado.lote.id,
         cantidad: cantidadNumerica,
         lugarId: lugarId ?? undefined,
+        unidad: insumo.unidadMedida,
       })
       setMensajeExito(`Consumo de "${insumo.nombre}" registrado.`)
       reiniciar()
