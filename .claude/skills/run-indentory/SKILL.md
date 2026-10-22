@@ -82,6 +82,7 @@ Driver commands:
 | `seed-presentacion <insumoId> <unidadConsumo> <unidadCompra> <contenido>` | Spec 015: sets a purchase presentation directly on the insumo row (e.g. `seed-presentacion art cartucho caja 50`). Call it **before** `seed-lote`, which records the ingreso in the insumo's consumption unit. Screenshot-only shortcut: it bypasses the `cambiosInsumo` ledger |
 | `wait <ms>` | Pause (e.g. `wait 400` so a modal's fade-in finishes before `screenshot`) |
 | `viewport <ancho> [alto]` | Resize the page (375 = móvil, 768 = tablet, 1440 = desktop) |
+| `seed-reportes` | Spec 017: 5 insumos con precio (categorías distintas), 6 meses de consumos y tratamientos realizados en el lugar 1 y en `…0012` (créalo antes con `seed-lugar`), para ver Reportes e Inicio con datos. **Call `reload` right after.** |
 | `seed-lugar <id> <nombre...>` | Spec 014: writes another lugar de trabajo of tenant 1, so the selector, "Todos" and "Trasladar" show up. **Call `reload` right after.** |
 | `reload` | Reload the page (picks up seeded IndexedDB data on boot) |
 | `console [--errors]` | Dump captured console/page-error messages (`--errors` filters to just errors) |

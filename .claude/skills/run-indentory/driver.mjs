@@ -258,6 +258,92 @@ async function runCommand(line) {
       break
     }
 
+    case 'seed-reportes': {
+      // Spec 017: insumos con precio, consumos de 6 meses y tratamientos
+      // realizados en el lugar 1 y en el lugar 2 (si existe), para Reportes.
+      await page.evaluate(
+        () =>
+          new Promise((resolve, reject) => {
+            const req = indexedDB.open('inDENToryDB')
+            req.onsuccess = () => {
+              const db = req.result
+              const tx = db.transaction(
+                ['insumos', 'lotes', 'movimientos', 'tratamientosRealizados'],
+                'readwrite',
+              )
+              const tenantId = '00000000-0000-4000-8000-000000000001'
+              const L1 = '00000000-0000-4000-8000-000000000011'
+              const L2 = '00000000-0000-4000-8000-000000000012'
+              const hoy = new Date()
+              const fecha = (mesesAtras, dia) =>
+                new Date(hoy.getFullYear(), hoy.getMonth() - mesesAtras, dia, 11).toISOString()
+              const insumos = [
+                ['rep-anest', 'Anestesia lidocaína', 'Anestesia', 'cartucho', 650],
+                ['rep-resina', 'Resina A2', 'Restauración', 'g', 1200],
+                ['rep-guante', 'Guantes nitrilo M', 'Protección', 'unidad', 90],
+                ['rep-gasa', 'Gasa estéril', 'Curación', 'unidad', 40],
+                ['rep-hilo', 'Hilo retractor', 'Periodoncia', 'unidad', 300],
+              ]
+              let n = 0
+              const mov = (tipo, loteId, cantidad, unidad, creadoEn, lugarId = L1) =>
+                tx.objectStore('movimientos').put({
+                  id: `rep-m${++n}`, tenantId, lugarId, trasladoId: null, tipo, loteId, cantidad,
+                  unidad, tratamientoRealizadoId: null, usuarioId: 'driver-seed-user',
+                  movimientoOrigenId: null, creadoEn, sincronizado: true,
+                })
+              insumos.forEach(([id, nombre, categoria, unidad, precio], i) => {
+                tx.objectStore('insumos').put({
+                  id, tenantId, nombre, categoria, unidadMedida: unidad, unidadCompra: unidad,
+                  contenido: 1, permiteDecimales: unidad === 'g', caduca: false,
+                  codigoFabricante: null, creadoEn: fecha(7, 1), stockMinimo: null,
+                  dadoDeBajaEn: null, dadoDeBajaPor: null, creadoPor: null,
+                })
+                const loteId = `${id}-lote`
+                tx.objectStore('lotes').put({
+                  id: loteId, tenantId, lugarId: L1, insumoId: id, numeroLote: loteId.toUpperCase(),
+                  proveedor: 'Proveedor Demo', fechaCaducidad: null, codigoFabricante: null,
+                  estado: 'activo', creadoEn: fecha(7, 1), cantidadIngresada: 400,
+                  unidadIngresada: unidad, contenido: 1, unidadConsumo: unidad, precioCompra: precio,
+                })
+                mov('ingreso', loteId, 400, unidad, fecha(7, 1))
+                mov('ingreso', loteId, 100, unidad, fecha(7, 1), L2)
+                for (let m = 5; m >= 0; m--) {
+                  mov('consumo', loteId, 4 + ((i + m) % 5) * 3, unidad, fecha(m, 3 + i))
+                  mov('consumo', loteId, 2 + (i % 3), unidad, fecha(m, 6 + i), L2)
+                }
+              })
+              const tratamientos = [
+                ['Restauración clase II', 45000, 14520],
+                ['Limpieza', 30000, 11200],
+                ['Endodoncia', 120000, 41000],
+              ]
+              let r = 0
+              for (let m = 5; m >= 0; m--) {
+                tratamientos.forEach(([nombre, precio, ganancia], i) => {
+                  for (let k = 0; k < 2 + ((m + i) % 3); k++) {
+                    const lugarId = (k + i) % 3 === 0 ? L2 : L1
+                    tx.objectStore('tratamientosRealizados').put({
+                      id: `rep-r${++r}`, tenantId, lugarId, tratamientoId: `rep-t${i}`, nombre,
+                      precio: lugarId === L2 ? precio + 5000 : precio, porcentajeProfesional: 40,
+                      materiales: [], costoMateriales: 3480, costoCompleto: true,
+                      gananciaEstimada: lugarId === L2 ? ganancia + 2000 : ganancia,
+                      usuarioId: 'driver-seed-user', creadoEn: fecha(m, 2 + k * 3 + i),
+                      anuladoEn: null, anuladoPor: null, sincronizado: true,
+                      anulacionSincronizada: true,
+                    })
+                  }
+                })
+              }
+              tx.oncomplete = () => resolve(undefined)
+              tx.onerror = () => reject(tx.error)
+            }
+            req.onerror = () => reject(req.error)
+          }),
+      )
+      console.log('ok: seeded reportes (5 insumos con precio, 6 meses de consumos y tratamientos)')
+      break
+    }
+
     case 'wait': {
       // wait <ms> — p. ej. para que termine la animación de entrada de un modal antes de la captura.
       await page.waitForTimeout(Number(arg) || 300)

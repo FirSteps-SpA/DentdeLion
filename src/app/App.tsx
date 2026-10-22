@@ -18,6 +18,7 @@ import { AlertasView } from '../features/alertas/components/AlertasView'
 import { contarAlertasPendientes } from '../features/alertas/lib/resumen'
 import { InventarioView } from '../features/insumos/components/InventarioView'
 import { ComprasView } from '../features/compras/components/ComprasView'
+import { ReportesView } from '../features/reportes/components/ReportesView'
 import { AjustesView } from '../features/ajustes/components/AjustesView'
 import { InicioView } from '../features/inicio/components/InicioView'
 import { TratamientosView } from '../features/tratamientos/components/TratamientosView'
@@ -129,6 +130,7 @@ function App() {
           {vista === 'inventario' && <InventarioView />}
           {vista === 'tratamientos' && <TratamientosView />}
           {vista === 'compras' && <ComprasView />}
+          {vista === 'reportes' && <ReportesView onNavegar={setVista} />}
           {vista === 'alertas' && <AlertasView />}
           {vista === 'mas' && <AjustesView onNavegar={setVista} />}
         </AppShell>

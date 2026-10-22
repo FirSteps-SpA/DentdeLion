@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/react'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getSupabaseStatus } from '../supabase'
+import { seleccionarTodo } from './paginar'
 import {
   db,
   type CambioInsumo,
@@ -209,7 +210,7 @@ async function pushTratamientos(client: SupabaseClient, ciclo: CicloSync): Promi
 }
 
 async function pullTratamientos(client: SupabaseClient, ciclo: CicloSync): Promise<void> {
-  const respuesta = await client.from('tratamientos').select('*')
+  const respuesta = await seleccionarTodo(client, 'tratamientos')
   ciclo.registrar('pull tratamientos', errorDe(respuesta))
   if (respuesta.error || !respuesta.data) return
   await db.tratamientos.bulkPut(
@@ -278,7 +279,7 @@ async function pullCambiosTratamiento(
   client: SupabaseClient,
   ciclo: CicloSync,
 ): Promise<void> {
-  const respuesta = await client.from('cambios_tratamiento').select('*')
+  const respuesta = await seleccionarTodo(client, 'cambios_tratamiento')
   ciclo.registrar('pull cambios_tratamiento', errorDe(respuesta))
   if (respuesta.error || !respuesta.data) return
   await db.cambiosTratamiento.bulkPut(
@@ -351,7 +352,7 @@ async function pullTratamientosRealizados(
   client: SupabaseClient,
   ciclo: CicloSync,
 ): Promise<void> {
-  const respuesta = await client.from('tratamientos_realizados').select('*')
+  const respuesta = await seleccionarTodo(client, 'tratamientos_realizados')
   ciclo.registrar('pull tratamientos_realizados', errorDe(respuesta))
   if (respuesta.error || !respuesta.data) return
   const locales = new Map(
@@ -941,7 +942,7 @@ async function pullCambiosInsumo(
   client: SupabaseClient,
   ciclo: CicloSync,
 ): Promise<void> {
-  const respuesta = await client.from('cambios_insumo').select('*')
+  const respuesta = await seleccionarTodo(client, 'cambios_insumo')
   ciclo.registrar('pull cambios_insumo', errorDe(respuesta))
   if (respuesta.error || !respuesta.data) return
   await db.cambiosInsumo.bulkPut(
@@ -1100,7 +1101,7 @@ async function pullCategorias(
   client: SupabaseClient,
   ciclo: CicloSync,
 ): Promise<void> {
-  const respuesta = await client.from('categorias').select('*')
+  const respuesta = await seleccionarTodo(client, 'categorias')
   ciclo.registrar('pull categorias', errorDe(respuesta))
   if (respuesta.error || !respuesta.data) return
   const rechazadasLocalmente = new Set(
@@ -1156,7 +1157,7 @@ async function pullCambiosLote(
   client: SupabaseClient,
   ciclo: CicloSync,
 ): Promise<void> {
-  const respuesta = await client.from('cambios_lote').select('*')
+  const respuesta = await seleccionarTodo(client, 'cambios_lote')
   ciclo.registrar('pull cambios_lote', errorDe(respuesta))
   if (respuesta.error || !respuesta.data) return
   await db.cambiosLote.bulkPut((respuesta.data as CambioLoteRow[]).map(fromCambioLoteRow))
@@ -1363,7 +1364,7 @@ async function pullLugares(
   client: SupabaseClient,
   ciclo: CicloSync,
 ): Promise<void> {
-  const respuesta = await client.from('lugares').select('*')
+  const respuesta = await seleccionarTodo(client, 'lugares')
   ciclo.registrar('pull lugares', errorDe(respuesta))
   if (respuesta.error || !respuesta.data) return
   const locales = new Map(
@@ -1442,7 +1443,7 @@ async function pullInsumos(
   client: SupabaseClient,
   ciclo: CicloSync,
 ): Promise<void> {
-  const respuesta = await client.from('insumos').select('*')
+  const respuesta = await seleccionarTodo(client, 'insumos')
   ciclo.registrar('pull insumos', errorDe(respuesta))
   if (respuesta.error || !respuesta.data) return
   await db.insumos.bulkPut((respuesta.data as InsumoRow[]).map(fromInsumoRow))
@@ -1452,7 +1453,7 @@ async function pullLotes(
   client: SupabaseClient,
   ciclo: CicloSync,
 ): Promise<void> {
-  const respuesta = await client.from('lotes').select('*')
+  const respuesta = await seleccionarTodo(client, 'lotes')
   ciclo.registrar('pull lotes', errorDe(respuesta))
   if (respuesta.error || !respuesta.data) return
   await db.lotes.bulkPut((respuesta.data as LoteRow[]).map(fromLoteRow))
@@ -1462,7 +1463,7 @@ async function pullItemsCompra(
   client: SupabaseClient,
   ciclo: CicloSync,
 ): Promise<void> {
-  const respuesta = await client.from('items_compra').select('*')
+  const respuesta = await seleccionarTodo(client, 'items_compra')
   ciclo.registrar('pull items_compra', errorDe(respuesta))
   if (respuesta.error || !respuesta.data) return
   await db.itemsCompra.bulkPut(
@@ -1495,7 +1496,7 @@ async function pullMovimientos(
   client: SupabaseClient,
   ciclo: CicloSync,
 ): Promise<string[]> {
-  const respuesta = await client.from('movimientos').select('*')
+  const respuesta = await seleccionarTodo(client, 'movimientos')
   ciclo.registrar('pull movimientos', errorDe(respuesta))
   if (respuesta.error || !respuesta.data) return []
   const rows = respuesta.data as MovimientoRow[]

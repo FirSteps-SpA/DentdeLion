@@ -1,4 +1,5 @@
 import { useAuthStore } from '../../src/stores/authStore'
+import { consultaFalsa } from './consultaFalsa'
 
 /**
  * Cliente Supabase falso configurable para las pruebas del ciclo de la spec
@@ -29,6 +30,12 @@ export interface EstadoClienteFalso {
   updates: { tabla: string; id: string; cambios: Record<string, unknown> }[]
   /** Si se define, cualquier upsert lanza (simula un fallo inesperado). */
   lanzar: Error | null
+  /** Spec 017 (R9) — corte de PostgREST (`max_rows`) para cualquier select. */
+  maxRows: number
+  /** Spec 017 — página (1, 2, …) de esa tabla que devuelve error. */
+  errorEnPagina: Record<string, number>
+  /** Spec 017 — páginas pedidas por tabla (`.limit()`), para `errorEnPagina`. */
+  paginasPedidas: Record<string, number>
 }
 
 export function crearEstado(): EstadoClienteFalso {
@@ -45,6 +52,9 @@ export function crearEstado(): EstadoClienteFalso {
     upserts: [],
     updates: [],
     lanzar: null,
+    maxRows: 1000,
+    errorEnPagina: {},
+    paginasPedidas: {},
   }
 }
 
@@ -100,20 +110,19 @@ export function crearClienteFalso(estado: EstadoClienteFalso) {
           }
         },
         select() {
-          const error = estado.errorSelect[nombre] ?? null
-          const resultado: Promise<Respuesta> = Promise.resolve({
-            data: error ? null : [...tabla(nombre).values()].map((f) => structuredClone(f)),
-            error,
-            status: error ? status() : 200,
-          })
-          return Object.assign(resultado, {
-            eq: () => ({
-              maybeSingle: async (): Promise<Respuesta> => ({
-                data: error ? null : structuredClone(tabla(nombre).get('global') ?? null),
-                error,
-                status: error ? status() : 200,
-              }),
-            }),
+          return consultaFalsa({
+            filas: () => [...tabla(nombre).values()],
+            error: () => estado.errorSelect[nombre] ?? null,
+            status: status(),
+            maxRows: estado.maxRows,
+            alPedirPagina: () => {
+              const pagina = (estado.paginasPedidas[nombre] ?? 0) + 1
+              estado.paginasPedidas[nombre] = pagina
+              return estado.errorEnPagina[nombre] === pagina
+                ? { message: `fallo en la página ${pagina}` }
+                : null
+            },
+            maybeSingle: () => tabla(nombre).get('global') ?? null,
           })
         },
       }

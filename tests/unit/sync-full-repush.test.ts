@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { consultaFalsa } from '../helpers/consultaFalsa'
 import type { Insumo, Lote } from '../../src/lib/db'
 import type { MemoryTable } from '../helpers/memoryDb'
 import { authFalso } from '../helpers/authFalso'
@@ -40,7 +41,7 @@ const client = {
         return { error: null }
       },
       select() {
-        const resultado = Promise.resolve({ data: [], error: null })
+        const resultado = consultaFalsa({ filas: () => [], error: () => null })
         return Object.assign(resultado, {
           eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
         })

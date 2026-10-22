@@ -1,6 +1,7 @@
 import {
   Bell,
   Boxes,
+  ChartColumn,
   House,
   Settings,
   ShoppingCart,
@@ -9,7 +10,14 @@ import {
 } from '../components/icons'
 import type { ComponentType } from 'react'
 
-export type Vista = 'inicio' | 'inventario' | 'tratamientos' | 'compras' | 'alertas' | 'mas'
+export type Vista =
+  | 'inicio'
+  | 'inventario'
+  | 'tratamientos'
+  | 'compras'
+  | 'reportes'
+  | 'alertas'
+  | 'mas'
 
 export interface Seccion {
   vista: Vista
@@ -53,6 +61,14 @@ export const SECCIONES: Seccion[] = [
     etiquetaMovil: 'Compras',
     etiquetaLateral: 'Compras',
     Icon: ShoppingCart,
+    soloLateral: true,
+  },
+  {
+    // Spec 017 (research.md R11): sidebar en tablet/desktop; en móvil, desde "Más".
+    vista: 'reportes',
+    etiquetaMovil: 'Reportes',
+    etiquetaLateral: 'Reportes',
+    Icon: ChartColumn,
     soloLateral: true,
   },
   {

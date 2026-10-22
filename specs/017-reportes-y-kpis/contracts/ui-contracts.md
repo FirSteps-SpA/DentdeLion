@@ -49,8 +49,9 @@ Clínica Providencia (del selector de lugar)
 
 Comunes:
 
-- Paleta DS §35 en orden: `#12B8AE`, `#0D5360`, `#7ACCC5`, `#B8E7E2`; "Otras" en un gris del DS;
-  negativos en `#E96767`. Sin 3D, sin degradados, ≤ 5 colores.
+- Paleta validada (research R7): donut `#12B8AE`, `#0D5360`, `#B8E7E2` y `#8CA0A5` ("Otras");
+  una serie en `#12B8AE`; negativos en `#E96767`. Sin 3D, sin degradados, hueco de 2 px del color
+  de la superficie entre sectores y barras. Todo valor visible también como texto.
 - **Objetivo táctil = leyenda y etiquetas, no la figura** (Constitución III): cada fila de la
   leyenda (donut), cada etiqueta de barra (barras horizontales y verticales) y cada mes (fila de
   meses bajo el eje de las líneas) es un botón de ancho completo y ≥ 48 × 48 px; al tocarlo resalta

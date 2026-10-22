@@ -38,7 +38,7 @@ Invariantes verificadas por pruebas:
 1. Σ por lugar de `produccion`, `gasto` y `ganancia` = valor en `'todos'` (SC-003).
 2. Un realizado anulado no cambia ningún valor.
 3. Deshacer un consumo deja el gasto igual a no haberlo registrado, en el período del consumo.
-4. `porCategoria.length ≤ 5`, `masUtilizados.length ≤ 10`, Σ `porCategoria.monto` = `gasto.valor`.
+4. `porCategoria.length ≤ 4`, `masUtilizados.length ≤ 10`, Σ `porCategoria.monto` = `gasto.valor`.
 5. Mismo resultado con cualquier orden de entrada (determinismo).
 
 ## `valorInventario.ts`

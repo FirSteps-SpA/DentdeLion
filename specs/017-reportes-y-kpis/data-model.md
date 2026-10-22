@@ -61,7 +61,7 @@ datos del período).
 | `produccion` | `Kpi` | Σ `precio` de realizados vigentes (R3) |
 | `gasto` | `Kpi` | Consumo valorizado neto (R2) |
 | `ganancia` | `Kpi` | Σ `gananciaEstimada` de realizados vigentes (R3) |
-| `porCategoria` | `{ clave, nombre, monto, porcentaje }[]` | ≤ 5 elementos (4 + "Otras") |
+| `porCategoria` | `{ clave, nombre, monto, porcentaje }[]` | ≤ 4 elementos (3 + "Otras", research R7) |
 | `gastosMensuales` | `{ anio, mes, monto }[]` | 6 o 12 puntos |
 | `masUtilizados` | `{ insumoId, nombre, monto, cantidad, unidad, dadoDeBaja }[]` | ≤ 10, por monto |
 | `gananciaPorLugar` | `{ lugarId, nombre, monto }[] \| null` | `null` salvo "Todos" con ≥ 2 lugares con datos en el período (FR-012) |

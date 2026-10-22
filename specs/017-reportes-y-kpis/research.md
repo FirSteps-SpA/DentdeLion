@@ -103,8 +103,8 @@ Punto de partida (`develop` en `37731c3`, spec 016 incluida):
 
 - **Decision**:
   - **Consumo por categoría**: R2 agrupado por `claveCategoria(insumo.categoria)` (nombre visible:
-    el del catálogo; vacío → "Sin categoría"); orden descendente; si hay más de 5, las 4 mayores +
-    "Otras".
+    el del catálogo; vacío → "Sin categoría"); orden descendente; si hay más de 4, las 3 mayores +
+    "Otras" (ver R7, paleta del donut).
   - **Gastos mensuales**: R2 por mes, 6 meses que terminan en el último mes del período (12 si es
     "Este año"), recortado a la ventana.
   - **Materiales más utilizados**: R2 por insumo (incluye dados de baja, marcados), top 10 por
@@ -127,7 +127,16 @@ Punto de partida (`develop` en `37731c3`, spec 016 incluida):
   gz, Chart.js ≈ 70 kB) pesa más que todo el código propio, agrega una dependencia a la PWA y
   dificulta respetar el área táctil de 48 px y el tema. La pila obligatoria no cubre gráficos, pero
   agregar una dependencia grande no está justificado.
-- **Alternatives considered**: Recharts, Chart.js, `uplot` (descartadas por peso y accesibilidad).
+- **Paleta validada** (T011, `validate_palette.js` de la skill `dataviz`, modo claro): los 4
+  turquesas del DS en cualquier orden **fallan** la distinción con visión normal (ΔE 9–11 < 15:
+  #7ACCC5 queda muy cerca de #12B8AE y de #B8E7E2). El donut usa **#12B8AE, #0D5360, #B8E7E2 y gris
+  #8CA0A5** para "Otras": peor par adyacente ΔE 20,4 (normal) y 20,2 (daltonismo), así que muestra
+  **3 categorías + "Otras"**. Siguen fallando la banda de luminosidad y el croma (son tonos del DS) y
+  el contraste con el fondo (#12B8AE 2,4:1, #B8E7E2 1,3:1); compensan la leyenda con monto y %,
+  las etiquetas de valor, la tabla alternativa y un hueco de 2 px entre sectores. Gráficos de una
+  serie (líneas, barras): #12B8AE con su valor como texto; negativos en #E96767. #7ACCC5 no se usa.
+- **Alternatives considered**: Recharts, Chart.js, `uplot` (descartadas por peso y accesibilidad);
+  donut con 4 turquesas + "Otras" (falla la validación).
 
 ## R8. Valor de inventario (Inicio)
 
@@ -158,6 +167,19 @@ Punto de partida (`develop` en `37731c3`, spec 016 incluida):
   clienta actual (cientos de movimientos al mes). Un pull **incremental** (columna de servidor
   `recibido_en` + cursor) queda como mejora posterior si el volumen lo exige; se mide en el ensayo
   (quickstart §5).
+- **Alcance aplicado (T005)**: se pagina **todo pull de tabla completa** del ciclo (`movimientos`,
+  `lotes`, `cambios_lote`, `cambios_insumo`, `cambios_tratamiento`, `tratamientos_realizados`,
+  `tratamientos`, `insumos`, `categorias`, `lugares`, `items_compra`), no solo las seis que crecen:
+  el costo es el mismo y ninguna queda expuesta al corte. **Excepción**: `minimos_lugar` tiene clave
+  compuesta `(insumo_id, lugar_id)` y no columna `id`, así que sigue con `select('*')`; supera 1.000
+  filas recién con > 1.000 mínimos por lugar definidos (p. ej. 500 insumos × 2 lugares). Queda
+  anotado como límite conocido.
+- **Ensayo (T042, 2026-10-22, Supabase local)**: `scripts/seed-volumen.mjs` crea un tenant con
+  2.600 movimientos, 120 lotes y 1.200 tratamientos realizados en 13 meses. Control: un
+  `select` sin paginar contra el PostgREST real devuelve **1.000** de 2.600 filas. Con la
+  paginación, un perfil limpio de Chromium inicia sesión y su primera sincronización deja en
+  IndexedDB **exactamente** 2.600 / 120 / 1.200 (igual a Postgres), en **0,7 s**, con 19 GET y
+  **1,7 MB** bajados. Por ahora no hace falta el pull incremental.
 - **Por qué cursor y no `range`**: con desplazamiento, una inserción entre páginas corre las filas
   (duplicados, inocuos con `bulkPut`) y un borrado haría saltar una; el cursor por `id` no depende
   del desplazamiento.
@@ -187,5 +209,9 @@ Punto de partida (`develop` en `37731c3`, spec 016 incluida):
   por `(periodo, lugar, versiones de los stores)`. Prueba de rendimiento con 20.000 movimientos y
   3.000 tratamientos sintéticos: cálculo completo < 300 ms en Node (margen para SC-004, < 2 s en el
   dispositivo).
-- **Rationale**: SC-004. La medición en el dispositivo (Chromium con CPU 4× más lenta, semilla de
-  volumen) se anota aquí al hacer T043.
+- **Rationale**: SC-004.
+- **Medición (T039, T043, 2026-10-22)**: en Node, cálculo completo con 20.000 movimientos, 3.000
+  tratamientos, 300 lotes y 3 lugares < 300 ms (prueba `rendimiento.test.ts`). En Chromium headless
+  con CPU **4× más lenta** (CDP), build de **desarrollo** (React sin minificar) y los mismos datos
+  sembrados en IndexedDB, en "Todos": de tocar "Reportes" a ver los KPIs y los 4 gráficos,
+  **330–415 ms** en 3 intentos (SC-004 pide < 2 s).

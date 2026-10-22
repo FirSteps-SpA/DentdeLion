@@ -26,7 +26,7 @@ ni `test:rls` nuevos).
 
 ## Phase 1: Setup
 
-- [ ] T001 Crear las carpetas `src/features/reportes/{lib,components/charts}` y
+- [X] T001 Crear las carpetas `src/features/reportes/{lib,components/charts}` y
   `tests/unit/reportes/`, y agregar `ChartColumn` y `Wallet` a las exportaciones de
   `src/components/icons/index.tsx` (mismo patrón `deLucide` que los otros íconos).
 
@@ -39,51 +39,51 @@ todavía. Las pruebas existentes siguen en verde.
 
 ### Sync: pulls paginados (R9) — puede publicarse solo como arreglo
 
-- [ ] T002 Extender `tests/helpers/clienteFalso.ts`: `select('*')` devuelve un objeto awaitable que
+- [X] T002 Extender `tests/helpers/clienteFalso.ts`: `select('*')` devuelve un objeto awaitable que
   además acepta `.order(columna)`, `.gt(columna, valor)` y `.limit(n)`; agregar `estado.maxRows` (por defecto
   1000) que trunca cualquier `select` (como PostgREST) y `estado.errorEnPagina: Record<string,
   number>` para simular el fallo de una página. Las pruebas existentes no deben cambiar.
-- [ ] T003 Escribir `tests/unit/sync-paginacion.test.ts` (debe fallar antes de T004–T005): con 2.500
+- [X] T003 Escribir `tests/unit/sync-paginacion.test.ts` (debe fallar antes de T004–T005): con 2.500
   movimientos remotos, tras `sincronizar` hay 2.500 en Dexie; con exactamente 2.000 también (página
   final vacía); con error en la página 2, la tabla no se aplica parcialmente y el ciclo registra la
   etapa con error; lo mismo para `lotes` y `tratamientos_realizados`.
-- [ ] T004 Implementar `seleccionarTodo(client, tabla, tamañoPagina = 1000)` en
+- [X] T004 Implementar `seleccionarTodo(client, tabla, tamañoPagina = 1000)` en
   `src/lib/sync/paginar.ts` según lib § Sync: paginación **por cursor**
   (`order('id')`, `limit`, `gt('id', últimoId)` desde la segunda página), corta con página
   incompleta, `{ data: null, error }` ante cualquier error.
-- [ ] T005 Usar `seleccionarTodo` en `pullMovimientos`, `pullLotes`, `pullTratamientosRealizados` y
+- [X] T005 Usar `seleccionarTodo` en `pullMovimientos`, `pullLotes`, `pullTratamientosRealizados` y
   los pulls de `cambios_lote`, `cambios_insumo` y `cambios_tratamiento` de `src/lib/sync/index.ts`,
   conservando el mapeo y el registro en `ciclo`; T003 y todas las `tests/unit/sync-*.test.ts` en
   verde.
 
 ### Cálculo base (lib, puro)
 
-- [ ] T006 [P] Escribir `tests/unit/reportes/periodos.test.ts`: `inicioVentana`, `rangoPeriodo` para
+- [X] T006 [P] Escribir `tests/unit/reportes/periodos.test.ts`: `inicioVentana`, `rangoPeriodo` para
   los 5 tipos (tabla R4: "Este mes" contra mes anterior **completo**, "Últimos 3 meses", "Este año"
   con `anterior = null` desde febrero y no nulo en enero, mes elegido contra el que lo precede, cruce
   de año dic→ene), `mesesSeleccionables` (12 meses, más reciente primero), `enRango` con borde
   `[desde, hasta)`, todo en hora local con `ahora` inyectado.
-- [ ] T007 Implementar `src/features/reportes/lib/periodos.ts` (tipos `Periodo`, `RangoPeriodo` de
+- [X] T007 Implementar `src/features/reportes/lib/periodos.ts` (tipos `Periodo`, `RangoPeriodo` de
   DM; etiquetas "Este mes", "Mes anterior", "Últimos 3 meses", "Este año", "Marzo 2026"), hasta que
   T006 pase.
-- [ ] T008 [P] Escribir `tests/unit/reportes/gasto.test.ts`: `indiceCostos` usa `costoLote` con
+- [X] T008 [P] Escribir `tests/unit/reportes/gasto.test.ts`: `indiceCostos` usa `costoLote` con
   precio corregido (`cambiosLote`) y factores de unidad convertida; `consumosValorizados` valoriza
   `consumo` × costo del lote, netea el `ajuste` con `movimientoOrigenId` **en la fecha y el lugar
   del consumo** aunque el ajuste sea de otro mes, ignora ingresos y traslados, deja `monto = null`
   en lotes sin precio, filtra por lugar o `'todos'`, y da el mismo resultado con la entrada
   desordenada.
-- [ ] T009 Implementar `src/features/reportes/lib/gasto.ts` (`indiceCostos`,
+- [X] T009 Implementar `src/features/reportes/lib/gasto.ts` (`indiceCostos`,
   `consumosValorizados`, tipo `ConsumoValorizado`) reutilizando `costoLote` y `precioVigenteLote`
   (`src/features/insumos/lib/precio.ts`) y `factoresDeUnidad` (`stock.ts`), hasta que T008 pase.
 
 ### Base de UI
 
-- [ ] T010 [P] En `src/components/ui/Card.tsx`, `KpiCard` acepta `onClick` opcional (sin él se
+- [X] T010 [P] En `src/components/ui/Card.tsx`, `KpiCard` acepta `onClick` opcional (sin él se
   renderiza como `<div>` no interactivo), `valor` como `ReactNode`, y props opcionales
   `variacion?: { texto: string; tono: 'success' | 'danger' | 'muted'; direccion: 'sube' | 'baja' |
   null }` y `nota?: ReactNode` bajo el valor (UI §2). Las tarjetas actuales de Inicio no cambian;
   sus pruebas siguen en verde.
-- [ ] T011 [P] Crear la base de gráficos en `src/features/reportes/components/charts/`:
+- [X] T011 [P] Crear la base de gráficos en `src/features/reportes/components/charts/`:
   `colores.ts` (paleta DS §35 en orden, gris para "Otras", rojo para negativos, como variables CSS
   del tema claro/oscuro), `TablaAlternativa.tsx` (tabla `sr-only` + botón "Ver como tabla" ≥ 48 px
   que la muestra) y `TarjetaGrafico.tsx` (`<figure>` con `<figcaption>`, estado "Sin datos en este
@@ -104,53 +104,53 @@ recalcula.
 
 ### Tests for User Story 1
 
-- [ ] T012 [P] [US1] Escribir `tests/unit/reportes/kpis.test.ts` (parte KPIs): `variacion` (R5:
+- [X] T012 [P] [US1] Escribir `tests/unit/reportes/kpis.test.ts` (parte KPIs): `variacion` (R5:
   porcentaje con signo, `nuevo` con base 0, `sin-datos` con `anterior = null`, ambos 0 → `null`);
   `resumenReportes` con producción = Σ precio de vigentes, ganancia = Σ `gananciaEstimada`,
   anulados excluidos, sin precio contados aparte (`incompleto.tratamientosSinPrecio`), con precio
   y sin % (suman a producción, `tratamientosSinPorcentaje`), consumos sin precio en
   `gasto.incompleto.materialesSinPrecio` (insumos distintos), gasto = Σ `consumosValorizados` del rango, `mejora` del
   gasto invertida, `vacio` sin datos, y mes elegido contra el anterior.
-- [ ] T013 [P] [US1] Escribir `tests/integration/reportes.test.tsx` (parte US1) con
+- [X] T013 [P] [US1] Escribir `tests/integration/reportes.test.tsx` (parte US1) con
   `memoryDb`/`authFalso`/`lugarFalso`: escenario de quickstart §2; textos de comparación de FR-005
   ("vs. mes anterior completo" en "Este mes"); selector de período (Mes anterior, Este año con "Sin datos del período anterior", "Elegir mes…" con 12 meses); "N
   tratamientos sin precio"; gasto "desde $X · N materiales sin precio"; ganancia negativa con "−" y
   color de error; estado vacío con accesos a Tratamientos e Inventario; aviso "Puede faltar
   información…" con `syncStore.ultimaExitosaEn = null`; ningún texto "utilidad" salvo "No es
   utilidad contable".
-- [ ] T014 [P] [US1] Escribir `tests/integration/navegacion-reportes.test.tsx`: Reportes en la
+- [X] T014 [P] [US1] Escribir `tests/integration/navegacion-reportes.test.tsx`: Reportes en la
   sidebar (tablet/desktop) entre Compras y Alertas, ausente de la barra inferior móvil, presente en
   "Más" y que abre la vista; actualizar los conteos o el orden de ítems en las pruebas de
   navegación existentes si cambian.
 
 ### Implementation for User Story 1
 
-- [ ] T015 [US1] Implementar `variacion` y `resumenReportes` (KPIs y `vacio`; los campos de
+- [X] T015 [US1] Implementar `variacion` y `resumenReportes` (KPIs y `vacio`; los campos de
   gráficos se agregan en US2/US3 con valores vacíos por ahora) en
   `src/features/reportes/lib/kpis.ts`, filtrando el lugar activo, hasta que T012 pase.
-- [ ] T016 [US1] Implementar `useReportes(periodo)` en `src/features/reportes/useReportes.ts`: lee
+- [X] T016 [US1] Implementar `useReportes(periodo)` en `src/features/reportes/useReportes.ts`: lee
   `inventoryStore` (insumos + dados de baja, lotes, `cambiosLote`, `cambiosInsumo`, movimientos
   normalizados), `tratamientosStore.realizados` y `lugarStore.lugarActivoId`; memoriza
   `indiceCostos` y `consumosValorizados` por identidad de los arrays y `resumenReportes` por
   `(periodo, filtro)`; `ahora` se toma una vez por render. No lee `db.movimientos`.
-- [ ] T017 [P] [US1] Crear `src/features/reportes/components/SelectorPeriodo.tsx`: botón "Este mes
+- [X] T017 [P] [US1] Crear `src/features/reportes/components/SelectorPeriodo.tsx`: botón "Este mes
   ▾" que abre `BottomSheet` en móvil y menú en tablet/desktop (`useDisposicion`), con los 4
   períodos fijos y "Elegir mes…" con `mesesSeleccionables` (UI §2).
-- [ ] T018 [P] [US1] Crear `src/features/reportes/components/TarjetaKpiReporte.tsx` sobre `KpiCard`:
+- [X] T018 [P] [US1] Crear `src/features/reportes/components/TarjetaKpiReporte.tsx` sobre `KpiCard`:
   `formatearCLP` con la utilidad `text-num` (FR-019, DS §5), "desde $X" si incompleto, notas "N tratamientos sin precio" / "N materiales sin
   precio" / "N sin % profesional", texto de variación ("↑ 8 % vs. mes anterior completo", "vs.
   período anterior", "Nuevo", "Sin datos del período anterior") con tono por `mejora`, signo "−" y
   `text-danger` en negativos; la de ganancia usa `ETIQUETA_GANANCIA` y `NOTA_GANANCIA`
   (`src/features/tratamientos/lib/montos.ts`); la de gasto incluye una ayuda que explica que valoriza
   al costo del lote (riesgo del plan).
-- [ ] T019 [P] [US1] Crear `src/features/reportes/components/EstadoVacioReportes.tsx` con el texto
+- [X] T019 [P] [US1] Crear `src/features/reportes/components/EstadoVacioReportes.tsx` con el texto
   de FR-017 y botones a Tratamientos e Inventario (≥ 48 px).
-- [ ] T020 [US1] Crear `src/features/reportes/components/ReportesView.tsx`: título, nombre del lugar
+- [X] T020 [US1] Crear `src/features/reportes/components/ReportesView.tsx`: título, nombre del lugar
   activo, `SelectorPeriodo`, aviso R10 (`syncStore.ultimaExitosaEn === null` o `fase ===
   'sincronizando'` al montar), las 3 tarjetas en orden Producción, Gasto, Ganancia (1 columna en
   móvil, 3 en desktop; padding 32 px y gap 24 px en desktop) y el estado vacío; período elegido en
   estado local (por defecto "Este mes").
-- [ ] T021 [US1] Agregar la vista `'reportes'` en `src/app/navegacion.ts` (`ChartColumn`,
+- [X] T021 [US1] Agregar la vista `'reportes'` en `src/app/navegacion.ts` (`ChartColumn`,
   `soloLateral: true`, entre Compras y Alertas), su render en `src/app/App.tsx` y el acceso
   "Reportes" debajo de Compras en `src/features/ajustes/components/AjustesView.tsx` (UI §1), hasta
   que T013 y T014 pasen.
@@ -169,25 +169,25 @@ gráfico tiene 2 barras ordenadas; en un lugar, no hay gráfico.
 
 ### Tests for User Story 2
 
-- [ ] T022 [P] [US2] Agregar a `tests/unit/reportes/kpis.test.ts`: invariante Σ por lugar =
+- [X] T022 [P] [US2] Agregar a `tests/unit/reportes/kpis.test.ts`: invariante Σ por lugar =
   `'todos'` para producción, gasto y ganancia (SC-003, lib invariante 1); `gananciaPorLugar` de
   mayor a menor, con negativos, `null` en un lugar o en "Todos" con un solo lugar con datos **en el
   período** (aunque el tenant tenga más lugares), e incluye un lugar desactivado con datos del
   período (FR-012).
-- [ ] T023 [P] [US2] Agregar a `tests/integration/reportes.test.tsx`: cambiar el lugar en el
+- [X] T023 [P] [US2] Agregar a `tests/integration/reportes.test.tsx`: cambiar el lugar en el
   selector recalcula; "Todos" muestra la suma y el gráfico Ganancia por lugar con 2 barras y su
   tabla alternativa; en un lugar el gráfico no aparece.
 
 ### Implementation for User Story 2
 
-- [ ] T024 [US2] Completar el filtro `'todos'` y `gananciaPorLugar` en
+- [X] T024 [US2] Completar el filtro `'todos'` y `gananciaPorLugar` en
   `src/features/reportes/lib/kpis.ts` (nombres desde `lugares`, incluidos desactivados), hasta que
   T022 pase.
-- [ ] T025 [P] [US2] Crear `src/features/reportes/components/charts/BarChart.tsx`: barras
+- [X] T025 [P] [US2] Crear `src/features/reportes/components/charts/BarChart.tsx`: barras
   verticales en SVG con línea de cero, negativas hacia abajo en rojo; la **etiqueta de cada lugar es
   un botón ≥ 48 × 48 px** que resalta su barra y muestra el monto exacto (tocar la barra es solo un
   complemento; hover solo en desktop), foco por teclado, `TarjetaGrafico` y `TablaAlternativa` (UI §3).
-- [ ] T026 [US2] En `ReportesView.tsx`, usar "Todos" del selector de lugar (el título dice "Todos
+- [X] T026 [US2] En `ReportesView.tsx`, usar "Todos" del selector de lugar (el título dice "Todos
   los lugares") y mostrar `BarChart` con `gananciaPorLugar` cuando no sea `null`, hasta que T023
   pase.
 
@@ -204,13 +204,13 @@ los 3 gráficos con montos correctos y su alternativa en tabla.
 
 ### Tests for User Story 3
 
-- [ ] T027 [P] [US3] Agregar a `tests/unit/reportes/kpis.test.ts`: `porCategoria` (agrupa por
-  `claveCategoria`, "Sin categoría", ≤ 5 con "Otras", porcentajes, Σ = `gasto.valor`);
+- [X] T027 [P] [US3] Agregar a `tests/unit/reportes/kpis.test.ts`: `porCategoria` (agrupa por
+  `claveCategoria`, "Sin categoría", ≤ 4 (3 mayores + "Otras", R7), porcentajes, Σ = `gasto.valor`);
   `gastosMensuales` (6 puntos o 12 en "Este año", recortado a la ventana, reversión imputada al mes
   del consumo, meses sin consumo en 0); `masUtilizados` (top 10 por monto, cantidad neta en la
   unidad actual tras una conversión, `dadoDeBaja`), y que los lotes sin precio no entran pero se
   cuentan.
-- [ ] T028 [P] [US3] Agregar a `tests/integration/reportes.test.tsx`: los 3 gráficos se muestran con
+- [X] T028 [P] [US3] Agregar a `tests/integration/reportes.test.tsx`: los 3 gráficos se muestran con
   sus títulos; tocar la entrada de la leyenda o la etiqueta de un elemento
   resalta el elemento y muestra el monto exacto, y cada uno de esos objetivos mide ≥ 48 × 48 px
   (Constitución III); "Ver como tabla" muestra las
@@ -219,19 +219,19 @@ los 3 gráficos con montos correctos y su alternativa en tabla.
 
 ### Implementation for User Story 3
 
-- [ ] T029 [US3] Implementar `porCategoria`, `gastosMensuales` y `masUtilizados` en
+- [X] T029 [US3] Implementar `porCategoria`, `gastosMensuales` y `masUtilizados` en
   `src/features/reportes/lib/kpis.ts` desde `consumosValorizados` (un solo recorrido, R12), hasta
   que T027 pase.
-- [ ] T030 [P] [US3] Crear `src/features/reportes/components/charts/DonutChart.tsx`: sectores SVG
+- [X] T030 [P] [US3] Crear `src/features/reportes/components/charts/DonutChart.tsx`: sectores SVG
   (arcos) con la paleta en orden, total al centro; la **leyenda en filas-botón ≥ 48 px** con monto y % resalta su sector y muestra
   el monto exacto; foco por teclado (UI §3).
-- [ ] T031 [P] [US3] Crear `src/features/reportes/components/charts/LineChart.tsx`: línea con puntos
+- [X] T031 [P] [US3] Crear `src/features/reportes/components/charts/LineChart.tsx`: línea con puntos
   marcados, eje X con meses abreviados ("may"), eje Y en pesos compactos ("$120 mil"), y una **fila
   de meses bajo el eje como botones ≥ 48 px** que resaltan el punto y muestran el monto exacto.
-- [ ] T032 [P] [US3] Crear `src/features/reportes/components/charts/HorizontalBarChart.tsx`: hasta
+- [X] T032 [P] [US3] Crear `src/features/reportes/components/charts/HorizontalBarChart.tsx`: hasta
   10 filas; **cada fila (etiqueta "nombre · cantidad + unidad", barra y monto) es un botón ≥ 48 px**
   que la resalta; chip "Dado de baja".
-- [ ] T033 [US3] Integrar los 3 gráficos en `ReportesView.tsx` debajo de los KPIs (1 columna en
+- [X] T033 [US3] Integrar los 3 gráficos en `ReportesView.tsx` debajo de los KPIs (1 columna en
   móvil, 2 en desktop; orden DS §34: categoría, mensuales, materiales, lugar) y el aviso de
   materiales sin precio, hasta que T028 pase.
 
@@ -249,23 +249,23 @@ $X · ↑/↓ N % vs. mes anterior" y al tocarla abre Reportes.
 
 ### Tests for User Story 4
 
-- [ ] T034 [P] [US4] Escribir `tests/unit/reportes/valorInventario.test.ts`: Σ stock × costo de lotes
+- [X] T034 [P] [US4] Escribir `tests/unit/reportes/valorInventario.test.ts`: Σ stock × costo de lotes
   no caducados con stock > 0; excluye caducados a la fecha; `lotesSinPrecio`; reconstrucción al fin
   del mes anterior (ignora movimientos posteriores, considera la caducidad a esa fecha); traslado
   baja en el origen y sube en el destino sin cambiar `'todos'`; unidad convertida.
-- [ ] T035 [P] [US4] Escribir `tests/integration/inicio-valor-inventario.test.tsx`: la tarjeta es la
+- [X] T035 [P] [US4] Escribir `tests/integration/inicio-valor-inventario.test.tsx`: la tarjeta es la
   primera, muestra monto y variación en tono neutro, "desde $X · N lotes sin precio", "Sin precios"
   sin lotes con precio, `aria-label` de UI §4, y al tocarla navega a Reportes; en "Todos" suma los
   lugares.
 
 ### Implementation for User Story 4
 
-- [ ] T036 [US4] Implementar `valorInventario` y `valorInventarioConVariacion` en
+- [X] T036 [US4] Implementar `valorInventario` y `valorInventarioConVariacion` en
   `src/features/reportes/lib/valorInventario.ts` (reutiliza `indiceCostos` y la suma por tipo de
   `computeStockLote`), hasta que T034 pase.
-- [ ] T037 [US4] Agregar `useValorInventario()` a `src/features/reportes/useReportes.ts`
+- [X] T037 [US4] Agregar `useValorInventario()` a `src/features/reportes/useReportes.ts`
   (memorizado como `useReportes`).
-- [ ] T038 [US4] En `src/features/inicio/components/InicioView.tsx`, agregar la tarjeta Valor de
+- [X] T038 [US4] En `src/features/inicio/components/InicioView.tsx`, agregar la tarjeta Valor de
   inventario (`Wallet`) primera, `col-span-2` en móvil y grid `desk:grid-cols-5`, con el monto en `text-num`, la variación en
   `text-muted` y navegación a `'reportes'` (UI §4); ajustar las pruebas de Inicio existentes que
   cuenten tarjetas, hasta que T035 pase.
@@ -276,25 +276,25 @@ $X · ↑/↓ N % vs. mes anterior" y al tocarla abre Reportes.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T039 [P] Escribir `tests/unit/reportes/rendimiento.test.ts`: datos sintéticos de 20.000
+- [X] T039 [P] Escribir `tests/unit/reportes/rendimiento.test.ts`: datos sintéticos de 20.000
   movimientos, 3.000 tratamientos, 300 lotes y 3 lugares; `consumosValorizados` + `resumenReportes`
   + `valorInventarioConVariacion` en < 300 ms (R12, SC-004).
-- [ ] T040 [P] Agregar a `tests/unit/contraste.test.ts` los pares de la paleta de gráficos (textos
+- [X] T040 [P] Agregar a `tests/unit/contraste.test.ts` los pares de la paleta de gráficos (textos
   de leyenda/ejes sobre superficie y etiquetas sobre barras) en tema claro y oscuro, con WCAG AA para
   texto y 3:1 para marcas.
-- [ ] T041 Confirmar que `tests/unit/lecturas-movimientos.test.ts` pasa sin agregar
+- [X] T041 Confirmar que `tests/unit/lecturas-movimientos.test.ts` pasa sin agregar
   `src/features/reportes/` a los permitidos.
-- [ ] T042 Crear `scripts/seed-volumen.mjs` (Supabase local, tenant de prueba: > 2.500 movimientos y
+- [X] T042 *(Hecho 2026-10-22: ver R9.)* Crear `scripts/seed-volumen.mjs` (Supabase local, tenant de prueba: > 2.500 movimientos y
   algunos cientos de tratamientos realizados repartidos en 13 meses) y hacer el ensayo de quickstart
   §5 en un perfil limpio de Chromium: conteo de IndexedDB = Postgres; anotar duración y tamaño del
   ciclo completo en research.md R9.
-- [ ] T043 Verificación visual con `run-indentory` en 375, 768 y 1440 px, tema claro y oscuro:
+- [X] T043 *(Hecho 2026-10-22: capturas en 375, 768 y 1440 px de Inicio y Reportes, con el lugar y en "Todos", y el selector abierto; la app no tiene tema oscuro, así que solo claro. SC-004: 330–415 ms con CPU 4× más lenta, ver R12. Ajustes que salieron de las capturas: tarjeta de Inicio a 2 columnas en móvil, montos alineados en las tarjetas informativas y cierre del menú de período al tocar fuera o con Escape.)* Verificación visual con `run-indentory` en 375, 768 y 1440 px, tema claro y oscuro:
   Reportes (KPIs, 4 gráficos, selector, vacío, aviso) e Inicio con la tarjeta nueva; comparar con DS
   §20 y §34–35. Con la semilla de T042, medir en Chromium con CPU 4× más lenta (DevTools) el tiempo
   desde abrir Reportes hasta ver los KPIs y los 4 gráficos: debe ser < 2 s (SC-004); anotarlo en
   research.md R12. Agregar al driver un comando de semilla de reportes si hace falta.
-- [ ] T044 Recorrer los escenarios de `quickstart.md` §2–§6 (automatizados o en el navegador).
-- [ ] T045 Correr `npm run lint && npm run build && npm test && npm run test:rls`, todo verde.
+- [X] T044 *(Hecho 2026-10-22, automatizado: §2 y §4 en `tests/integration/reportes.test.tsx` (base, sin precio, vacío, aviso de sync, período fuera de la ventana) y `tests/unit/reportes/kpis.test.ts` (anulado, deshacer); §3 en `reportes.test.tsx` "Todos"; §5 en el ensayo de T042; §6 en `inicio-valor-inventario.test.tsx` y las capturas de T043. Modo avión: todo se calcula desde los stores locales, sin red.)* Recorrer los escenarios de `quickstart.md` §2–§6 (automatizados o en el navegador).
+- [X] T045 *(Hecho 2026-10-22: lint sin avisos, build, 750 pruebas en verde en dos corridas seguidas y `test:rls` "Todos los controles OK". La prueba de rendimiento fallaba a veces con la suite en paralelo (337 ms); se optimizó `resumenReportes` (fechas parseadas una vez, serie mensual en una pasada) y se mide el mejor de 3.)* Correr `npm run lint && npm run build && npm test && npm run test:rls`, todo verde.
 - [ ] T046 [P] En `../1stDocs`, actualizar roadmap (017 en curso/hecha) y backlog, incluido el
   hallazgo de los pulls truncados en 1.000 filas (R9) y la decisión de 13 meses (Clarifications Q5).
 - [ ] T047 Descripción del PR: qué calcula cada KPI (Clarifications Q1–Q2), pulls paginados (R9) con

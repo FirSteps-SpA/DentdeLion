@@ -129,8 +129,8 @@ materiales más utilizados del período.
 
 1. **Given** consumos con costo en el período, **When** se muestra **Consumo por categoría**
    (donut), **Then** cada sector es el costo de lo consumido de esa categoría, con su monto y su
-   porcentaje; si hay más de 5 categorías, se muestran las 4 mayores y el resto agrupado en "Otras"
-   (DS §35: máximo 5 colores).
+   porcentaje; si hay más de 4 categorías, se muestran las 3 mayores y el resto agrupado en "Otras"
+   (máximo 4 sectores, ver FR-009).
 2. **Given** el período elegido, **When** se muestra **Gastos mensuales** (líneas), **Then** hay
    un punto por mes con el gasto en materiales (FR-004) de los 6 meses que terminan en el último mes
    del período (12 si el período es "Este año").
@@ -237,7 +237,9 @@ $1.284.500 · ↑ 12 % vs. mes anterior", y al tocarlo abre Reportes.
 **Gráficos**
 
 - **FR-009**: **Consumo por categoría** DEBE ser un donut con el costo consumido por categoría en
-  el período, con un máximo de 5 sectores (4 mayores + "Otras").
+  el período, con un máximo de 4 sectores (3 mayores + "Otras"): los turquesas del DS §35 son una
+  sola familia y solo tres se distinguen bien entre sí, también con daltonismo (validado en la
+  implementación, research R7). Sigue dentro del máximo de 5 colores del DS.
 - **FR-010**: **Gastos mensuales** DEBE ser un gráfico de líneas con el gasto en materiales (FR-004)
   de cada mes: los 6 meses que terminan en el último mes del período, o los 12 del año.
 - **FR-011**: **Materiales más utilizados** DEBE ser un gráfico de barras horizontales con hasta 10
@@ -248,7 +250,8 @@ $1.284.500 · ↑ 12 % vs. mes anterior", y al tocarlo abre Reportes.
   datos en el período.
 - **FR-013**: Los gráficos DEBEN usar la paleta del DS §35 (#12B8AE, #0D5360, #7ACCC5, #B8E7E2 y,
   para alertas o negativos, #F2B84B y #E96767), sin efectos 3D y con no más de 5 colores por
-  gráfico.
+  gráfico. Como varios de esos tonos tienen bajo contraste sobre blanco, todo valor se lee también
+  en texto (leyenda, etiqueta o tabla), nunca solo por el color.
 - **FR-014**: Cada gráfico DEBE mostrar el valor exacto de un elemento al tocar su entrada en la
   leyenda o su etiqueta (al menos 48 × 48 px, Constitución III), y ofrecer una alternativa en texto
   accesible. Tocar la figura directamente es un complemento, nunca el único medio, y nada funciona
