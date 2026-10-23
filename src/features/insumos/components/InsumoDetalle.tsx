@@ -7,7 +7,6 @@ import { useInventoryStore } from '../../../stores/inventoryStore'
 import { nombreLugar, useLugarStore } from '../../../stores/lugarStore'
 import { usePendientesStore } from '../../../stores/pendientesStore'
 import { useAuthStore } from '../../../stores/authStore'
-import { X } from '../../../components/icons'
 import { Card } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { formatearPresentacion } from '../lib/presentacion'
@@ -23,8 +22,6 @@ export interface InsumoDetalleProps {
   /** Spec 015: normalizados a la unidad actual (los de `inventoryStore`). */
   movimientos: (Movimiento | MovimientoNormalizado)[]
   onClose: () => void
-  /** Spec 018: dentro de una hoja (desde Alertas o Inicio), que ya trae "Cerrar". */
-  enHoja?: boolean
 }
 
 /**
@@ -38,7 +35,6 @@ export function InsumoDetalle({
   lotes,
   movimientos,
   onClose,
-  enHoja = false,
 }: InsumoDetalleProps) {
   // Spec 014 US6-3: los traslados del lote, con el lugar del otro lado del par.
   const todosLosMovimientos = useInventoryStore((s) => s.movimientos)
@@ -162,16 +158,6 @@ export function InsumoDetalle({
             Presentación: {formatearPresentacion(insumo)}
           </span>
         </div>
-        {!enHoja && (
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Cerrar detalle"
-            className="touch-target flex items-center justify-center rounded-full text-text-muted"
-          >
-            <X size={20} />
-          </button>
-        )}
       </div>
 
       <p className="text-sm font-bold text-text">

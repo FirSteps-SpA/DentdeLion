@@ -3,7 +3,9 @@
 // `max_rows` = 1.000 filas por tabla) y Reportes con 13 meses de historia.
 // Crea una administradora con contraseña para iniciar sesión en la app.
 //
-// Uso: node scripts/seed-volumen.mjs [--movimientos 2600] [--tratamientos 1200]
+// Spec 020 (research.md R8): `--insumos 200` para probar la paginación de Inventario.
+//
+// Uso: node scripts/seed-volumen.mjs [--insumos 40] [--movimientos 2600] [--tratamientos 1200]
 //      node scripts/seed-volumen.mjs --contar <tenant_id>
 // Requiere `supabase start`. Aborta si la URL no es local.
 
@@ -13,6 +15,7 @@ import { parseArgs } from 'node:util'
 
 const { values } = parseArgs({
   options: {
+    insumos: { type: 'string', default: '40' },
     movimientos: { type: 'string', default: '2600' },
     tratamientos: { type: 'string', default: '1200' },
     contar: { type: 'string' },
@@ -92,10 +95,10 @@ const ahora = new Date()
 const desde = new Date(ahora.getFullYear(), ahora.getMonth() - 12, 1).getTime()
 const fecha = (i, n) => new Date(desde + ((ahora.getTime() - desde) * i) / n).toISOString()
 
-const insumos = Array.from({ length: 40 }, (_, i) => ({
+const insumos = Array.from({ length: Number(values.insumos) }, (_, i) => ({
   id: randomUUID(),
   tenant_id: tenantId,
-  nombre: `Insumo ${i + 1}`,
+  nombre: `Insumo ${String(i + 1).padStart(3, '0')}`,
   categoria: ['Anestesia', 'Restauración', 'Protección', 'Curación', 'Periodoncia'][i % 5],
   unidad_medida: 'unidad',
   unidad_compra: 'unidad',

@@ -4,6 +4,8 @@ import { restaurarInsumo } from '../../insumos/lib/catalogo'
 import { Undo } from '../../../components/icons'
 import { Card } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
+import { VerMas } from '../../../components/ui/VerMas'
+import { useListaPaginada } from '../../../lib/paginacion'
 
 /**
  * Sección "Insumos dados de baja" (spec 010 FR-022/023/024): listar y
@@ -12,6 +14,11 @@ import { TouchButton } from '../../../components/ui/TouchButton'
 export function InsumosBajaSection({ sinTitulo = false }: { sinTitulo?: boolean } = {}) {
   const insumosDadosDeBaja = useInventoryStore((s) => s.insumosDadosDeBaja)
   const [error, setError] = useState<string | null>(null)
+  // Spec 020 FR-003a, FR-014: por nombre y de a 25 con "Ver más".
+  const ordenados = [...insumosDadosDeBaja].sort((a, b) =>
+    a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }),
+  )
+  const lista = useListaPaginada(ordenados, { clave: '', modo: 'ver-mas' })
 
   async function handleRestaurar(insumoId: string) {
     setError(null)
@@ -41,7 +48,7 @@ export function InsumosBajaSection({ sinTitulo = false }: { sinTitulo?: boolean 
         </Card>
       ) : (
         <ul className="flex flex-col gap-2">
-          {insumosDadosDeBaja.map((insumo) => (
+          {lista.visibles.map((insumo) => (
             <li key={insumo.id}>
               <Card className="flex items-center justify-between gap-2 px-3.5 py-2.5">
                 <span className="text-sm text-text">
@@ -66,6 +73,12 @@ export function InsumosBajaSection({ sinTitulo = false }: { sinTitulo?: boolean 
           ))}
         </ul>
       )}
+      <VerMas
+        quedan={lista.quedan}
+        mostrados={lista.visibles.length}
+        total={lista.total}
+        onVerMas={lista.verMas}
+      />
     </section>
   )
 }

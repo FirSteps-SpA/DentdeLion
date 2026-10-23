@@ -40,7 +40,6 @@ export function DetalleDesdeAlerta({ abierto, vistas, onClose }: DetalleDesdeAle
         lotes={vista.datos.lotes.filter((lote) => lote.insumoId === insumo.id)}
         movimientos={vista.datos.movimientos}
         onClose={onClose}
-        enHoja
       />
     </BottomSheet>
   )

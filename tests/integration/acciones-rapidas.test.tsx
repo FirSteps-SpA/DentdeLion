@@ -486,10 +486,10 @@ describe('Baja (User Story 4)', () => {
   it('warns about remaining stock; cancel keeps it; confirm removes it everywhere', async () => {
     useAuthStore.setState({ usuario: admin })
     const { unmount } = render(<Harness />)
+    // Spec 020 R5: el detalle se abre en una hoja; se cierra antes de usar el menú.
     fireEvent.click(screen.getByText('Bisturí'))
-    expect(
-      screen.getByRole('button', { name: 'Cerrar detalle' }),
-    ).toBeInTheDocument()
+    const detalle = screen.getByRole('dialog', { name: 'Detalle del insumo' })
+    fireEvent.click(within(detalle).getByRole('button', { name: 'Cerrar' }))
 
     fireEvent.click(
       screen.getByRole('button', { name: 'Más opciones de Bisturí' }),
@@ -515,7 +515,7 @@ describe('Baja (User Story 4)', () => {
       expect(screen.queryAllByText('Bisturí')).toHaveLength(0),
     )
     expect(
-      screen.queryByRole('button', { name: 'Cerrar detalle' }),
+      screen.queryByRole('dialog', { name: 'Detalle del insumo' }),
     ).not.toBeInTheDocument()
     expect(
       movimientosT

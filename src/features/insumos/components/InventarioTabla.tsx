@@ -1,3 +1,4 @@
+import type { Ref } from 'react'
 import type { EstadoInsumo } from '../lib/estado'
 import { estadoVisual } from '../lib/estado'
 import { ICONO_ESTADO } from '../lib/estadoIconos'
@@ -24,6 +25,9 @@ export interface InventarioTablaProps {
   onOpen: (insumoId: string) => void
   onConsumirUno: (insumoId: string) => void
   onAbrirMenu: (insumoId: string) => void
+  /** Spec 020 R6: título oculto con el rango ("Insumos 26–50 de 200"); se enfoca al cambiar de página. */
+  titulo?: string
+  tituloRef?: Ref<HTMLTableCaptionElement>
 }
 
 const COLUMNAS = [
@@ -49,11 +53,18 @@ export function InventarioTabla({
   onOpen,
   onConsumirUno,
   onAbrirMenu,
+  titulo,
+  tituloRef,
 }: InventarioTablaProps) {
   const costos = useCostosUnitarios()
   return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-card">
+    <div className="scroll-mt-24 overflow-x-auto rounded-lg border border-border bg-surface shadow-card">
       <table className="w-full border-collapse text-left">
+        {titulo && (
+          <caption ref={tituloRef} tabIndex={-1} className="sr-only">
+            {titulo}
+          </caption>
+        )}
         <thead>
           <tr className="border-b border-border">
             {COLUMNAS.map((columna) => (
