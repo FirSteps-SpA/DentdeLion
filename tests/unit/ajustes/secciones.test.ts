@@ -15,16 +15,18 @@ describe('SECCIONES_AJUSTES', () => {
       'lugares',
       'avisos',
       'categorias',
+      'proveedores',
       'baja',
     ])
   })
 
-  it('la administración ve las cinco en orden; el personal solo perfil y avisos', () => {
+  it('la administración ve las seis en orden; el personal solo perfil y avisos', () => {
     expect(seccionesVisibles('administrador').map((s) => s.id)).toEqual([
       'perfil',
       'lugares',
       'avisos',
       'categorias',
+      'proveedores',
       'baja',
     ])
     expect(seccionesVisibles('personal').map((s) => s.id)).toEqual(['perfil', 'avisos'])
@@ -39,13 +41,14 @@ describe('SECCIONES_AJUSTES', () => {
       lugares: ['Lugares de trabajo', 'Lugares de trabajo'],
       avisos: ['Notificaciones y avisos', 'Notificaciones'],
       categorias: ['Categorías', 'Categorías'],
+      proveedores: ['Proveedores', 'Proveedores'],
       baja: ['Insumos dados de baja', 'Insumos dados de baja'],
     })
   })
 
   it('esIdSeccion acepta solo los ids del registro', () => {
     for (const s of SECCIONES_AJUSTES) expect(esIdSeccion(s.id)).toBe(true)
-    expect(esIdSeccion('proveedores')).toBe(false)
+    expect(esIdSeccion('compras')).toBe(false)
     expect(esIdSeccion('')).toBe(false)
     expect(esIdSeccion('x')).toBe(false)
   })
@@ -58,6 +61,7 @@ describe('resumenSeccion', () => {
     lugaresActivos: 3,
     categoriasActivas: 12,
     insumosDadosDeBaja: 3,
+    proveedoresActivos: 6,
     notificaciones: { stockBajo: true, caducidad: true },
     nivelesAvisoDias: [7, 30, 15],
   }
@@ -77,6 +81,12 @@ describe('resumenSeccion', () => {
     expect(resumenSeccion('categorias', { ...listos, categoriasActivas: 0 })).toBe(
       'Sin categorías',
     )
+    expect(resumenSeccion('proveedores', listos)).toBe('6 proveedores')
+    expect(resumenSeccion('proveedores', { ...listos, proveedoresActivos: 1 })).toBe('1 proveedor')
+    expect(resumenSeccion('proveedores', { ...listos, proveedoresActivos: 0 })).toBe(
+      'Sin proveedores',
+    )
+    expect(resumenSeccion('proveedores', { ...listos, proveedoresActivos: null })).toBeNull()
     expect(resumenSeccion('baja', { ...listos, insumosDadosDeBaja: 1 })).toBe(
       '1 insumo dado de baja',
     )

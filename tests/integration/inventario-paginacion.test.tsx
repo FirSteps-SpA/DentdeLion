@@ -48,6 +48,7 @@ function makeLote(insumoId: string, lugarId = LUGAR_1): Lote {
     insumoId,
     numeroLote: 'L1',
     proveedor: 'Proveedor X',
+    proveedorId: null,
     fechaCaducidad: null,
     codigoFabricante: null,
     estado: 'activo',

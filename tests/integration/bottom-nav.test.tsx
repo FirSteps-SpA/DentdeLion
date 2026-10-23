@@ -147,6 +147,7 @@ const loteBajo = {
   insumoId: 'bajo',
   numeroLote: 'L1',
   proveedor: 'P',
+  proveedorId: null,
   fechaCaducidad: null,
   codigoFabricante: null,
   estado: 'activo' as const,

@@ -64,6 +64,7 @@ function lotes(n: number) {
     insumo_id: 'i1',
     numero_lote: `L${i}`,
     proveedor: 'P',
+    proveedorId: null,
     fecha_caducidad: null,
     codigo_fabricante: null,
     estado: 'activo',

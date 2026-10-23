@@ -71,6 +71,7 @@ describe('presentaciones sugeridas (R8, FR-020)', () => {
       insumoId: 'art',
       numeroLote: 'A1',
       proveedor: 'P',
+      proveedorId: null,
       fechaCaducidad,
       codigoFabricante: null,
       estado: 'activo',

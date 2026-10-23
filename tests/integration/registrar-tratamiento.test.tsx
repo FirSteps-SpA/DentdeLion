@@ -87,6 +87,7 @@ function lote(id: string, insumoId: string, fechaCaducidad: string | null, lugar
     insumoId,
     numeroLote: id,
     proveedor: 'P',
+    proveedorId: null,
     fechaCaducidad,
     codigoFabricante: null,
     estado: 'activo',

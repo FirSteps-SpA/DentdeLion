@@ -11,6 +11,12 @@ function textoAviso(aviso: Aviso): string {
   if (aviso.tipo === 'categoria-rechazada') {
     return `La categoría «${aviso.insumoNombre}» no se guardó: ya no tienes permisos de administrador.`
   }
+  if (aviso.tipo === 'proveedor-no-eliminado') {
+    return `No se pudo eliminar «${aviso.insumoNombre}»: tiene lotes registrados.`
+  }
+  if (aviso.tipo === 'proveedor-repetido') {
+    return `El cambio en «${aviso.insumoNombre}» no se guardó: ya existe un proveedor con ese nombre.`
+  }
   if (aviso.tipo === 'traslado') {
     return aviso.estado === 'revertido' ? 'Traslado revertido' : (aviso.detalle ?? 'Traslado registrado')
   }
@@ -50,7 +56,9 @@ export function AvisosConsumo() {
           className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-md bg-text px-3.5 py-1.5 text-left text-sm font-semibold text-white shadow-dropdown"
         >
           {aviso.tipo === 'cambio-rechazado' ||
-          aviso.tipo === 'categoria-rechazada' ? (
+          aviso.tipo === 'categoria-rechazada' ||
+          aviso.tipo === 'proveedor-no-eliminado' ||
+          aviso.tipo === 'proveedor-repetido' ? (
             <AlertTriangle size={18} className="shrink-0 text-warning-30-bg" />
           ) : (
             <CircleCheck size={18} className="shrink-0 text-success" />

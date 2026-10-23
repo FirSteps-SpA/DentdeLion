@@ -11,6 +11,7 @@ vi.mock('../../../src/lib/db', async () => {
   const { createMemoryDb, MemoryTable } = await import('../../helpers/memoryDb')
   return {
     db: createMemoryDb({
+      proveedores: new MemoryTable(),
       insumos: new MemoryTable(),
       tratamientos: new MemoryTable(),
       cambiosTratamiento: new MemoryTable(),

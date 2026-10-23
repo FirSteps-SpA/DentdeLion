@@ -16,6 +16,7 @@ import { useAuthStore } from '../../src/stores/authStore'
 import { useAlertasStore } from '../../src/stores/alertasStore'
 import { LUGAR_1, LUGAR_2, TENANT_1 } from '../helpers/tenancy'
 import { usarDosLugares, usarLugar1 } from '../helpers/lugarFalso'
+import { proveedorFalso } from '../helpers/proveedor'
 
 /**
  * Spec 018 — Alertas: textos de caducidad sin lote (US2, FR-006–FR-010),
@@ -69,6 +70,7 @@ function lote(id: string, insumoId: string, numeroLote: string, fecha: string | 
     insumoId,
     numeroLote,
     proveedor: 'Proveedor X',
+    proveedorId: null,
     fechaCaducidad: fecha,
     codigoFabricante: null,
     estado: 'activo',
@@ -164,6 +166,20 @@ describe('Alertas de caducidad (spec 018 US2)', () => {
     const renglon = screen.getByRole('button', { name: /Ver detalle de Resina A2/ })
     const badge = within(renglon).getByText('Caducado')
     expect(badge.closest('span')?.className).toMatch(/bg-danger-bg/)
+  })
+
+  it('spec 021: cada lote muestra el nombre actual de su proveedor (o el texto, sin proveedorId)', () => {
+    const { lotes } = useInventoryStore.getState()
+    useInventoryStore.setState({
+      lotes: lotes.map((l) => (l.numeroLote === 'L-1' ? { ...l, proveedorId: 'sur' } : l)),
+      proveedores: [proveedorFalso({ id: 'sur', nombre: 'Dental Sur Ltda.' })],
+    })
+    render(<AlertasView />)
+    fireEvent.click(screen.getAllByRole('button', { name: /Ver detalle de Lidocaína 2 %/ })[0])
+
+    const hoja = screen.getByRole('dialog', { name: 'Detalle del insumo' })
+    expect(within(hoja).getByText(/Lote L-1 · Dental Sur Ltda\. — vence/)).toBeInTheDocument()
+    expect(within(hoja).getByText(/Lote L-2 · Proveedor X — vence/)).toBeInTheDocument()
   })
 
   it('tocar una alerta abre el detalle con los lotes y cerrarlo vuelve a Alertas', () => {

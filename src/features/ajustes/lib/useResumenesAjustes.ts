@@ -3,6 +3,7 @@ import { useAlertasStore } from '../../../stores/alertasStore'
 import { useInventoryStore } from '../../../stores/inventoryStore'
 import { lugaresActivos, useLugarStore } from '../../../stores/lugarStore'
 import { catalogoCategorias } from '../../insumos/lib/categorias'
+import { activos } from '../../proveedores/lib/proveedores'
 import { SECCIONES_AJUSTES, resumenSeccion, type IdSeccion } from './secciones'
 
 /**
@@ -16,6 +17,7 @@ export function useResumenesAjustes(): Record<IdSeccion, string | null> {
   const insumos = useInventoryStore((s) => s.insumos)
   const categorias = useInventoryStore((s) => s.categorias)
   const insumosDadosDeBaja = useInventoryStore((s) => s.insumosDadosDeBaja)
+  const proveedores = useInventoryStore((s) => s.proveedores)
   const inventarioListo = useInventoryStore((s) => s.isReady)
   const alertasListas = useAlertasStore((s) => s.isReady)
   const preferenciaStockBajo = useAlertasStore((s) => s.preferenciaStockBajo)
@@ -31,6 +33,7 @@ export function useResumenesAjustes(): Record<IdSeccion, string | null> {
           .length
       : null,
     insumosDadosDeBaja: inventarioListo ? insumosDadosDeBaja.length : null,
+    proveedoresActivos: inventarioListo ? activos(proveedores).length : null,
     notificaciones: alertasListas
       ? { stockBajo: preferenciaStockBajo, caducidad: preferenciaCaducidad }
       : null,

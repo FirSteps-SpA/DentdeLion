@@ -11,6 +11,7 @@ import { AvisosSection } from './AvisosSection'
 import { MinimosPorInsumoSection } from './MinimosPorInsumoSection'
 import { CategoriasSection } from './CategoriasSection'
 import { InsumosBajaSection } from './InsumosBajaSection'
+import { ProveedoresSection } from './ProveedoresSection'
 
 /**
  * Subpantalla de una sección de Ajustes (spec 019 FR-004/007, UI §3):
@@ -72,6 +73,7 @@ export function SeccionAjustesPantalla({
         </>
       )}
       {id === 'categorias' && <CategoriasSection sinTitulo />}
+      {id === 'proveedores' && <ProveedoresSection />}
       {id === 'baja' && <InsumosBajaSection sinTitulo />}
     </div>
   )

@@ -12,6 +12,7 @@ import {
   type Movimiento,
   type Tratamiento,
   type TratamientoRealizado,
+  type Proveedor,
 } from '../db'
 
 /** Tablas de Dexie indexadas por `tenantId` (spec 014 Dexie v10). */
@@ -30,6 +31,8 @@ interface TablasPorTenant {
   tratamientos: Tratamiento
   cambiosTratamiento: CambioTratamiento
   tratamientosRealizados: TratamientoRealizado
+  /** Spec 021 (Dexie v13). */
+  proveedores: Proveedor
 }
 
 /** Lo mínimo de una tabla Dexie indexada por `tenantId` que necesita `delTenant`. */
@@ -62,13 +65,14 @@ export async function delTenant<K extends keyof TablasPorTenant>(
  *
  * "Pendiente" según la tabla:
  * - `movimientos`, `cambiosInsumo`, `cambiosLote`, `categorias`, `lugares`,
- *   `minimosLugar`: la bandera `sincronizado`;
+ *   `minimosLugar`, `proveedores`: la bandera `sincronizado` (un proveedor
+ *   pendiente se conserva, así los lotes pendientes que lo usan pueden subir);
  * - `insumos` y `lotes` no tienen bandera: se conservan los que referencia un
  *   pendiente que se conserva (sin ellos, ese pendiente no podría subir);
  * - `itemsCompra` tampoco tiene bandera y no lo referencia nada: se conservan
  *   los `pendiente`, que pueden no haber subido nunca;
- * - la configuración global (fila única) se borra: es por tenant y la vuelve
- *   a bajar el sync.
+ * - la configuración de alertas (fila única) se borra: es por tenant y la
+ *   vuelve a bajar el sync.
  */
 export async function aislarDatosLocales(tenantId: string): Promise<void> {
   await db.transaction(
@@ -87,7 +91,7 @@ export async function aislarDatosLocales(tenantId: string): Promise<void> {
       db.cambiosTratamiento,
       db.tratamientosRealizados,
       db.configuracionAlertas,
-      db.configuracionClinica,
+      db.proveedores,
     ],
     async () => {
       const ajeno = (fila: { tenantId?: string }) => fila.tenantId !== tenantId
@@ -174,10 +178,11 @@ export async function aislarDatosLocales(tenantId: string): Promise<void> {
           .filter(sincronizadoAjeno)
           .map((m): [string, string] => [m.insumoId, m.lugarId]),
       )
-      for (const tabla of [db.configuracionAlertas, db.configuracionClinica]) {
-        const config = (await tabla.get('global')) as { tenantId?: string } | undefined
-        if (config && ajeno(config)) await tabla.delete('global')
-      }
+      await db.proveedores.bulkDelete(
+        (await db.proveedores.toArray()).filter(sincronizadoAjeno).map((p) => p.id),
+      )
+      const config = await db.configuracionAlertas.get('global')
+      if (config && ajeno(config)) await db.configuracionAlertas.delete('global')
       // `lugarActivo` no se toca: si el guardado es de otro tenant, `lugarStore`
       // ya no lo encuentra entre los lugares del tenant y usa el principal.
     },
@@ -205,6 +210,7 @@ export async function descargarLugares(client: {
           nombre: string
           desactivado_en: string | null
           creado_en: string
+          proveedor_predeterminado_id?: string | null
         }[]
       ).map((row) => ({
         id: row.id,
@@ -213,6 +219,7 @@ export async function descargarLugares(client: {
         desactivadoEn: row.desactivado_en ?? null,
         creadoEn: row.creado_en,
         sincronizado: true,
+        proveedorPredeterminadoId: row.proveedor_predeterminado_id ?? null,
       })),
     )
   } catch {

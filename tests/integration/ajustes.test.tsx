@@ -16,6 +16,7 @@ vi.mock('../../src/lib/db', async () => {
   const { createMemoryDb, MemoryTable } = await import('../helpers/memoryDb')
   return {
     db: createMemoryDb({
+      proveedores: new MemoryTable(),
       lugares: new MemoryTable(),
       minimosLugar: new MemoryTable(),
       lugarActivo: new MemoryTable(),
@@ -355,6 +356,7 @@ describe('Ajustes — Lugares de trabajo (spec 014 US4)', () => {
         insumoId: 'a',
         numeroLote: 'L1',
         proveedor: 'P',
+        proveedorId: null,
         fechaCaducidad: null,
         codigoFabricante: null,
         estado: 'activo',
@@ -498,7 +500,7 @@ describe('Índice de Ajustes (spec 019 US1)', () => {
   const tarjetas = () =>
     within(screen.getByRole('list', { name: 'Secciones de Ajustes' })).getAllByRole('button')
 
-  it('abre en el índice con las cinco tarjetas en orden y sus resúmenes', () => {
+  it('abre en el índice con las seis tarjetas en orden y sus resúmenes', () => {
     useAuthStore.setState({ usuario: admin, isReady: true })
     categoriasT.seed([categoria('c1', 'Ortodoncia')])
     insumosT.seed([insumo('a', 'Anestesia local', { categoria: 'Ortodoncia' })])
@@ -511,6 +513,7 @@ describe('Índice de Ajustes (spec 019 US1)', () => {
       'Lugares de trabajo1 lugar',
       'Notificaciones y avisosStock bajo y caducidad · Avisos a 30, 7 y 1 días',
       `Categorías${CATEGORIAS_PRECARGADAS.length + 1} categorías`,
+      'ProveedoresSin proveedores',
       'Insumos dados de bajaSin insumos dados de baja',
     ])
     expect(screen.getByRole('button', { name: 'Categorías' })).toHaveAccessibleDescription(

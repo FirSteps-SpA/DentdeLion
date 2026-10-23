@@ -112,22 +112,35 @@ export class MemoryTable<T extends Row> {
 
   where(campo: keyof T & string) {
     return {
-      equals: (valor: unknown) => ({
-        toArray: async () =>
-          [...this.rows.values()]
-            .filter((row) => (row as Record<string, unknown>)[campo] === valor)
-            .map(clone),
-      }),
+      equals: (valor: unknown) =>
+        this.coleccion((row) => (row as Record<string, unknown>)[campo] === valor),
     }
   }
 
   toCollection() {
-    return { first: async () => this.all()[0] }
+    return { ...this.coleccion(() => true), first: async () => this.all()[0] }
   }
 
   filter(fn: (row: T) => boolean) {
+    return this.coleccion(fn)
+  }
+
+  /** Lo que usa la app de una `Collection` de Dexie: leer, contar y `modify`. */
+  private coleccion(fn: (row: T) => boolean) {
     return {
       toArray: async () => [...this.rows.values()].filter(fn).map(clone),
+      count: async () => [...this.rows.values()].filter(fn).length,
+      modify: async (cambio: Partial<T> | ((row: T) => void)) => {
+        const filas = [...this.rows.entries()].filter(([, row]) => fn(row))
+        for (const [clave, row] of filas) {
+          const copia = clone(row)
+          if (typeof cambio === 'function') cambio(copia)
+          else Object.assign(copia, cambio)
+          this.rows.set(clave, copia)
+        }
+        if (filas.length > 0) this.changed()
+        return filas.length
+      },
     }
   }
 

@@ -8,6 +8,7 @@ import type {
   Lote,
   Movimiento,
   UsuarioActual,
+  Proveedor,
 } from '../../src/lib/db'
 import type { MemoryTable } from '../helpers/memoryDb'
 
@@ -15,6 +16,7 @@ vi.mock('../../src/lib/db', async () => {
   const { createMemoryDb, MemoryTable } = await import('../helpers/memoryDb')
   return {
     db: createMemoryDb({
+      proveedores: new MemoryTable(),
       lugares: new MemoryTable(),
       minimosLugar: new MemoryTable(),
       lugarActivo: new MemoryTable(),
@@ -46,10 +48,12 @@ import { useAuthStore } from '../../src/stores/authStore'
 import { ComprasView } from '../../src/features/compras/components/ComprasView'
 import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
 import { usarLugar1 } from '../helpers/lugarFalso'
+import { usarProveedorPredeterminado } from '../helpers/proveedor'
 
 const insumosT = db.insumos as unknown as MemoryTable<Insumo>
 const categoriasT = db.categorias as unknown as MemoryTable<Categoria>
 const lotesT = db.lotes as unknown as MemoryTable<Lote>
+const proveedoresT = db.proveedores as unknown as MemoryTable<Proveedor>
 const movimientosT = db.movimientos as unknown as MemoryTable<Movimiento>
 const borradoresT = db.borradores as unknown as MemoryTable<Borrador>
 const itemsCompraT = db.itemsCompra as unknown as MemoryTable<ItemCompra>
@@ -96,6 +100,7 @@ function makeLote(overrides: Partial<Lote>): Lote {
     insumoId: 'insumo-1',
     numeroLote: 'L1',
     proveedor: 'Proveedor X',
+    proveedorId: null,
     fechaCaducidad: fechaEnDias(90),
     codigoFabricante: null,
     estado: 'activo',
@@ -169,6 +174,10 @@ afterEach(() => {
 
 // Spec 014: un tenant de un solo lugar, como la clínica original.
 beforeEach(usarLugar1)
+// Spec 021: el lugar 1 tiene un proveedor predeterminado, que viene elegido.
+beforeEach(() => {
+  usarProveedorPredeterminado(proveedoresT)
+})
 
 describe('ComprasView — Sugeridos por el Sistema (User Story 1)', () => {
   it('shows an insumo with stock bajo under "Stock Mínimo" (FR-004)', () => {
@@ -248,9 +257,6 @@ describe('ComprasView — Marcar un ítem sugerido como recibido (User Story 2)'
     fireEvent.change(screen.getByLabelText('Número de lote'), {
       target: { value: 'L-2' },
     })
-    fireEvent.change(screen.getByLabelText('Proveedor'), {
-      target: { value: 'Proveedor Y' },
-    })
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar recepción' }))
 
     await waitFor(() => expect(lotesT.all()).toHaveLength(2))
@@ -274,9 +280,6 @@ describe('ComprasView — Marcar un ítem sugerido como recibido (User Story 2)'
 
     fireEvent.change(screen.getByLabelText('Número de lote'), {
       target: { value: 'L-2' },
-    })
-    fireEvent.change(screen.getByLabelText('Proveedor'), {
-      target: { value: 'Proveedor Y' },
     })
     // -3 días (no -1): margen suficiente para que la fecha quede en el
     // pasado sin importar el desfase UTC/huso local de `fechaEnDias` — igual
@@ -328,9 +331,6 @@ describe('ComprasView — Marcar un ítem sugerido como recibido (User Story 2)'
     await screen.findByRole('heading', { name: 'Recibir Guantes M' })
     fireEvent.change(screen.getByLabelText('Número de lote'), {
       target: { value: 'L-2' },
-    })
-    fireEvent.change(screen.getByLabelText('Proveedor'), {
-      target: { value: 'Proveedor Y' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar recepción' }))
 
@@ -401,9 +401,6 @@ describe('ComprasView — Agregar y gestionar ítems manuales (User Story 3)', (
     await screen.findByRole('heading', { name: 'Recibir Composite A2' })
     fireEvent.change(screen.getByLabelText('Número de lote'), {
       target: { value: 'L-3' },
-    })
-    fireEvent.change(screen.getByLabelText('Proveedor'), {
-      target: { value: 'Proveedor Z' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar recepción' }))
 

@@ -40,8 +40,8 @@ const rechazoRls = {
 
 /**
  * Filas de configuración global con el contrato de research.md R5. La de
- * `configuracionClinica` ya no se sincroniza desde la spec 014 (la reemplazan
- * los lugares de trabajo).
+ * `configuracionClinica` dejó de sincronizarse en la spec 014 (la reemplazan
+ * los lugares de trabajo) y la spec 021 la eliminó.
  */
 const casos = [
   {
