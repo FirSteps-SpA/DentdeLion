@@ -156,6 +156,7 @@ beforeEach(async () => {
 })
 
 afterEach(() => {
+  window.history.replaceState(null, '', '/')
   detener?.()
   detener = null
   onMemoryDbChange(null)
@@ -358,6 +359,11 @@ describe('US3 — Sincronizar ahora', () => {
   })
 })
 
+/** Spec 019: Ajustes abre la sección de la URL, como al recargar. */
+function abrirSeccionAvisos() {
+  window.history.replaceState(null, '', '/#ajustes/avisos')
+}
+
 describe('US4 — aviso de pendientes antiguos', () => {
   it('(a) un pendiente de más de 24 h muestra la alerta y su detalle', async () => {
     await db.movimientos.add(consumo('m1', 'B', haceHoras(30)))
@@ -371,6 +377,8 @@ describe('US4 — aviso de pendientes antiguos', () => {
   it('(b) un administrador baja el umbral en Ajustes y la alerta aparece sin recargar', async () => {
     useAuthStore.setState({ usuario: usuario('administrador'), isReady: true })
     await db.movimientos.add(consumo('m1', 'B', haceHoras(2)))
+    // Spec 019: el campo vive en la sección "Notificaciones y avisos".
+    abrirSeccionAvisos()
     render(
       <>
         <AppHeader />
@@ -389,6 +397,7 @@ describe('US4 — aviso de pendientes antiguos', () => {
 
   it.each(['0', '200'])('(c) %s horas es inválido y no se guarda', async (valor) => {
     useAuthStore.setState({ usuario: usuario('administrador'), isReady: true })
+    abrirSeccionAvisos()
     render(<AjustesView />)
 
     const campo = screen.getByLabelText('Horas sin subir antes de avisar')
@@ -402,6 +411,7 @@ describe('US4 — aviso de pendientes antiguos', () => {
   })
 
   it('(d) quien no es administrador no ve el campo, pero sí el umbral en el panel', async () => {
+    abrirSeccionAvisos()
     render(
       <>
         <AppHeader />

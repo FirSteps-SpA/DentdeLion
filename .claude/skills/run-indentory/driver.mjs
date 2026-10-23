@@ -97,6 +97,17 @@ async function runCommand(line) {
       console.log('ok: reloaded')
       break
 
+    // Spec 019: "atrás" del navegador y la URL actual (sección de Ajustes en el hash).
+    case 'back':
+      await page.goBack({ waitUntil: 'commit' }).catch(() => null)
+      await page.waitForTimeout(200)
+      console.log(`ok: back → ${page.url()}`)
+      break
+
+    case 'url':
+      console.log(`url: ${page.url()}`)
+      break
+
     // Spec 018: rueda real del mouse sobre un campo enfocado. Informa valor
     // antes/después, si conserva el foco y cuánto se desplazó la página.
     case 'wheel': {

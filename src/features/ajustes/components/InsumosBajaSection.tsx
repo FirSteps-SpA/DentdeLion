@@ -9,7 +9,7 @@ import { TouchButton } from '../../../components/ui/TouchButton'
  * Sección "Insumos dados de baja" (spec 010 FR-022/023/024): listar y
  * restaurar. Solo administradores.
  */
-export function InsumosBajaSection() {
+export function InsumosBajaSection({ sinTitulo = false }: { sinTitulo?: boolean } = {}) {
   const insumosDadosDeBaja = useInventoryStore((s) => s.insumosDadosDeBaja)
   const [error, setError] = useState<string | null>(null)
 
@@ -24,7 +24,8 @@ export function InsumosBajaSection() {
 
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="text-h3 text-text">Insumos dados de baja</h2>
+      {/* Spec 019: dentro de su subpantalla, el título lo pone la pantalla. */}
+      {!sinTitulo && <h2 className="text-h3 text-text">Insumos dados de baja</h2>}
       {error && (
         <Card className="bg-danger-bg px-3.5 py-2.5">
           <p role="alert" className="text-sm text-danger">

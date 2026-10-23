@@ -23,7 +23,9 @@ AjustesView({ onNavegar?: (vista: Vista) => void })
   nombre accesible es el título (el resumen va como descripción, `aria-describedby`).
 - Contenido de la tarjeta: ícono (decorativo, `aria-hidden`), título (`text-h3`), resumen
   (`text-sm text-text-muted`, una línea con `truncate`) y chevron a la derecha.
-- Área táctil: toda la tarjeta, alto mínimo 72 px (≥ 48 px, Constitución III); foco visible del DS.
+- Área táctil: toda la tarjeta, alto mínimo 56 px en móvil (para que el índice entre en una pantalla)
+  y 72 px desde tablet (≥ 48 px, Constitución III); foco visible del DS.
+- Móvil: Compras y Reportes lado a lado en una fila de dos columnas arriba del índice.
 - Grilla: 1 columna en móvil, 2 desde `md`, 3 desde `xl`, dentro de `max-w-5xl`.
 
 Títulos por rol:

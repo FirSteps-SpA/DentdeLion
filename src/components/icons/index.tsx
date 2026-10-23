@@ -3,6 +3,7 @@
  * marcaba cada ícono. */
 import type { LucideIcon } from 'lucide-react'
 import {
+  Archive as LucideArchive,
   ArrowLeft as LucideArrowLeft,
   Bell as LucideBell,
   Boxes as LucideBoxes,
@@ -157,3 +158,5 @@ export const Traslado = deLucide(ArrowRightLeft)
 export const Users = deLucide(LucideUsers)
 export const Link = deLucide(LucideLink)
 export const MessageCircle = deLucide(LucideMessageCircle)
+/** Spec 019 — sección "Insumos dados de baja" de Ajustes. */
+export const Archive = deLucide(LucideArchive)

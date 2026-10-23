@@ -14,6 +14,8 @@ description: "Task list for 019-ajustes-por-secciones"
 (no hay `user-event`), helpers de `tests/helpers/` (`memoryDb.ts`, `lugarFalso.ts`, `tenancy.ts`,
 `clienteFalso.ts`, `consultaFalsa.ts`, `tablasMemoria.ts`). Verificación visual con `run-indentory`.
 
+**Desvíos al implementar**: `useResumenesAjustes` vive en su propio archivo (`lib/useResumenesAjustes.ts`) para que la prueba unitaria de `secciones.ts` no cargue stores ni Dexie; la vista inicial de `App` pasó a un hook `src/app/useVista.ts` para probar la URL sin montar toda la app (T009, T017); `NotificacionesSection` también recibe `sinTitulo`.
+
 **Organization**: por historia de spec.md. `R#` = research.md, "UI §n" = `contracts/ui-contracts.md`,
 "QS §n" = quickstart.md, "DM" = data-model.md. Sin esquema, migración, versión de Dexie ni `test:rls`
 nuevos.
@@ -27,7 +29,7 @@ nuevos.
 
 ## Phase 1: Setup
 
-- [ ] T001 Confirmar la línea base en la rama `019-ajustes-por-secciones`: `npm run lint && npm test`
+- [X] T001 Confirmar la línea base en la rama `019-ajustes-por-secciones`: `npm run lint && npm test`
   en verde antes de tocar código, y anotar el número de pruebas y archivos para comparar en T036.
 
 ---
@@ -37,13 +39,13 @@ nuevos.
 **Purpose**: el registro de secciones y el manejo de la URL que usan US1 y US2 (R1, R2). US3 y US4 no
 dependen de esta fase.
 
-- [ ] T002 [P] Escribir `tests/unit/ajustes/secciones.test.ts` (parte de visibilidad): el orden de
+- [X] T002 [P] Escribir `tests/unit/ajustes/secciones.test.ts` (parte de visibilidad): el orden de
   `SECCIONES_AJUSTES` es `perfil, lugares, avisos, categorias, baja`; `seccionesVisibles('administrador')`
   devuelve las cinco en ese orden; `seccionesVisibles('personal')` devuelve solo `perfil` y `avisos`;
   `titulo(true)`/`titulo(false)` da "Perfil y equipo"/"Perfil" y "Notificaciones y avisos"/
   "Notificaciones", y el mismo título en ambos roles para el resto (tabla de UI §2); `esIdSeccion`
   acepta los cinco ids y rechaza `'proveedores'`, `''` y `'x'`.
-- [ ] T003 [P] Escribir `tests/unit/ajustes/seccionUrl.test.ts` (UI §4) con `window.history` y
+- [X] T003 [P] Escribir `tests/unit/ajustes/seccionUrl.test.ts` (UI §4) con `window.history` y
   `location` de jsdom, restaurando la URL en `afterEach`: `leerSeccionDeUrl('#ajustes/categorias')` →
   `'categorias'`; `'#ajustes/nada'`, `'#otra'` y `''` → `null`; `abrirSeccion('lugares')` deja
   `location.hash === '#ajustes/lugares'` y `history.state` con `{ ajustes: 'lugares' }` y suma una
@@ -52,14 +54,14 @@ dependen de esta fase.
   conservando `pathname` y `search`; `cerrarSeccion({ reemplazar: true })` siempre usa `replaceState`;
   `limpiarSeccionDeUrl()` no toca una URL sin `#ajustes/`; `useSeccionAjustes` (con `renderHook`)
   devuelve la sección inicial del hash y se actualiza al disparar `popstate`/`hashchange`.
-- [ ] T004 Implementar `src/features/ajustes/lib/secciones.ts` (R2, DM): tipo `IdSeccion`, interfaz
+- [X] T004 Implementar `src/features/ajustes/lib/secciones.ts` (R2, DM): tipo `IdSeccion`, interfaz
   `SeccionAjustes` (`id`, `titulo(esAdmin)`, `Icon`, `soloAdministracion`), constante
   `SECCIONES_AJUSTES` con íconos de `src/components/icons` (agregar ahí con `deLucide` los que falten:
   `CircleUserRound` o `User` para perfil, `MapPin` para lugares, `Bell` para avisos, `Tags` para
   categorías, `Archive` para dados de baja, `ChevronRight` para la tarjeta), `seccionesVisibles(rol)` y
   `esIdSeccion(valor)`. Comentario que deje dicho que la spec 021 agrega `'proveedores'` entre
   `categorias` y `baja`. T002 en verde.
-- [ ] T005 Implementar `src/features/ajustes/lib/seccionUrl.ts` (R1, UI §4): `leerSeccionDeUrl`,
+- [X] T005 Implementar `src/features/ajustes/lib/seccionUrl.ts` (R1, UI §4): `leerSeccionDeUrl`,
   `abrirSeccion`, `cerrarSeccion`, `limpiarSeccionDeUrl` y el hook `useSeccionAjustes`, validando con
   `esIdSeccion`. Comentario breve: la app no tiene rutas; el hash solo guarda la sección de Ajustes
   para conservarla al recargar y que el "atrás" vuelva al índice, y no choca con `?invitacion=`
@@ -81,14 +83,14 @@ alguna sección con el mismo comportamiento (FR-001 a FR-010).
 
 ### Tests for User Story 1
 
-- [ ] T006 [P] [US1] Ampliar `tests/unit/ajustes/secciones.test.ts` con `resumenSeccion(id, datos)`
+- [X] T006 [P] [US1] Ampliar `tests/unit/ajustes/secciones.test.ts` con `resumenSeccion(id, datos)`
   (tabla de R3): perfil → `"Admin Uno · Administradora"` / `"Personal Uno · Personal"`; lugares → `"1
   lugar"`, `"3 lugares"` (solo activos); avisos personal → `"Stock bajo y caducidad"`, `"Solo stock
   bajo"`, `"Solo caducidad"`, `"Desactivadas"`; avisos admin → lo mismo + `" · Avisos a 30, 15 y 7 días"`
   (y `" · Aviso a 30 días"` con un solo nivel); categorías → `"1 categoría"`, `"12 categorías"`, `"Sin
   categorías"` (sin contar desactivadas); baja → `"1 insumo dado de baja"`, `"3 insumos dados de baja"`,
   `"Sin insumos dados de baja"`; `null` si los datos de esa sección no están listos.
-- [ ] T007 [US1] Reorganizar `tests/integration/ajustes.test.tsx` para entrar por el índice (SC-007):
+- [X] T007 [US1] Reorganizar `tests/integration/ajustes.test.tsx` para entrar por el índice (SC-007):
   helper local `abrirSeccionAjustes(titulo)` que hace `fireEvent.click` en
   `screen.getByRole('button', { name: titulo })`; cada `describe` existente (Configuración de Alertas,
   Perfil, Categorías, Lugares, Insumos dados de baja, Notificaciones, rueda del mouse) abre su sección
@@ -96,7 +98,7 @@ alguna sección con el mismo comportamiento (FR-001 a FR-010).
   comprobar que la tarjeta no existe en el índice (el detalle de personal va en T019). Limpiar la URL
   (`history.replaceState(null, '', '/')`) en `beforeEach`. El caso del mínimo por insumo y su prueba de
   rueda se mueven a T021 si cambian de comportamiento; aquí quedan los de niveles y horas.
-- [ ] T008 [US1] Agregar a `tests/integration/ajustes.test.tsx` un `describe('Índice de Ajustes (spec
+- [X] T008 [US1] Agregar a `tests/integration/ajustes.test.tsx` un `describe('Índice de Ajustes (spec
   019 US1)')`: (1) sin hash, se ve el `<h1>` "Ajustes" y las cinco tarjetas en orden (consultar
   `within(lista).getAllByRole('button')`) con sus resúmenes; (2) tocar "Categorías" muestra el `<h1>`
   "Categorías", el botón "Volver a Ajustes", el contenido de categorías, `location.hash ===
@@ -107,50 +109,50 @@ alguna sección con el mismo comportamiento (FR-001 a FR-010).
   tarjeta sigue correcto (FR-008); (7) con `onNavegar`, Compras y Reportes están arriba del índice y
   `onNavegar('compras')` se llama al tocarlo; (8) "Perfil y equipo" contiene "Cerrar sesión" y la
   sección de Equipo (mock de `listarEquipo` como en `equipo-invitacion.test.tsx`).
-- [ ] T009 [P] [US1] Ampliar `tests/integration/navegacion-responsiva.test.tsx` (o `tests/unit/App.test.tsx`
+- [X] T009 [P] [US1] Ampliar `tests/integration/navegacion-responsiva.test.tsx` (o `tests/unit/App.test.tsx`
   si ahí se monta `App`): con `#ajustes/avisos` en la URL al montar, la vista inicial es Ajustes con
   "Notificaciones y avisos" abierta; con una sección abierta, cambiar a "Inventario" desde la barra
   deja la URL sin `#ajustes/` y volver a "Más"/"Ajustes" muestra el índice (FR-006).
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] Implementar `resumenSeccion(id, datos)` en `src/features/ajustes/lib/secciones.ts`
+- [X] T010 [US1] Implementar `resumenSeccion(id, datos)` en `src/features/ajustes/lib/secciones.ts`
   (R3) como función pura: recibe `{ usuario, lugares, lugaresListos, categorias, insumosDadosDeBaja,
   inventarioListo, preferenciaStockBajo, preferenciaCaducidad, nivelesAvisoDias, esAdministrador }`,
   con singular/plural y textos de cero de la tabla; niveles ordenados de mayor a menor y unidos con
   ", " e " y ". Exportar un hook `useResumenesAjustes()` que lee esos datos de `authStore`,
   `lugarStore` (`lugaresActivos`), `inventoryStore` y `alertasStore`. T006 en verde.
-- [ ] T011 [P] [US1] Crear `src/features/ajustes/components/TarjetaSeccion.tsx` (UI §2): `<button
+- [X] T011 [P] [US1] Crear `src/features/ajustes/components/TarjetaSeccion.tsx` (UI §2): `<button
   type="button">` dentro de una `Card`, alto mínimo 72 px, ícono `aria-hidden`, título `text-h3`,
   resumen `text-sm text-text-muted truncate` con `id` propio y `aria-describedby`, `ChevronRight` a la
   derecha, foco visible del DS; acepta `ref` (para devolverle el foco al volver).
-- [ ] T012 [US1] Crear `src/features/ajustes/components/AjustesIndice.tsx` (UI §2, R6): `<h1>`
+- [X] T012 [US1] Crear `src/features/ajustes/components/AjustesIndice.tsx` (UI §2, R6): `<h1>`
   "Ajustes"; accesos a Compras y Reportes movidos tal cual desde `AjustesView.tsx` (`md:hidden`, solo con
   `onNavegar`, mismos comentarios de spec 016/017); `<ul>` en `grid grid-cols-1 gap-3 md:grid-cols-2
   xl:grid-cols-3` dentro de `max-w-5xl`, una `TarjetaSeccion` por `seccionesVisibles(rol)` con su
   resumen de `useResumenesAjustes()`. Props: `onAbrir(id)`, `enfocar?: IdSeccion` (tarjeta que recibe el
   foco al montar), `onNavegar?`.
-- [ ] T013 [US1] Dividir `src/features/ajustes/components/ConfiguracionAlertasSection.tsx` (R2):
+- [X] T013 [US1] Dividir `src/features/ajustes/components/ConfiguracionAlertasSection.tsx` (R2):
   renombrar a `AvisosSection.tsx` con solo "niveles de aviso de caducidad" y "aviso de cambios sin
   subir" (mismo código, handlers y mensajes), y mover el editor de mínimos **sin cambiar su
   comportamiento** a `src/features/ajustes/components/MinimosPorInsumoSection.tsx` (US3 lo reescribe).
   Actualizar imports y el comentario de spec 010.
-- [ ] T014 [P] [US1] Agregar la prop opcional `sinTitulo?: boolean` a `LugaresSection.tsx`,
+- [X] T014 [P] [US1] Agregar la prop opcional `sinTitulo?: boolean` a `LugaresSection.tsx`,
   `CategoriasSection.tsx` e `InsumosBajaSection.tsx` en `src/features/ajustes/components/`: con `true`
   no se renderiza su `<h2>` (el título lo pone la subpantalla); sin la prop, igual que hoy.
-- [ ] T015 [US1] Crear `src/features/ajustes/components/SeccionAjustesPantalla.tsx` (UI §3): fila con
+- [X] T015 [US1] Crear `src/features/ajustes/components/SeccionAjustesPantalla.tsx` (UI §3): fila con
   `TouchButton variant="ghost"` (`ArrowLeft`, texto "Volver", `aria-label="Volver a Ajustes"`) y `<h1
   tabIndex={-1}>` con el título por rol, que recibe el foco al montar; contenido dentro de `max-w-3xl`
   según la tabla de UI §3 (perfil: `PerfilSection` + `EquipoSection` si es admin; lugares, categorías y
   baja con `sinTitulo`; avisos: `NotificacionesSection` + si es admin `AvisosSection` y
   `MinimosPorInsumoSection`).
-- [ ] T016 [US1] Reescribir `src/features/ajustes/components/AjustesView.tsx` (UI §1): usa
+- [X] T016 [US1] Reescribir `src/features/ajustes/components/AjustesView.tsx` (UI §1): usa
   `useSeccionAjustes()`; sin sección → `AjustesIndice`; con sección → `SeccionAjustesPantalla` con
   `onVolver={cerrar}`; al volver pasa `enfocar` con la sección cerrada y restaura el desplazamiento
   guardado al abrir (`window.scrollY` en un `useRef`). Actualizar el comentario de cabecera (spec 019,
   reemplaza el layout de spec 013 FR-011 de perfil y notificaciones en dos columnas). T007 y T008 en
   verde.
-- [ ] T017 [US1] Integrar la URL en `src/app/App.tsx` (R1, UI §4): estado inicial `useState<Vista>(() =>
+- [X] T017 [US1] Integrar la URL en `src/app/App.tsx` (R1, UI §4): estado inicial `useState<Vista>(() =>
   leerSeccionDeUrl() ? 'mas' : 'inicio')`; envolver el `onCambiarVista` que recibe `AppShell` (y los
   `onNavegar` de Inicio/Reportes/Ajustes) en una función que llama `limpiarSeccionDeUrl()` antes de
   `setVista`. No tocar el manejo de `?invitacion=`. T009 en verde.
@@ -170,7 +172,7 @@ administración; `#ajustes/categorias` + recarga → índice.
 
 ### Tests for User Story 2
 
-- [ ] T018 [US2] Agregar a `tests/integration/ajustes.test.tsx` un `describe('Permisos por rol (spec 019
+- [X] T018 [US2] Agregar a `tests/integration/ajustes.test.tsx` un `describe('Permisos por rol (spec 019
   US2)')`: (1) personal ve exactamente dos tarjetas, "Perfil" y "Notificaciones", con resúmenes de
   personal (sin niveles de aviso); (2) en "Perfil" ve nombre, correo, rol y "Cerrar sesión", y no
   "Equipo" ni "Invitar"; (3) en "Notificaciones" ve los dos interruptores y no "niveles de aviso",
@@ -182,7 +184,7 @@ administración; `#ajustes/categorias` + recarga → índice.
 
 ### Implementation for User Story 2
 
-- [ ] T019 [US2] En `src/features/ajustes/components/AjustesView.tsx` (R7): si la sección abierta no
+- [X] T019 [US2] En `src/features/ajustes/components/AjustesView.tsx` (R7): si la sección abierta no
   está en `seccionesVisibles(usuario.rol)`, un `useEffect` llama `cerrarSeccion({ reemplazar: true })`
   y se renderiza el índice en ese mismo render (no mostrar la sección ni un instante). Confirmar que
   `SeccionAjustesPantalla` y `AjustesIndice` toman los títulos por rol del registro y que las partes de
@@ -203,14 +205,14 @@ alertas de A, no cambia B y la edición del insumo en A muestra el mismo valor.
 
 ### Tests for User Story 3
 
-- [ ] T020 [P] [US3] Escribir `tests/unit/ajustes/minimosEditor.test.ts` para
+- [X] T020 [P] [US3] Escribir `tests/unit/ajustes/minimosEditor.test.ts` para
   `filasMinimos(insumos, minimosLugar, seleccion, lugares, busqueda)` (R4, DM `FilaMinimo`): un lugar
   activo → `modo: 'catalogo'` con `minimo = insumo.stockMinimo`; dos lugares y uno elegido → `modo:
   'lugar'`, `origen: 'lugar'` con fila propia no nula, `origen: 'catalogo'` sin fila o con `stockMinimo:
   null`; `'todos'` → `modo: 'todos'` con `porLugar` de cada lugar **activo** (no los desactivados);
   orden por nombre con `localeCompare('es')`; búsqueda `"guantes"`, `"GUANTÉS"` y `"ánte"` encuentran
   "Guantes de nitrilo"; insumos con `dadoDeBajaEn` no aparecen; búsqueda vacía o solo espacios no filtra.
-- [ ] T021 [US3] Crear `tests/integration/ajustes-minimos.test.tsx` (mismo arranque que
+- [X] T021 [US3] Crear `tests/integration/ajustes-minimos.test.tsx` (mismo arranque que
   `ajustes.test.tsx`: `memoryDb`, `reflejarStore`, `lugarFalso`), con 30 insumos y dos lugares: (1) se
   ven 25 filas y "Ver más (quedan 5)", que muestra las 30; (2) buscar reduce la lista, muestra "N
   insumos" y vuelve a 25 filas; sin coincidencias, "Ningún insumo coincide con “x”" y "Limpiar
@@ -227,11 +229,11 @@ alertas de A, no cambia B y la edición del insumo en A muestra el mismo valor.
 
 ### Implementation for User Story 3
 
-- [ ] T022 [US3] Implementar `src/features/ajustes/lib/minimosEditor.ts` (R4): `filasMinimos` usando
+- [X] T022 [US3] Implementar `src/features/ajustes/lib/minimosEditor.ts` (R4): `filasMinimos` usando
   `minimoEfectivo` de `src/features/insumos/lib/minimos.ts`, `lugaresActivos`/`hayVariosLugares` de
   `src/stores/lugarStore.ts` y `plegar` de `src/features/insumos/lib/categorias.ts`; más
   `TAMANO_PAGINA_MINIMOS = 25`. T020 en verde.
-- [ ] T023 [US3] Reescribir `src/features/ajustes/components/MinimosPorInsumoSection.tsx` según UI §5:
+- [X] T023 [US3] Reescribir `src/features/ajustes/components/MinimosPorInsumoSection.tsx` según UI §5:
   `<h2>` "Stock mínimo por insumo"; texto de contexto por modo con el nombre del lugar activo
   (`useLugarStore`); buscador `IconField` con `Search` y `type="search"`; contador o mensaje sin
   coincidencias con "Limpiar búsqueda"; filas con `Badge` "Propio"/"General" en modo lugar y
@@ -243,7 +245,7 @@ alertas de A, no cambia B y la edición del insumo en A muestra el mismo valor.
   se reinicia al cambiar búsqueda o lugar. Usar los insumos del catálogo de `useInventoryStore` (no los
   de la vista de lugar, que ya traen el mínimo efectivo) y `minimosLugar` del mismo store. T021 en
   verde.
-- [ ] T024 [US3] Verificar que `src/features/insumos/components/EditarInsumoForm.tsx` no necesita
+- [X] T024 [US3] Verificar que `src/features/insumos/components/EditarInsumoForm.tsx` no necesita
   cambios (la regla ya coincide, DM) y que el caso del mínimo por insumo movido desde
   `tests/integration/ajustes.test.tsx` (T007) quedó cubierto por T021; si algún texto del editor cambió,
   ajustar solo esas aserciones.
@@ -263,13 +265,13 @@ llegan todas.
 
 ### Tests for User Story 4
 
-- [ ] T025 [US4] Extender los helpers de pruebas para tablas sin `id` (R5): en
+- [X] T025 [US4] Extender los helpers de pruebas para tablas sin `id` (R5): en
   `tests/helpers/consultaFalsa.ts`, `order(columna)` acumula columnas y `resolver` ordena por ellas (por
   defecto `id`, como hoy); `or(filtro)` interpreta el patrón `a.gt.X,and(a.eq.X,b.gt.Y)` y filtra por
   tupla; `Fila` deja de exigir `id`. En `tests/helpers/clienteFalso.ts`, `upsert` usa como clave
   `fila.id ?? \`${fila.insumo_id}|${fila.lugar_id}\``. Confirmar que `tests/unit/sync-paginacion.test.ts`
   sigue en verde sin cambios.
-- [ ] T026 [US4] Escribir `tests/unit/sync-minimos-lugar-paginacion.test.ts` con el patrón de
+- [X] T026 [US4] Escribir `tests/unit/sync-minimos-lugar-paginacion.test.ts` con el patrón de
   `sync-paginacion.test.ts` (`memoryDb`, `clienteFalso`, `estado.maxRows = 1000`): (1) 2.500 filas
   remotas con 50 insumos × 50 lugares (ids que comparten `insumo_id` entre páginas) → `runSyncBatch`
   deja 2.500 en `db.minimosLugar` sin duplicados y pide 3 páginas; (2) `estado.errorEnPagina
@@ -279,13 +281,13 @@ llegan todas.
 
 ### Implementation for User Story 4
 
-- [ ] T027 [US4] Generalizar `seleccionarTodo` en `src/lib/sync/paginar.ts` (UI §6, R5): tercer
+- [X] T027 [US4] Generalizar `seleccionarTodo` en `src/lib/sync/paginar.ts` (UI §6, R5): tercer
   parámetro `opciones?: { clave?: string[]; tamanoPagina?: number } | number` (un número sigue
   significando `tamanoPagina`, para no romper llamados ni pruebas actuales); con `clave` de una columna,
   igual que hoy sobre esa columna; con dos, `order(a).order(b).limit(n)` y desde la segunda página
   `.or(\`${a}.gt.${va},and(${a}.eq.${va},${b}.gt.${vb})\`)`. Tipar `T` sin exigir `id` cuando se pasa
   `clave`. Actualizar el comentario de spec 017 mencionando la clave compuesta (spec 019).
-- [ ] T028 [US4] En `src/lib/sync/index.ts`, `pullMinimosLugar` usa `seleccionarTodo(client,
+- [X] T028 [US4] En `src/lib/sync/index.ts`, `pullMinimosLugar` usa `seleccionarTodo(client,
   'minimos_lugar', { clave: ['insumo_id', 'lugar_id'] })`, manteniendo `ciclo.registrar`, el `return`
   ante error y el filtro `conservarCambioLocal`. T026 en verde.
 
@@ -295,22 +297,22 @@ llegan todas.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T029 [P] Revisar con el DS los tamaños táctiles (Constitución III): tarjetas ≥ 72 px, "Volver",
+- [X] T029 *(Hecho: tarjetas de 56 px en móvil y 72 desde tablet; "Volver", "Ver más", "Limpiar búsqueda", buscador y campos con `touch-target` de 48 px; foco visible del DS.)* [P] Revisar con el DS los tamaños táctiles (Constitución III): tarjetas ≥ 72 px, "Volver",
   "Ver más", "Limpiar búsqueda" y los `NumeroInput` del editor con `touch-target`; foco visible en
   tarjetas y "Volver" navegando con Tab.
-- [ ] T030 [P] Confirmar que `tests/unit/lecturas-movimientos.test.ts` y
+- [X] T030 *(Hecho: pasan sin permitidos nuevos.)* [P] Confirmar que `tests/unit/lecturas-movimientos.test.ts` y
   `tests/unit/sin-input-number-suelto.test.ts` siguen pasando sin agregar permitidos.
-- [ ] T031 Recorrido manual QS §2–§4 con `run-indentory` en Chromium: recarga con sección abierta,
+- [X] T031 *(Hecho en Chromium headless con el driver, que suma `back` y `url`: el hash se conserva al recargar, "atrás" vuelve al índice, cambiar de vista lo limpia; editor con dos lugares (Propio/General) y "Todos" en solo lectura. Sin backend, todo guardado queda pendiente en Dexie: el envío al reconectar lo cubren las pruebas de sync.)* Recorrido manual QS §2–§4 con `run-indentory` en Chromium: recarga con sección abierta,
   "atrás" del navegador, cambiar de vista y volver, personal con `#ajustes/categorias`, editor de
   mínimos con dos lugares y con "Todos", un cambio sin conexión que se sube al reconectar.
-- [ ] T032 Capturas QS §6 con `run-indentory`: índice y "Notificaciones y avisos" en 360, 768 y 1280 px,
+- [X] T032 *(Hecho: 12 capturas en `.claude/skills/run-indentory/screenshots/019-*`. Salieron dos ajustes: Compras y Reportes lado a lado y tarjetas más bajas en móvil; "Notificaciones" sin título repetido para personal. SC-002: a 360 × 640 la última tarjeta queda ~20 px bajo la barra inferior por el encabezado de la app; a 360 × 700 entra completo.)* Capturas QS §6 con `run-indentory`: índice y "Notificaciones y avisos" en 360, 768 y 1280 px,
   como administradora y como personal (12 capturas); revisar que cada control de la página anterior
   aparece en alguna sección (SC-007) y que el índice cabe en una pantalla de 360 × 640 (SC-002).
-- [ ] T033 Revisar `src/app/AppHeader.tsx` y el selector de lugar: cambiar de lugar con el editor de
+- [X] T033 *(Hecho: cambiar de lugar con el editor abierto mantiene la sección y recarga los valores.)* Revisar `src/app/AppHeader.tsx` y el selector de lugar: cambiar de lugar con el editor de
   mínimos abierto mantiene la sección abierta y recarga los valores (edge case "lugar activo
   desactivado" incluido).
-- [ ] T034 Correr `npm run lint && npm run build && npm test`, todo verde, con más pruebas que en T001.
-- [ ] T035 [P] En `../1stDocs`, actualizar `005-roadmap/002-DentdeLion.md` (019 hecha, con las
+- [X] T034 *(Hecho: lint sin avisos, build, 850 pruebas en 113 archivos; línea base 795 en 108.)* Correr `npm run lint && npm run build && npm test`, todo verde, con más pruebas que en T001.
+- [X] T035 *(Hecho en `../1stDocs`, sin commit: roadmap con estado, decisiones y deuda de `minimos_lugar` tachada; backlog con "AJUSTES" tachado.)* [P] En `../1stDocs`, actualizar `005-roadmap/002-DentdeLion.md` (019 hecha, con las
   decisiones de Clarifications: sección en la URL, mínimo por lugar activo, misma navegación en
   desktop; resumen de Perfil sin conteo de equipo; deuda `minimos_lugar` cerrada) y
   `002-backlog/002-DentdeLion.md` (sección "AJUSTES" tachada con la referencia a la spec).
