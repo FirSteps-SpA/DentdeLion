@@ -80,7 +80,7 @@ categorías con un botón "Volver"; al volver se está otra vez en el índice.
    tarjetas y ninguna sección abierta.
 2. **Given** el índice, **When** se mira cada tarjeta, **Then** muestra un ícono, el título de la
    sección y un resumen de una línea con datos reales (por ejemplo "3 lugares", "12 categorías",
-   "Sin insumos dados de baja", "4 personas · 1 invitación pendiente").
+   "Sin insumos dados de baja", "Ana Pérez · Administradora").
 3. **Given** el índice, **When** la administradora toca una tarjeta, **Then** se abre esa sección sola,
    con su título y un botón "Volver" visible sin desplazarse.
 4. **Given** una sección abierta, **When** toca "Volver" (o usa el gesto o botón "atrás" del
@@ -224,11 +224,11 @@ alertas de stock bajo coinciden con las de otro dispositivo.
   de baja sin reordenar las demás.
 - **FR-002**: Cada tarjeta DEBE mostrar un ícono, el título de la sección y un resumen de una línea
   calculado con los datos locales del dispositivo:
-  - Perfil y equipo: nombre de la persona; para administración, además, cantidad de integrantes y de
-    invitaciones pendientes.
+  - Perfil y equipo: nombre y rol de la persona. No cuenta integrantes ni invitaciones, porque esos
+    datos solo se consultan con conexión y el índice debe mostrarse igual sin red.
   - Lugares de trabajo: cantidad de lugares activos.
-  - Notificaciones y avisos: estado de las notificaciones (activadas o desactivadas); para
-    administración, además, los niveles de aviso de caducidad.
+  - Notificaciones y avisos: qué notificaciones están activadas (stock bajo, caducidad, ambas o
+    ninguna); para administración, además, los niveles de aviso de caducidad.
   - Categorías: cantidad de categorías.
   - Insumos dados de baja: cantidad de insumos dados de baja.
 - **FR-003**: Toda la tarjeta DEBE ser el área táctil (mínimo 48×48 px) y DEBE poder activarse con el
