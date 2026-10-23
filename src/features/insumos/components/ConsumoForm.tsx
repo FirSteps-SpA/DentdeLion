@@ -15,6 +15,7 @@ import { Card } from '../../../components/ui/Card'
 import { IconField } from '../../../components/ui/IconField'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { useLugarStore } from '../../../stores/lugarStore'
+import { NumeroInput } from '../../../components/ui/NumeroInput'
 
 /**
  * User Story 2 (P2): busca un insumo y confirma una cantidad de consumo,
@@ -225,9 +226,8 @@ export function ConsumoForm({ insumoInicial, onDone, lugarId: lugarElegido }: Co
             <Minus size={16} />
           </TouchButton>
           <div className="touch-target flex flex-1 items-center justify-center rounded-md border border-border bg-surface">
-            <input
+            <NumeroInput
               id="cantidad-consumo"
-              type="number"
               step="any"
               required
               value={cantidad}

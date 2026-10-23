@@ -8,6 +8,7 @@ import {
 } from '../../alertas/lib/configuracion'
 import { Card } from '../../../components/ui/Card'
 import { IconField } from '../../../components/ui/IconField'
+import { NumeroInput } from '../../../components/ui/NumeroInput'
 
 /**
  * Configuración de alertas relocalizada desde `AlertasView` (spec 010
@@ -76,8 +77,7 @@ export function ConfiguracionAlertasSection() {
               className="flex items-center justify-between gap-2 py-2.5 text-sm text-text"
             >
               <span>{insumo.nombre}</span>
-              <input
-                type="number"
+              <NumeroInput
                 step="any"
                 min={0}
                 placeholder="Sin mínimo"
@@ -134,9 +134,8 @@ export function ConfiguracionAlertasSection() {
           label="Avisar si un cambio lleva más de (horas)"
           htmlFor="horas-aviso-pendientes"
         >
-          <input
+          <NumeroInput
             id="horas-aviso-pendientes"
-            type="number"
             min={1}
             max={168}
             step={1}

@@ -21,6 +21,7 @@ import type { TratamientoProyectado } from '../lib/proyeccion'
 import { textoCosto, textoGanancia } from '../lib/textos'
 import { useInsumosPorId, useMontosTratamiento } from '../lib/useMontosTratamiento'
 import { ETIQUETA_GANANCIA } from '../lib/montos'
+import { NumeroInput } from '../../../components/ui/NumeroInput'
 
 const INPUT_CLASS = 'h-full w-full border-none bg-transparent text-[15px] text-text outline-none'
 
@@ -166,8 +167,7 @@ export function TratamientoForm({ tratamiento, onGuardado, onCancelar }: Tratami
                 <span aria-hidden className="text-text-muted">
                   $
                 </span>
-                <input
-                  type="number"
+                <NumeroInput
                   min={0}
                   step="any"
                   inputMode="numeric"

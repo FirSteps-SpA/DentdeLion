@@ -1,5 +1,6 @@
 import { Minus, Plus } from '../icons'
 import { TouchButton } from './TouchButton'
+import { NumeroInput } from './NumeroInput'
 
 export interface StepperProps {
   id: string
@@ -62,9 +63,8 @@ export function Stepper({
           <Minus size={16} />
         </TouchButton>
         <div className="touch-target flex flex-1 items-center justify-center rounded-md border border-border-input bg-surface focus-within:outline-2 focus-within:outline-brand">
-          <input
+          <NumeroInput
             id={id}
-            type="number"
             step={permiteDecimales ? 'any' : 1}
             value={value === null ? '' : value}
             onChange={(event) => onInputChange(event.target.value)}
