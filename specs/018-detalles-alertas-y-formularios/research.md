@@ -153,5 +153,5 @@ que proteger.
 un `type="number"` normal enfocado pasa de 200 a 199 y la página no se mueve; con el `blur()` de
 `NumeroInput` sigue en 200 y la página se desplaza 100 px. En la app (alta de material, comando `wheel`
 de `run-indentory`): stock inicial, mínimo y precio sin cambios, foco suelto y el formulario se desplaza
-120 px; la flecha ↑ con el foco sigue sumando (200 → 201). Prueba manual del usuario (2026-10-22): la rueda no
+120 px; la flecha ↑ con el foco sigue sumando (200 → 201). Prueba manual en un navegador de escritorio (2026-10-22): la rueda no
 cambia los campos numéricos.

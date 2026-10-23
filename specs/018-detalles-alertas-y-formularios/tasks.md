@@ -220,7 +220,7 @@ lote; al tocarlas se abre el detalle del insumo y al cerrarlo se vuelve (FR-006 
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [X] T030 *(Hecho 2026-10-22: Chromium con la rueda real — ver research.md R8 — y prueba manual del usuario en su navegador: la rueda no cambia los campos numéricos.)* Recorrer QS §2 en Chrome (o Edge) y Firefox de escritorio reales: rueda y trackpad sobre cada
+- [X] T030 *(Hecho 2026-10-22: Chromium con la rueda real — ver research.md R8 — y prueba manual en un navegador de escritorio: la rueda no cambia los campos numéricos.)* Recorrer QS §2 en Chrome (o Edge) y Firefox de escritorio reales: rueda y trackpad sobre cada
   campo de la lista, desplazamiento de la página, flechas ↑/↓ con el foco; en móvil (o emulación),
   teclado numérico y + / −. Anotar el resultado y los navegadores con versión en research.md R8.
 - [X] T031 *(Hecho: Alertas, detalle, Inicio y alta en 390 y 1280 px con un lugar; renglones con `touch-target`; la segunda línea se parte bien en 390 px. Ajuste que salió de las capturas: la insignia del nivel decía "1 días" → "1 día", con prueba.)* Verificación visual con `run-indentory` (QS §6): Alertas e Inicio en 390 y 1280 px, con un
@@ -233,7 +233,7 @@ lote; al tocarlas se abre el detalle del insumo y al cerrarlo se vuelve (FR-006 
 - [X] T035 [P] *(Hecho en `../1stDocs`, sin commit: roadmap con estado y decisiones, backlog con "Detalles" y "bug" tachados y la entrada de la spec.)* En `../1stDocs`, actualizar `005-roadmap/002-DentdeLion.md` (018 hecha, con las
   decisiones de Clarifications) y `002-backlog/002-DentdeLion.md` (sección "Detalles" y "Corregir
   'bug'" hechas).
-- [ ] T036 Descripción del PR a `develop`: los 4 pedidos, la decisión de bloquear solo la rueda (R1,
+- [X] T036 *(Hecho: PR #14.)* Descripción del PR a `develop`: los 4 pedidos, la decisión de bloquear solo la rueda (R1,
   Clarifications), el umbral de 60 días, el detalle desde la alerta (incluido stock bajo, R5), resultado
   de T030 y capturas de T031.
 
