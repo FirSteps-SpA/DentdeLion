@@ -38,6 +38,11 @@ export interface EstadoClienteFalso {
   paginasPedidas: Record<string, number>
 }
 
+/** Spec 019: `minimos_lugar` no tiene `id`; su clave es (insumo, lugar). */
+export function claveFila(fila: Fila): string {
+  return fila.id ?? `${String(fila.insumo_id)}|${String(fila.lugar_id)}`
+}
+
 export function crearEstado(): EstadoClienteFalso {
   return {
     remoto: {},
@@ -94,7 +99,7 @@ export function crearClienteFalso(estado: EstadoClienteFalso) {
               if (error) return { error, status: status() }
             }
           }
-          for (const fila of lista) tabla(nombre).set(fila.id, structuredClone(fila))
+          for (const fila of lista) tabla(nombre).set(claveFila(fila), structuredClone(fila))
           return { error: null, status: 201 }
         },
         update(cambios: Record<string, unknown>) {

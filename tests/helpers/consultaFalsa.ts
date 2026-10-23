@@ -4,8 +4,12 @@
  * `.limit()` (paginación por cursor de `seleccionarTodo`) y `.eq().maybeSingle()`.
  * `maxRows` imita el corte de PostgREST (`max_rows`): ningún select devuelve
  * más filas, pida las que pida.
+ *
+ * Spec 019 (research.md R5): `order()` por varias columnas y `.or()` con el
+ * cursor de clave compuesta `a.gt.X,and(a.eq.X,b.gt.Y)`, para tablas sin `id`
+ * como `minimos_lugar`.
  */
-type Fila = { id: string } & Record<string, unknown>
+type Fila = Record<string, unknown>
 type ErrorFalso = { message?: string; code?: string } | null
 type Respuesta = { data: unknown; error: ErrorFalso; status: number }
 
@@ -20,26 +24,43 @@ export interface OpcionesConsulta {
 }
 
 export function consultaFalsa(opciones: OpcionesConsulta) {
-  let mayorQue: string | null = null
+  const orden: string[] = []
+  const filtros: ((fila: Fila) => boolean)[] = []
   let limite: number | null = null
+  const comparar = (a: Fila, b: Fila) => {
+    for (const columna of orden.length > 0 ? orden : ['id']) {
+      const va = String(a[columna])
+      const vb = String(b[columna])
+      if (va !== vb) return va < vb ? -1 : 1
+    }
+    return 0
+  }
   const resolver = (): Respuesta => {
     const errorPagina = limite !== null ? (opciones.alPedirPagina?.() ?? null) : null
     const error = opciones.error() ?? errorPagina
     if (error) return { data: null, error, status: opciones.status ?? 400 }
-    let filas = opciones
+    const filas = opciones
       .filas()
       .map((f) => structuredClone(f))
-      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-    if (mayorQue !== null) filas = filas.filter((f) => f.id > (mayorQue as string))
+      .filter((f) => filtros.every((pasa) => pasa(f)))
+      .sort(comparar)
     const tope = Math.min(limite ?? Infinity, opciones.maxRows ?? Infinity)
     return { data: filas.slice(0, tope), error: null, status: 200 }
   }
   const consulta = {
-    order() {
+    order(columna: string) {
+      orden.push(columna)
       return consulta
     },
-    gt(_columna: string, valor: string) {
-      mayorQue = valor
+    gt(columna: string, valor: string) {
+      filtros.push((f) => String(f[columna]) > valor)
+      return consulta
+    },
+    or(filtro: string) {
+      const cursor = /^(\w+)\.gt\.([^,]+),and\(\1\.eq\.\2,(\w+)\.gt\.([^)]+)\)$/.exec(filtro)
+      if (!cursor) throw new Error(`or() no soportado en la consulta falsa: ${filtro}`)
+      const [, a, va, b, vb] = cursor
+      filtros.push((f) => String(f[a]) > va || (String(f[a]) === va && String(f[b]) > vb))
       return consulta
     },
     limit(n: number) {

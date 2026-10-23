@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import type { ReactElement } from 'react'
 import type {
   CambioInsumo,
   Categoria,
@@ -47,6 +48,7 @@ import { AjustesView } from '../../src/features/ajustes/components/AjustesView'
 import { AppHeader } from '../../src/app/AppHeader'
 import { TENANT_1 } from '../helpers/tenancy'
 import { esperarQueLaRuedaNoCambie } from '../helpers/rueda'
+import { CATEGORIAS_PRECARGADAS } from '../../src/features/insumos/lib/categorias'
 
 const insumosT = db.insumos as unknown as MemoryTable<Insumo>
 const lotesT = db.lotes as unknown as MemoryTable<Lote>
@@ -156,7 +158,18 @@ function seed() {
   reflejarStore()
 }
 
+/**
+ * Spec 019: Ajustes abre en un índice; cada caso entra a su sección tocando la
+ * tarjeta, como la persona (SC-007: los casos anteriores se conservan).
+ */
+function renderSeccion(titulo: string, ui: ReactElement = <AjustesView />) {
+  const resultado = render(ui)
+  fireEvent.click(screen.getByRole('button', { name: titulo }))
+  return resultado
+}
+
 beforeEach(() => {
+  window.history.replaceState(null, '', '/')
   onMemoryDbChange(reflejarStore)
   useAlertasStore.setState({ nivelesAvisoDias: [30, 7, 1], isReady: true })
   seed()
@@ -170,10 +183,10 @@ afterEach(() => {
 describe('Ajustes — Configuración de Alertas (User Story 1)', () => {
   it('lets an administrador find and change stock mínimo / niveles de aviso from Ajustes, same behavior as before', async () => {
     useAuthStore.setState({ usuario: admin, isReady: true })
-    render(<AjustesView />)
+    renderSeccion('Notificaciones y avisos')
 
     expect(
-      screen.getByText('Configurar stock mínimo por insumo'),
+      screen.getByText(/stock mínimo por insumo/i),
     ).toBeInTheDocument()
     expect(
       screen.getByText('Configurar niveles de aviso de caducidad'),
@@ -185,10 +198,10 @@ describe('Ajustes — Configuración de Alertas (User Story 1)', () => {
 
   it('hides the config controls for a non-administrador', () => {
     useAuthStore.setState({ usuario: personal, isReady: true })
-    render(<AjustesView />)
+    renderSeccion('Notificaciones')
 
     expect(
-      screen.queryByText('Configurar stock mínimo por insumo'),
+      screen.queryByText(/stock mínimo por insumo/i),
     ).not.toBeInTheDocument()
     expect(
       screen.queryByText('Configurar niveles de aviso de caducidad'),
@@ -199,7 +212,7 @@ describe('Ajustes — Configuración de Alertas (User Story 1)', () => {
 describe('Ajustes — Perfil (User Story 2)', () => {
   it('shows nombre/correo/rol and closes the session on "Cerrar sesión"', async () => {
     useAuthStore.setState({ usuario: personal, isReady: true })
-    render(<AjustesView />)
+    renderSeccion('Perfil')
 
     expect(screen.getByText('Personal Uno')).toBeInTheDocument()
     expect(screen.getByText('p@x.cl')).toBeInTheDocument()
@@ -219,7 +232,7 @@ describe('Ajustes — Categorías (User Story 4)', () => {
     categoriasT.seed([categoria('c1', 'Ortodoncia')])
     insumosT.seed([insumo('a', 'Anestesia local', { categoria: 'Ortodoncia' })])
     reflejarStore()
-    render(<AjustesView />)
+    renderSeccion('Categorías')
 
     fireEvent.click(screen.getByRole('button', { name: /Nueva categoría/i }))
     fireEvent.change(screen.getByLabelText('Nombre'), {
@@ -271,7 +284,7 @@ function AjustesConHeader() {
 describe('Ajustes — Lugares de trabajo (spec 014 US4)', () => {
   it('crea un lugar: aparece en la lista y el encabezado pasa a tener selector', async () => {
     useAuthStore.setState({ usuario: admin, isReady: true })
-    render(<AjustesConHeader />)
+    renderSeccion('Lugares de trabajo', <AjustesConHeader />)
 
     expect(screen.queryByRole('button', { name: /Lugar de trabajo:/ })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Nuevo lugar/ }))
@@ -291,7 +304,7 @@ describe('Ajustes — Lugares de trabajo (spec 014 US4)', () => {
 
   it('no acepta un nombre repetido sin distinguir mayúsculas', async () => {
     useAuthStore.setState({ usuario: admin, isReady: true })
-    render(<AjustesView />)
+    renderSeccion('Lugares de trabajo')
 
     fireEvent.click(screen.getByRole('button', { name: /Nuevo lugar/ }))
     fireEvent.change(screen.getByLabelText('Nombre del lugar'), {
@@ -305,7 +318,7 @@ describe('Ajustes — Lugares de trabajo (spec 014 US4)', () => {
 
   it('renombra un lugar', async () => {
     useAuthStore.setState({ usuario: admin, isReady: true })
-    render(<AjustesView />)
+    renderSeccion('Lugares de trabajo')
 
     fireEvent.click(screen.getByRole('button', { name: 'Renombrar Clínica' }))
     fireEvent.change(screen.getByLabelText('Nombre del lugar'), {
@@ -318,7 +331,7 @@ describe('Ajustes — Lugares de trabajo (spec 014 US4)', () => {
 
   it('no deja desactivar el último lugar activo', () => {
     useAuthStore.setState({ usuario: admin, isReady: true })
-    render(<AjustesView />)
+    renderSeccion('Lugares de trabajo')
 
     expect(screen.getByRole('button', { name: /Desactivar/ })).toBeDisabled()
   })
@@ -363,7 +376,7 @@ describe('Ajustes — Lugares de trabajo (spec 014 US4)', () => {
       },
     ])
     reflejarStore()
-    render(<AjustesView />)
+    renderSeccion('Lugares de trabajo')
 
     expect(screen.getByText('1 insumo con stock')).toBeInTheDocument()
     fireEvent.click(screen.getAllByRole('button', { name: /Desactivar/ })[1])
@@ -399,7 +412,7 @@ describe('Ajustes — Insumos dados de baja (User Story 6)', () => {
       }),
     ])
     reflejarStore()
-    render(<AjustesView />)
+    renderSeccion('Insumos dados de baja')
 
     expect(screen.getByText('Composite Viejo')).toBeInTheDocument()
     expect(
@@ -418,7 +431,7 @@ describe('Ajustes — Insumos dados de baja (User Story 6)', () => {
 
   it('shows an empty state when nothing is dado de baja', () => {
     useAuthStore.setState({ usuario: admin, isReady: true })
-    render(<AjustesView />)
+    renderSeccion('Insumos dados de baja')
 
     expect(screen.getByText('Ningún insumo está dado de baja.')).toBeInTheDocument()
   })
@@ -434,7 +447,7 @@ describe('Ajustes — Insumos dados de baja (User Story 6)', () => {
 describe('Ajustes — Notificaciones (User Story 7)', () => {
   it('toggling each Switch persists and reflects on reopen, for any authenticated user', async () => {
     useAuthStore.setState({ usuario: personal, isReady: true })
-    render(<AjustesView />)
+    renderSeccion('Notificaciones')
 
     const stockBajoSwitch = screen.getByRole('switch', {
       name: 'Incluir stock bajo en el indicador de la navegación',
@@ -462,7 +475,7 @@ describe('Ajustes — Notificaciones (User Story 7)', () => {
 describe('rueda del mouse (spec 018 FR-005)', () => {
   it('no cambia el mínimo por insumo; al soltar el foco guarda lo escrito', async () => {
     useAuthStore.setState({ usuario: admin, isReady: true })
-    render(<AjustesView />)
+    renderSeccion('Notificaciones y avisos')
 
     esperarQueLaRuedaNoCambie(screen.getByLabelText('Stock mínimo de Anestesia local'), '8')
 
@@ -473,7 +486,188 @@ describe('rueda del mouse (spec 018 FR-005)', () => {
 
   it('no cambia las horas de aviso de cambios sin subir', () => {
     useAuthStore.setState({ usuario: admin, isReady: true })
-    render(<AjustesView />)
+    renderSeccion('Notificaciones y avisos')
     esperarQueLaRuedaNoCambie(screen.getByLabelText(/Avisar si un cambio lleva más de/), '12')
+  })
+})
+
+describe('Índice de Ajustes (spec 019 US1)', () => {
+  const tarjetas = () =>
+    within(screen.getByRole('list', { name: 'Secciones de Ajustes' })).getAllByRole('button')
+
+  it('abre en el índice con las cinco tarjetas en orden y sus resúmenes', () => {
+    useAuthStore.setState({ usuario: admin, isReady: true })
+    categoriasT.seed([categoria('c1', 'Ortodoncia')])
+    insumosT.seed([insumo('a', 'Anestesia local', { categoria: 'Ortodoncia' })])
+    reflejarStore()
+    render(<AjustesView />)
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Ajustes' })).toBeInTheDocument()
+    expect(tarjetas().map((b) => b.getAttribute('aria-labelledby') && b.textContent)).toEqual([
+      'Perfil y equipoAdmin Uno · Administradora',
+      'Lugares de trabajo1 lugar',
+      'Notificaciones y avisosStock bajo y caducidad · Avisos a 30, 7 y 1 días',
+      `Categorías${CATEGORIAS_PRECARGADAS.length + 1} categorías`,
+      'Insumos dados de bajaSin insumos dados de baja',
+    ])
+    expect(screen.getByRole('button', { name: 'Categorías' })).toHaveAccessibleDescription(
+      `${CATEGORIAS_PRECARGADAS.length + 1} categorías`,
+    )
+  })
+
+  it('cada tarjeta abre su sección sola, con "Volver", y la URL la recuerda', () => {
+    useAuthStore.setState({ usuario: admin, isReady: true })
+    render(<AjustesView onNavegar={() => {}} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Categorías' }))
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Categorías' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Volver a Ajustes' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Nueva categoría/ })).toBeInTheDocument()
+    expect(window.location.hash).toBe('#ajustes/categorias')
+    expect(screen.queryByRole('list', { name: 'Secciones de Ajustes' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Compras/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Reportes/ })).not.toBeInTheDocument()
+  })
+
+  it('"Volver" y el "atrás" del navegador regresan al índice, con el foco en la tarjeta', async () => {
+    useAuthStore.setState({ usuario: admin, isReady: true })
+    render(<AjustesView />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Categorías' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Volver a Ajustes' }))
+    // `history.back()` es asíncrono en jsdom: llega como `popstate`.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Categorías' })).toHaveFocus(),
+    )
+    expect(window.location.hash).toBe('')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Lugares de trabajo' }))
+    expect(screen.getByRole('heading', { level: 1, name: 'Lugares de trabajo' })).toBeInTheDocument()
+    window.history.back()
+    await waitFor(() =>
+      expect(screen.getByRole('list', { name: 'Secciones de Ajustes' })).toBeInTheDocument(),
+    )
+  })
+
+  it('con la sección en la URL (recarga), abre directo en ella y "Volver" quita el hash', () => {
+    useAuthStore.setState({ usuario: admin, isReady: true })
+    window.history.replaceState(null, '', '/#ajustes/lugares')
+    render(<AjustesView />)
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Lugares de trabajo' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Volver a Ajustes' }))
+    expect(window.location.hash).toBe('')
+    expect(screen.getByRole('list', { name: 'Secciones de Ajustes' })).toBeInTheDocument()
+  })
+
+  it('los cambios guardados en una sección se ven en el resumen al volver (FR-008)', async () => {
+    useAuthStore.setState({ usuario: admin, isReady: true })
+    render(<AjustesView />)
+    const antes = CATEGORIAS_PRECARGADAS.length
+    expect(screen.getByRole('button', { name: 'Categorías' })).toHaveAccessibleDescription(
+      `${antes} categorías`,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Categorías' }))
+    fireEvent.click(screen.getByRole('button', { name: /Nueva categoría/i }))
+    fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Prótesis' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(screen.getByText('Prótesis')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Volver a Ajustes' }))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Categorías' })).toHaveAccessibleDescription(
+        `${antes + 1} categorías`,
+      ),
+    )
+  })
+
+  it('en móvil, Compras y Reportes siguen arriba del índice', () => {
+    useAuthStore.setState({ usuario: admin, isReady: true })
+    const onNavegar = vi.fn()
+    render(<AjustesView onNavegar={onNavegar} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Compras/ }))
+    expect(onNavegar).toHaveBeenCalledWith('compras')
+    fireEvent.click(screen.getByRole('button', { name: /Reportes/ }))
+    expect(onNavegar).toHaveBeenCalledWith('reportes')
+  })
+
+  it('"Perfil y equipo" reúne el perfil con "Cerrar sesión" y el equipo', () => {
+    useAuthStore.setState({ usuario: admin, isReady: true })
+    renderSeccion('Perfil y equipo')
+
+    expect(screen.getByText('admin@x.cl')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Equipo' })).toBeInTheDocument()
+  })
+})
+
+describe('Permisos por rol (spec 019 US2)', () => {
+  const tarjetas = () =>
+    within(screen.getByRole('list', { name: 'Secciones de Ajustes' })).getAllByRole('button')
+
+  it('el personal ve solo "Perfil" y "Notificaciones", con resúmenes de personal', () => {
+    useAuthStore.setState({ usuario: personal, isReady: true })
+    render(<AjustesView />)
+
+    expect(tarjetas().map((b) => b.textContent)).toEqual([
+      'PerfilPersonal Uno · Personal',
+      'NotificacionesStock bajo y caducidad',
+    ])
+  })
+
+  it('en "Perfil" el personal no ve el equipo', () => {
+    useAuthStore.setState({ usuario: personal, isReady: true })
+    renderSeccion('Perfil')
+
+    expect(screen.getByText('p@x.cl')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Equipo' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Invitar/ })).not.toBeInTheDocument()
+  })
+
+  it('en "Notificaciones" el personal ve solo los interruptores', () => {
+    useAuthStore.setState({ usuario: personal, isReady: true })
+    renderSeccion('Notificaciones')
+
+    expect(screen.getAllByRole('switch')).toHaveLength(2)
+    expect(screen.queryByText(/niveles de aviso/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/cambios sin subir/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/stock mínimo por insumo/i)).not.toBeInTheDocument()
+  })
+
+  it('una sección de administración en la URL muestra el índice al personal, sin sumar entrada', () => {
+    useAuthStore.setState({ usuario: personal, isReady: true })
+    window.history.replaceState(null, '', '/#ajustes/categorias')
+    const largo = window.history.length
+    render(<AjustesView />)
+
+    expect(screen.getByRole('list', { name: 'Secciones de Ajustes' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 1, name: 'Categorías' })).not.toBeInTheDocument()
+    expect(window.location.hash).toBe('')
+    expect(window.history.length).toBe(largo)
+  })
+
+  it('si el rol cambia a personal con una sección de administración abierta, vuelve al índice', async () => {
+    useAuthStore.setState({ usuario: admin, isReady: true })
+    renderSeccion('Lugares de trabajo')
+    expect(screen.getByRole('heading', { level: 1, name: 'Lugares de trabajo' })).toBeInTheDocument()
+
+    act(() => useAuthStore.setState({ usuario: { ...admin, rol: 'personal' } }))
+
+    await waitFor(() => expect(tarjetas()).toHaveLength(2))
+    expect(window.location.hash).toBe('')
+  })
+
+  it('la administración ve en "Notificaciones y avisos" interruptores, niveles, horas y mínimos', () => {
+    useAuthStore.setState({ usuario: admin, isReady: true })
+    renderSeccion('Notificaciones y avisos')
+
+    expect(screen.getAllByRole('switch')).toHaveLength(2)
+    expect(screen.getByText(/niveles de aviso de caducidad/i)).toBeInTheDocument()
+    expect(screen.getByText('Aviso de cambios sin subir')).toBeInTheDocument()
+    expect(screen.getByText(/stock mínimo por insumo/i)).toBeInTheDocument()
   })
 })

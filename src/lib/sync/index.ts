@@ -1407,7 +1407,13 @@ async function pullMinimosLugar(
   client: SupabaseClient,
   ciclo: CicloSync,
 ): Promise<void> {
-  const respuesta = await client.from('minimos_lugar').select('*')
+  // Spec 019 (research.md R5): clave (insumo, lugar), sin `id`; paginado por
+  // cursor compuesto para no truncar en `max_rows`.
+  const respuesta = await seleccionarTodo<MinimoLugarRow & Record<string, unknown>>(
+    client,
+    'minimos_lugar',
+    { clave: ['insumo_id', 'lugar_id'] },
+  )
   ciclo.registrar('pull minimos_lugar', errorDe(respuesta))
   if (respuesta.error || !respuesta.data) return
   const locales = new Map(

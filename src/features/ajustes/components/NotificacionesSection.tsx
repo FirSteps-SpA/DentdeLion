@@ -10,16 +10,19 @@ import { Switch } from '../../../components/ui/Switch'
  * inferior. Abierta a todo usuario autenticado — es del dispositivo, no de
  * la cuenta.
  */
-export function NotificacionesSection() {
+export function NotificacionesSection({ sinTitulo = false }: { sinTitulo?: boolean } = {}) {
   const preferenciaStockBajo = useAlertasStore((s) => s.preferenciaStockBajo)
   const preferenciaCaducidad = useAlertasStore((s) => s.preferenciaCaducidad)
 
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="flex items-center gap-2 text-h3 text-text">
-        <Bell size={18} className="text-primary" />
-        Notificaciones
-      </h2>
+      {/* Spec 019: para personal es la sección entera y la pantalla ya la titula. */}
+      {!sinTitulo && (
+        <h2 className="flex items-center gap-2 text-h3 text-text">
+          <Bell size={18} className="text-primary" />
+          Notificaciones
+        </h2>
+      )}
       <Card className="flex flex-col divide-y divide-border px-3.5">
         <div className="flex items-center justify-between gap-2 py-2.5">
           <span className="text-sm text-text">Stock bajo</span>

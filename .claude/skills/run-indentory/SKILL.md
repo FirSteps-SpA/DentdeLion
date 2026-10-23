@@ -87,6 +87,8 @@ Driver commands:
 | `seed-reportes` | Spec 017: 5 insumos con precio (categorías distintas), 6 meses de consumos y tratamientos realizados en el lugar 1 y en `…0012` (créalo antes con `seed-lugar`), para ver Reportes e Inicio con datos. **Call `reload` right after.** |
 | `seed-lugar <id> <nombre...>` | Spec 014: writes another lugar de trabajo of tenant 1, so the selector, "Todos" and "Trasladar" show up. **Call `reload` right after.** |
 | `reload` | Reload the page (picks up seeded IndexedDB data on boot) |
+| `back` | Spec 019: browser "back" (history), then prints the URL |
+| `url` | Spec 019: prints the current URL (e.g. to check `#ajustes/<sección>`) |
 | `console [--errors]` | Dump captured console/page-error messages (`--errors` filters to just errors) |
 | `quit` / `exit` | Close the browser and exit |
 
