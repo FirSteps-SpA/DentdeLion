@@ -32,6 +32,7 @@ import { InventarioTabla } from '../../src/features/insumos/components/Inventari
 import type { EstadoInsumo } from '../../src/features/insumos/lib/estado'
 import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
 import { usarLugar1 } from '../helpers/lugarFalso'
+import { esperarQueLaRuedaNoCambie } from '../helpers/rueda'
 
 /**
  * Spec 015 US3 (T043): precio opcional al recibir, por unidad de compra o
@@ -324,5 +325,13 @@ describe('corregir el precio de un lote (US5, FR-015)', () => {
       expect(screen.getByText('$700 por cartucho')).toBeInTheDocument()
       unmount()
     }
+  })
+})
+
+describe('rueda del mouse (spec 018 FR-005)', () => {
+  it('no cambia la cantidad ni el precio de la recepción', () => {
+    renderRecepcion(base)
+    esperarQueLaRuedaNoCambie(screen.getByLabelText(/^Cantidad/), '2')
+    esperarQueLaRuedaNoCambie(screen.getByLabelText('Precio por caja'), '32500')
   })
 })

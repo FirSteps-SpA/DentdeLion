@@ -97,6 +97,41 @@ async function runCommand(line) {
       console.log('ok: reloaded')
       break
 
+    // Spec 018: rueda real del mouse sobre un campo enfocado. Informa valor
+    // antes/después, si conserva el foco y cuánto se desplazó la página.
+    case 'wheel': {
+      const campo = page.locator(arg).first()
+      await campo.scrollIntoViewIfNeeded()
+      await campo.focus()
+      const antes = await campo.inputValue()
+      const box = await campo.boundingBox()
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+      // Desplazamiento del contenedor con scroll más cercano (o de la página).
+      const posicion = () =>
+        campo.evaluate((el) => {
+          for (let n = el.parentElement; n; n = n.parentElement) {
+            const { overflowY } = getComputedStyle(n)
+            if (/(auto|scroll)/.test(overflowY) && n.scrollHeight > n.clientHeight) return n.scrollTop
+          }
+          return window.scrollY
+        })
+      const scrollAntes = await posicion()
+      await page.mouse.wheel(0, 120)
+      await page.waitForTimeout(300)
+      const despues = await campo.inputValue()
+      const conFoco = await campo.evaluate((el) => document.activeElement === el)
+      const scroll = (await posicion()) - scrollAntes
+      console.log(
+        `${despues === antes ? 'ok' : 'FAIL'}: wheel ${arg} valor ${antes} -> ${despues}, foco ${conFoco ? 'sí' : 'no'}, scroll ${scroll}px`,
+      )
+      break
+    }
+
+    case 'press':
+      await page.keyboard.press(arg)
+      console.log(`ok: pressed ${arg}`)
+      break
+
     // --- inDENTory-specific: seed Dexie/IndexedDB directly, since there is
     // no real Supabase backend in this container (spec 003's offline-first
     // local session cache is exactly what makes this possible). ---

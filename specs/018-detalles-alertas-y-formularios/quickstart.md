@@ -14,9 +14,11 @@
 ```bash
 npm run lint && npm run build
 npx vitest run tests/unit/NumeroInput.test.tsx tests/unit/sin-input-number-suelto.test.ts \
-  tests/unit/alertas tests/integration/rueda-campos-numericos.test.tsx \
-  tests/integration/alertas-detalle.test.tsx tests/integration/inicio.test.tsx \
-  tests/integration/alta-material.test.tsx
+  tests/unit/alertas tests/integration/alertas-detalle.test.tsx tests/integration/inicio.test.tsx \
+  tests/integration/alta-material.test.tsx tests/integration/consumo.test.tsx \
+  tests/integration/conversion-unidad.test.tsx tests/integration/ingreso-precio.test.tsx \
+  tests/integration/ajustes.test.tsx tests/integration/porcentaje-lugar.test.tsx \
+  tests/integration/tratamientos.test.tsx
 TZ=America/Santiago npx vitest run tests/unit/alertas/textoCaducidad.test.ts   # fecha sin corrimiento
 npm test            # suite completa sin regresiones
 ```
@@ -78,4 +80,5 @@ caduca". Encenderlo: la fecha aparece debajo y es obligatoria.
 ## 6. Capturas
 
 Con `run-indentory`: Alertas e Inicio en móvil (390 px) y desktop (1280 px), y el alta de material en
-móvil, para adjuntar al PR.
+móvil, para adjuntar al PR. El comando `wheel <selector>` del driver gira la rueda real sobre un campo
+enfocado e informa valor, foco y desplazamiento (§2 en Chromium).

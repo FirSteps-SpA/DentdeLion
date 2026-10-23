@@ -22,6 +22,7 @@ import { usePendientesStore } from '../../../stores/pendientesStore'
 import { useTratamientosStore } from '../../../stores/tratamientosStore'
 import { fijarPorcentajeLugar } from '../../tratamientos/lib/catalogo'
 import { compararCambios } from '../../insumos/lib/proyeccion'
+import { NumeroInput } from '../../../components/ui/NumeroInput'
 
 type Modo =
   | { tipo: 'crear' }
@@ -266,9 +267,8 @@ export function LugaresSection() {
                   : 'Vacío = sin porcentaje (no se calcula la ganancia estimada).'
               }
             >
-              <input
+              <NumeroInput
                 id="porcentaje-lugar"
-                type="number"
                 min={0}
                 max={100}
                 step="any"

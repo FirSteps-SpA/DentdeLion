@@ -77,13 +77,13 @@ export function etiquetaStockBajo(stockActual: number): EtiquetaStock
 
 ```
 [ícono]  Lidocaína 2 %                              [badge nivel]
-         Vence 3 nov 2026 · vence en 12 días  [chip lugar en "Todos"]
+         3 nov 2026 · vence en 12 días  [chip lugar en "Todos"]
 ```
 
 - Sin "lote", sin `AAAA-MM-DD`, sin "nivel N días" en el texto. El badge conserva sus variantes y
   textos actuales (`Caducado`, `30 días`, `7 días`, `1 día` en Alertas; `Caducado` / `Por vencer` en
   Inicio).
-- Caducado: segunda línea `Venció 28 oct 2026 · caducado hace 5 días`.
+- Caducado: segunda línea `28 oct 2026 · caducado hace 5 días`.
 
 **Próximos vencimientos** (Inicio): mismo texto de segunda línea, con el punto de color actual.
 
@@ -92,7 +92,9 @@ export function etiquetaStockBajo(stockActual: number): EtiquetaStock
 
 **Interacción**:
 - Cada renglón de caducidad, stock bajo y próximo vencimiento es un `<button type="button">` de ancho
-  completo y alto ≥ 48 px, con `aria-label` "Ver detalle de {nombre}".
+  completo y alto ≥ 48 px (`RenglonAlerta`). Su nombre accesible es el contenido del renglón precedido
+  de "Ver detalle de" (texto `sr-only`), así el lector de pantalla también lee la fecha y la etiqueta.
+  *(Ajustado al implementar: un `aria-label` fijo ocultaba la fecha y el tiempo restante.)*
 - Al activarlo se renderiza `InsumoDetalle` con los lotes y movimientos de la vista del lugar del
   renglón; `onClose` vuelve a la misma pantalla con el mismo scroll.
 - "Lotes en revisión" no cambia (sigue mostrando el lote y "Marcar como resuelto").
@@ -106,5 +108,6 @@ Orden dentro de la tarjeta del lote:
 3. **Interruptor `¿Caduca?`** (`role="switch"`, `aria-checked`, texto Sí/No)
 4. Fecha de vencimiento (solo si `¿Caduca?` = Sí) + vida útil estimada
 
-Fuera de la tarjeta, el interruptor ya no aparece. Comportamiento de `toggleCaduca` y validaciones sin
+Con stock inicial 0 no hay tarjeta del lote ni fecha: el interruptor se muestra solo, debajo del código
+de barras, porque "¿Caduca?" es un dato del insumo *(ajustado al implementar)*. Comportamiento de `toggleCaduca` y validaciones sin
 cambios.

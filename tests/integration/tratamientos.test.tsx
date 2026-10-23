@@ -30,6 +30,7 @@ import {
 import { TratamientosView } from '../../src/features/tratamientos/components/TratamientosView'
 import { LUGAR_1, LUGAR_2, TENANT_1 } from '../helpers/tenancy'
 import { lugar1, lugar2 } from '../helpers/lugarFalso'
+import { esperarQueLaRuedaNoCambie } from '../helpers/rueda'
 
 /**
  * Spec 016 US1/US2 (T021, T026): catálogo con precio por lugar, montos con
@@ -284,5 +285,13 @@ describe('costo y ganancia estimada (US2)', () => {
     )
     // Anestesia a $1.650: $4.480 de materiales.
     expect(await screen.findByText(/\$4\.480/)).toBeInTheDocument()
+  })
+})
+
+describe('rueda del mouse (spec 018 FR-005)', () => {
+  it('no cambia el precio por lugar ni la cantidad de un material', async () => {
+    const form = await crearRestauracion()
+    esperarQueLaRuedaNoCambie(within(form).getByLabelText('Precio en Clínica'), '45000')
+    esperarQueLaRuedaNoCambie(within(form).getByLabelText('Resina A2 (g)'), '2')
   })
 })

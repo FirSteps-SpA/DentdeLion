@@ -32,6 +32,7 @@ import { ConsumoForm } from '../../src/features/insumos/components/ConsumoForm'
 import { useInventoryStore } from '../../src/stores/inventoryStore'
 import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
 import { usarLugar1 } from '../helpers/lugarFalso'
+import { esperarQueLaRuedaNoCambie } from '../helpers/rueda'
 
 const insumo: Insumo = {
   unidadCompra: 'mL',
@@ -174,5 +175,14 @@ describe('ConsumoForm (User Story 2, quickstart Scenarios 2-3)', () => {
     )
     expect(movimientosAdd).not.toHaveBeenCalled()
     expect(movimientosPorLote[loteProximo.id]).toHaveLength(1)
+  })
+})
+
+describe('rueda del mouse (spec 018 FR-005)', () => {
+  it('no cambia la cantidad a consumir', async () => {
+    movimientosPorLote = { [loteProximo.id]: [ingreso(loteProximo.id, 5)] }
+    useInventoryStore.setState({ insumos: [insumo], lotes: [loteProximo], isReady: true })
+    await seleccionarInsumo()
+    esperarQueLaRuedaNoCambie(screen.getByLabelText(/Cantidad a consumir/), '3')
   })
 })

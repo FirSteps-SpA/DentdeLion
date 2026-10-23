@@ -75,8 +75,8 @@ existente redondea (`Math.round`), lo que daría "2 meses" a 45 días; no se reu
 
 **Decision**: `formatearFechaCaducidad(fecha: 'AAAA-MM-DD'): string` en el mismo archivo. Arma la fecha
 con sus componentes en hora local (`new Date(año, mes − 1, día)`) y la formatea con
-`Intl.DateTimeFormat('es-CL', { dateStyle: 'medium' })` → "3 nov 2026", el mismo formato que ya usan
-`InsumoDetalle` y `TratamientoDetalle`.
+`Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })` → "3 nov 2026".
+*(Corregido al implementar: `dateStyle: 'medium'` en `es-CL` da "03-11-2026", no "3 nov 2026".)*
 
 **Rationale**: `new Date('2026-11-03')` es medianoche UTC, que en Chile (UTC−3) es el 2 de noviembre; con
 `Intl` en hora local mostraría un día menos. Construir la fecha local evita el error.
@@ -93,9 +93,14 @@ envuelve en un botón (≥ 48 px de alto) que guarda en estado local `{ insumoId
 estado: la persona sigue en Alertas o Inicio. "Lotes en revisión" no cambia (ya muestra el lote y tiene
 su propia acción).
 
-**Rationale**: `InsumoDetalle` ya es un componente superpuesto con `onClose` y recibe lotes y movimientos
-por props, así que no hace falta navegar a Inventario ni compartir estado entre vistas (sin store nuevo,
-Constitución II). Con la vista del lugar del renglón, en "Todos" el detalle muestra los lotes de ese
+**Rationale**: `InsumoDetalle` recibe lotes y movimientos por props y tiene `onClose`, así que no hace
+falta navegar a Inventario ni compartir estado entre vistas (sin store nuevo, Constitución II).
+
+*Corregido al implementar*: `InsumoDetalle` no es un componente superpuesto, sino una `Card` que
+Inventario muestra en línea al final de la página. En Alertas o Inicio quedaría fuera de la vista, así que
+`DetalleDesdeAlerta` lo envuelve en el `BottomSheet` existente (hoja en móvil, modal centrado desde
+tablet), con el título "Detalle del insumo". `InsumoDetalle` recibe `enHoja` para ocultar su propia X
+(la hoja ya trae "Cerrar"); en Inventario no cambia. Con la vista del lugar del renglón, en "Todos" el detalle muestra los lotes de ese
 lugar (edge case de la spec).
 
 **Stock bajo también abre el detalle**: la spec solo lo exige para caducidad (FR-009). Se incluye porque
@@ -143,3 +148,10 @@ página se verifican a mano en Chrome y Firefox (quickstart, SC-006).
 
 **Rationale**: la prueba falla si alguien quita el `onWheel` o usa un `input` suelto, que es lo que hay
 que proteger.
+
+**Resultado (2026-10-22, T030)**: control en Chromium headless (Playwright) con la rueda real del mouse:
+un `type="number"` normal enfocado pasa de 200 a 199 y la página no se mueve; con el `blur()` de
+`NumeroInput` sigue en 200 y la página se desplaza 100 px. En la app (alta de material, comando `wheel`
+de `run-indentory`): stock inicial, mínimo y precio sin cambios, foco suelto y el formulario se desplaza
+120 px; la flecha ↑ con el foco sigue sumando (200 → 201). Prueba manual del usuario (2026-10-22): la rueda no
+cambia los campos numéricos.

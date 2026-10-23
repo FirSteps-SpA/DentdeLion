@@ -46,6 +46,7 @@ import { useAuthStore } from '../../src/stores/authStore'
 import { AjustesView } from '../../src/features/ajustes/components/AjustesView'
 import { AppHeader } from '../../src/app/AppHeader'
 import { TENANT_1 } from '../helpers/tenancy'
+import { esperarQueLaRuedaNoCambie } from '../helpers/rueda'
 
 const insumosT = db.insumos as unknown as MemoryTable<Insumo>
 const lotesT = db.lotes as unknown as MemoryTable<Lote>
@@ -455,5 +456,24 @@ describe('Ajustes — Notificaciones (User Story 7)', () => {
     await waitFor(() => {
       expect(prefNotifT.all()[0]).toMatchObject({ stockBajo: false, caducidad: false })
     })
+  })
+})
+
+describe('rueda del mouse (spec 018 FR-005)', () => {
+  it('no cambia el mínimo por insumo; al soltar el foco guarda lo escrito', async () => {
+    useAuthStore.setState({ usuario: admin, isReady: true })
+    render(<AjustesView />)
+
+    esperarQueLaRuedaNoCambie(screen.getByLabelText('Stock mínimo de Anestesia local'), '8')
+
+    await waitFor(() =>
+      expect(insumosT.all().find((i) => i.nombre === 'Anestesia local')?.stockMinimo).toBe(8),
+    )
+  })
+
+  it('no cambia las horas de aviso de cambios sin subir', () => {
+    useAuthStore.setState({ usuario: admin, isReady: true })
+    render(<AjustesView />)
+    esperarQueLaRuedaNoCambie(screen.getByLabelText(/Avisar si un cambio lleva más de/), '12')
   })
 })

@@ -62,6 +62,7 @@ import { SearchPicker } from '../../src/features/insumos/components/SearchPicker
 import { AvisosConsumo } from '../../src/app/AvisosConsumo'
 import { TENANT_1 } from '../helpers/tenancy'
 import { usarLugar1 } from '../helpers/lugarFalso'
+import { esperarQueLaRuedaNoCambie } from '../helpers/rueda'
 
 const insumosT = db.insumos as unknown as MemoryTable<Insumo>
 const categoriasT = db.categorias as unknown as MemoryTable<Categoria>
@@ -385,14 +386,14 @@ describe('AltaMaterialView — US2 (stock inicial + primer lote)', () => {
     ).toBeInTheDocument()
   })
 
-  it('hides the date field when "Sujeto a caducidad" is off', async () => {
+  it('hides the date field when "¿Caduca?" is off', async () => {
     render(<Harness />)
     fireEvent.click(screen.getByRole('button', { name: 'Material' }))
     await screen.findByLabelText('Nombre del material')
     fireEvent.click(screen.getAllByRole('button', { name: 'Sumar uno' })[1])
     expect(screen.getByLabelText('Fecha de vencimiento')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('switch', { name: /Sujeto a caducidad/ }))
+    fireEvent.click(screen.getByRole('switch', { name: /¿Caduca\?/ }))
 
     expect(screen.queryByLabelText('Fecha de vencimiento')).not.toBeInTheDocument()
   })
@@ -792,10 +793,54 @@ describe('AltaMaterialView — Polish (touch targets, FR-025)', () => {
       /touch-target/,
     )
     expect(
-      screen.getByRole('switch', { name: /Sujeto a caducidad/ }).className,
+      screen.getByRole('switch', { name: /¿Caduca\?/ }).className,
     ).toMatch(/touch-target/)
     expect(
       screen.getByRole('button', { name: /Guardar e Ingresar/ }).className,
     ).toMatch(/touch-target/)
+  })
+})
+
+describe('interruptor "¿Caduca?" (spec 018 US4)', () => {
+  it('con primer lote, va entre "Proveedor" y "Fecha de vencimiento" (orden visual y de foco)', async () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Material' }))
+    await screen.findByLabelText('Nombre del material')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Sumar uno' })[1])
+
+    const proveedor = screen.getByLabelText('Proveedor')
+    const interruptor = screen.getByRole('switch', { name: /¿Caduca\?/ })
+    const fecha = screen.getByLabelText('Fecha de vencimiento')
+    const SIGUE = Node.DOCUMENT_POSITION_FOLLOWING
+    expect(proveedor.compareDocumentPosition(interruptor) & SIGUE).toBeTruthy()
+    expect(interruptor.compareDocumentPosition(fecha) & SIGUE).toBeTruthy()
+    // Nada enfocable entre el interruptor y la fecha.
+    const enfocables = Array.from(
+      document.querySelectorAll<HTMLElement>('button, input, select, textarea'),
+    )
+    expect(enfocables.indexOf(fecha)).toBe(enfocables.indexOf(interruptor) + 1)
+
+    fireEvent.click(interruptor)
+    expect(screen.queryByLabelText('Fecha de vencimiento')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('switch', { name: /¿Caduca\?/ }))
+    expect(screen.getByLabelText('Fecha de vencimiento')).toBeInTheDocument()
+  })
+
+  it('sin stock inicial sigue disponible (es un dato del insumo)', async () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Material' }))
+    await screen.findByLabelText('Nombre del material')
+    expect(screen.queryByLabelText('Fecha de vencimiento')).not.toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: /¿Caduca\?/ })).toBeInTheDocument()
+  })
+})
+
+describe('rueda del mouse (spec 018 FR-005)', () => {
+  it('no cambia el stock inicial ni el mínimo del alta', async () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Material' }))
+    await screen.findByLabelText('Nombre del material')
+    esperarQueLaRuedaNoCambie(screen.getByLabelText(/^Stock inicial/), '200')
+    esperarQueLaRuedaNoCambie(screen.getByLabelText('Stock mínimo (opcional)'), '5')
   })
 })

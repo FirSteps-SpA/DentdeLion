@@ -26,7 +26,7 @@ Patrón del proyecto: Vitest + RTL con `fireEvent` (no hay `user-event`), helper
 
 ## Phase 1: Setup
 
-- [ ] T001 Confirmar la línea base en la rama: `npm run lint && npm test` en verde antes de tocar
+- [X] T001 Confirmar la línea base en la rama: `npm run lint && npm test` en verde antes de tocar
   código, y anotar el número de pruebas para comparar en T034.
 
 ---
@@ -36,18 +36,19 @@ Patrón del proyecto: Vitest + RTL con `fireEvent` (no hay `user-event`), helper
 **Purpose**: los helpers de texto que comparten Alertas e Inicio (US2 y US3). US1 y US4 no dependen
 de esta fase.
 
-- [ ] T002 [P] Escribir `tests/unit/alertas/textoCaducidad.test.ts` con todos los casos de UI §2:
+- [X] T002 [P] Escribir `tests/unit/alertas/textoCaducidad.test.ts` con todos los casos de UI §2:
   `textoTiempoCaducidad` para 0, 1, 12, 59, 60, 89, 90, 170, −1, −5, −59 y −60; y
   `formatearFechaCaducidad('2026-11-03') === '3 nov 2026'` con `process.env.TZ` en
   `America/Santiago` (o fijando la zona en el test), más `''` para fecha vacía o inválida.
-- [ ] T003 [P] Escribir `tests/unit/alertas/etiquetaStock.test.ts` con la tabla de UI §3: −2, 0 →
+- [X] T003 [P] Escribir `tests/unit/alertas/etiquetaStock.test.ts` con la tabla de UI §3: −2, 0 →
   "Sin stock"/`danger`/`CircleAlert`; 0,5 y 2 → "Bajo mínimo"/`warning-30`/`AlertTriangle`.
-- [ ] T004 Implementar `src/features/alertas/lib/textoCaducidad.ts` (R3, R4): `textoTiempoCaducidad`
+- [X] T004 Implementar `src/features/alertas/lib/textoCaducidad.ts` (R3, R4): `textoTiempoCaducidad`
   con umbral 60 y meses = `Math.floor(Math.abs(dias) / 30)`, singular "1 día"; y
   `formatearFechaCaducidad` que separa `AAAA-MM-DD`, construye `new Date(año, mes - 1, día)` y formatea
-  con un `Intl.DateTimeFormat('es-CL', { dateStyle: 'medium' })` a nivel de módulo. Comentario breve
+  con un `Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })` a nivel
+  de módulo (`dateStyle: 'medium'` da "03-11-2026" en `es-CL`). Comentario breve
   sobre por qué no se usa `new Date(fecha)` (UTC). T002 en verde.
-- [ ] T005 Implementar `src/features/alertas/lib/etiquetaStock.ts` (R6) con el tipo `EtiquetaStock`
+- [X] T005 Implementar `src/features/alertas/lib/etiquetaStock.ts` (R6) con el tipo `EtiquetaStock`
   de data-model.md, usando `BadgeVariant` de `src/components/ui/Badge` y los íconos de
   `src/components/icons`. T003 en verde.
 
@@ -65,47 +66,50 @@ sigue en 200 y la página se desplaza.
 
 ### Tests for User Story 1
 
-- [ ] T006 [P] [US1] Escribir `tests/unit/NumeroInput.test.tsx` con las invariantes 1–3 de UI §1: con
+- [X] T006 [P] [US1] Escribir `tests/unit/NumeroInput.test.tsx` con las invariantes 1–3 de UI §1: con
   foco y valor 200, `fireEvent.wheel` deja el valor en 200 y `document.activeElement` distinto del
   input; sin foco, `wheel` no cambia nada ni lanza; `fireEvent.change` con "35" llama `onChange`; el
   `onWheel` recibido por props también se llama; `ref` llega al `<input>`; nunca se llama
   `preventDefault` (el evento no queda `defaultPrevented`).
-- [ ] T007 [P] [US1] Escribir `tests/unit/sin-input-number-suelto.test.ts` (R2) con el patrón de
+- [X] T007 [P] [US1] Escribir `tests/unit/sin-input-number-suelto.test.ts` (R2) con el patrón de
   `tests/unit/lecturas-movimientos.test.ts`: recorre `src/` (`.ts`/`.tsx`) y falla si algún archivo
   distinto de `src/components/ui/NumeroInput.tsx` contiene `type="number"` o `type={'number'}`; incluir
   un caso que pruebe que la regla detecta ambas formas. Falla hasta T016.
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] Crear `src/components/ui/NumeroInput.tsx` (R1, UI §1): props =
+- [X] T008 [US1] Crear `src/components/ui/NumeroInput.tsx` (R1, UI §1): props =
   `Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>` + `ref` (React 19, `ref` como prop);
   renderiza `<input type="number" {...props}>` y en `onWheel` hace `blur()` si es
   `document.activeElement`, luego llama al `onWheel` recibido. Comentario JSDoc con el motivo (bug de la
   clienta, spec 018) y por qué no `preventDefault`. T006 en verde.
-- [ ] T009 [US1] Usar `NumeroInput` en `src/components/ui/Stepper.tsx` (campo central), sin cambiar sus
+- [X] T009 [US1] Usar `NumeroInput` en `src/components/ui/Stepper.tsx` (campo central), sin cambiar sus
   props ni comportamiento. Cubre alta, cantidad de ingreso, presentación, traslado, compras manuales,
   registrar tratamiento y cantidades de materiales.
-- [ ] T010 [P] [US1] Usar `NumeroInput` en `src/features/insumos/components/ConsumoForm.tsx`.
-- [ ] T011 [P] [US1] Usar `NumeroInput` en los 2 campos de
+- [X] T010 [P] [US1] Usar `NumeroInput` en `src/features/insumos/components/ConsumoForm.tsx`.
+- [X] T011 [P] [US1] Usar `NumeroInput` en los 2 campos de
   `src/features/insumos/components/EditarInsumoForm.tsx` (`editar-stock-minimo` y
   `editar-minimo-lugar`).
-- [ ] T012 [P] [US1] Usar `NumeroInput` en `src/features/insumos/components/ConvertirUnidadDialog.tsx`
+- [X] T012 [P] [US1] Usar `NumeroInput` en `src/features/insumos/components/ConvertirUnidadDialog.tsx`
   y en `src/features/insumos/components/PrecioIngresoField.tsx`.
-- [ ] T013 [P] [US1] Usar `NumeroInput` en los 2 campos de
+- [X] T013 [P] [US1] Usar `NumeroInput` en los 2 campos de
   `src/features/ajustes/components/ConfiguracionAlertasSection.tsx` (mínimo por insumo con `onBlur` y
   `horas-aviso-pendientes`).
-- [ ] T014 [P] [US1] Usar `NumeroInput` en `src/features/ajustes/components/LugaresSection.tsx`
+- [X] T014 [P] [US1] Usar `NumeroInput` en `src/features/ajustes/components/LugaresSection.tsx`
   (% profesional).
-- [ ] T015 [P] [US1] Usar `NumeroInput` en `src/features/tratamientos/components/TratamientoForm.tsx`
+- [X] T015 [P] [US1] Usar `NumeroInput` en `src/features/tratamientos/components/TratamientoForm.tsx`
   (precio en cada lugar).
-- [ ] T016 [US1] Correr T007: debe pasar (ningún `type="number"` suelto). Si aparece uno que no estaba
+- [X] T016 [US1] Correr T007: debe pasar (ningún `type="number"` suelto). Si aparece uno que no estaba
   en la lista de UI §1, migrarlo también y agregarlo a la tabla de UI §1.
-- [ ] T017 [US1] Escribir `tests/integration/rueda-campos-numericos.test.tsx` (FR-005, R8): por cada
-  formulario de UI §1 (alta de material vía `Stepper`, consumo, editar insumo, convertir unidad,
-  precio de ingreso, Ajustes ▸ mínimos y horas, % profesional, tratamiento), montar el componente con
-  los helpers existentes, escribir un valor, enfocar, `fireEvent.wheel` y comprobar valor intacto y
-  foco perdido. En el mínimo por insumo de Ajustes, comprobar que el `onBlur` guarda el valor escrito y
-  no otro. Reutilizar el montaje de las pruebas existentes de cada formulario.
+- [X] T017 [US1] *(Hecho: en vez de un archivo nuevo, una prueba "rueda del mouse (spec 018 FR-005)"
+  en el archivo de integración que ya monta cada formulario, con el helper
+  `tests/helpers/rueda.ts`: `alta-material` (stock inicial y mínimo), `consumo`, `conversion-unidad`
+  (mínimo del catálogo, mínimo del lugar y factor), `ingreso-precio` (cantidad y precio de la
+  recepción), `ajustes` (mínimo por insumo, que además guarda lo escrito al soltar el foco, y horas de
+  aviso), `porcentaje-lugar` y `tratamientos` (precio por lugar y cantidad de material). Verificación de
+  mutación: sin el `blur()` de `NumeroInput` fallan las 9.)* Escribir las pruebas de rueda por
+  formulario (FR-005, R8): escribir un valor, enfocar, `fireEvent.wheel` y comprobar valor intacto y
+  foco perdido.
 
 **Checkpoint**: US1 completa. Publicable sola como 2.4.1 si hace falta (spec, Contexto).
 
@@ -120,36 +124,36 @@ lote; al tocarlas se abre el detalle del insumo y al cerrarlo se vuelve (FR-006 
 
 ### Tests for User Story 2
 
-- [ ] T018 [P] [US2] Escribir `tests/integration/alertas-detalle.test.tsx` (caducidad): con lotes a
+- [X] T018 [P] [US2] Escribir `tests/integration/alertas-detalle.test.tsx` (caducidad): con lotes a
   12 y 75 días, hoy y −5 días (reloj fijo), `AlertasView` muestra "vence en 12 días", "vence en 2
   meses", "vence hoy" y "caducado hace 5 días" con su fecha legible; ningún renglón de "Próximos a
   caducar" contiene "lote", "nivel" ni `AAAA-MM-DD`; el badge de caducado sigue en `danger`; tocar el
   renglón (`getByRole('button', { name: /Ver detalle de Lidocaína/ })`) abre el detalle con los números
   de lote; cerrarlo deja `AlertasView` visible. Caso "Todos" con `lugarFalso.ts`: el detalle muestra
   los lotes del lugar del renglón. "Lotes en revisión" sigue mostrando el número de lote.
-- [ ] T019 [P] [US2] Actualizar `tests/integration/inicio.test.tsx`: el resumen de alertas y "Próximos
+- [X] T019 [P] [US2] Actualizar `tests/integration/inicio.test.tsx`: el resumen de alertas y "Próximos
   vencimientos" usan el texto nuevo (reemplazar la aserción `/venció hace 2 días/` por
   `/caducado hace 2 días/`), no muestran "Lote", y tocar un vencimiento abre el detalle y cerrarlo
   vuelve a Inicio.
 
 ### Implementation for User Story 2
 
-- [ ] T020 [US2] Crear el renglón de alerta reutilizable en
+- [X] T020 [US2] Crear el renglón de alerta reutilizable en
   `src/features/alertas/components/RenglonAlerta.tsx` (UI §4): `<button type="button">` de ancho
   completo, `min-h-12` (≥ 48 px), `aria-label="Ver detalle de {nombre}"`, con ranuras para ícono, título,
   segunda línea, chip y badge, y `onClick`. Mantener el aspecto de tarjeta actual (`Card`) en Alertas y
   el de lista con divisores en Inicio (prop de variante o `className`).
-- [ ] T021 [US2] Crear el hook o componente que abre el detalle en
+- [X] T021 [US2] *(Hecho con un cambio: `InsumoDetalle` es una `Card` en línea, no un overlay; `DetalleDesdeAlerta` lo envuelve en `BottomSheet` "Detalle del insumo" y le pasa `enHoja` para ocultar su X — research.md R5.)* Crear el hook o componente que abre el detalle en
   `src/features/alertas/components/DetalleDesdeAlerta.tsx` (R5, data-model `DetalleAbierto`): recibe
   `{ insumoId, lugarId }` y las `vistas` de `useVistasDeLugar()`, busca la vista del lugar (o la única
   vista), y renderiza `InsumoDetalle` con `lotes` del insumo y `movimientos` de esa vista; si el insumo
   ya no existe, llama `onClose`.
-- [ ] T022 [US2] En `src/features/alertas/components/AlertasView.tsx`, sección "Próximos a caducar":
+- [X] T022 [US2] En `src/features/alertas/components/AlertasView.tsx`, sección "Próximos a caducar":
   usar `RenglonAlerta` con título = nombre y segunda línea
   `Vence {formatearFechaCaducidad} · {textoTiempoCaducidad}` (o `Venció …` si `nivel === 'caducado'`),
   sin lote ni "nivel N días"; badge y chip sin cambios; estado `detalleAbierto` + `DetalleDesdeAlerta`.
   "Lotes en revisión" no cambia.
-- [ ] T023 [US2] En `src/features/inicio/components/InicioView.tsx`: `FilaAlerta` de caducidad y la
+- [X] T023 [US2] En `src/features/inicio/components/InicioView.tsx`: `FilaAlerta` de caducidad y la
   lista "Próximos vencimientos" usan `RenglonAlerta` con el mismo texto (sin "Lote …"), conservando el
   punto de color de vencimientos; eliminar `textoDias` local; estado `detalleAbierto` +
   `DetalleDesdeAlerta`. T018 y T019 en verde.
@@ -167,20 +171,20 @@ lote; al tocarlas se abre el detalle del insumo y al cerrarlo se vuelve (FR-006 
 
 ### Tests for User Story 3
 
-- [ ] T024 [P] [US3] Agregar a `tests/integration/alertas-detalle.test.tsx` un `describe` de stock bajo:
+- [X] T024 [P] [US3] Agregar a `tests/integration/alertas-detalle.test.tsx` un `describe` de stock bajo:
   insumo en 0 → badge "Sin stock" (`danger`), insumo en 2 con mínimo 5 → "Bajo mínimo"; en "Todos" con
   el mismo insumo en 0 en un lugar y 2 en otro, cada renglón con su etiqueta y su chip; tocar el renglón
   abre el detalle (R5).
-- [ ] T025 [P] [US3] Agregar a `tests/integration/inicio.test.tsx` que un insumo con stock 0 en el
+- [X] T025 [P] [US3] Agregar a `tests/integration/inicio.test.tsx` que un insumo con stock 0 en el
   resumen de alertas muestra "Sin stock" y ninguno "Stock crítico".
 
 ### Implementation for User Story 3
 
-- [ ] T026 [US3] En `src/features/alertas/components/AlertasView.tsx`, sección "Stock bajo": badge,
+- [X] T026 [US3] *(Hecho junto con T022: mismo archivo.)* En `src/features/alertas/components/AlertasView.tsx`, sección "Stock bajo": badge,
   variante e ícono desde `etiquetaStockBajo(stockActual)`; renglón con `RenglonAlerta` (abre el
   detalle, R5). Si se trabaja antes que US2, crear `RenglonAlerta` y `DetalleDesdeAlerta` aquí (T020,
   T021).
-- [ ] T027 [US3] En `src/features/inicio/components/InicioView.tsx`, `FilaAlerta` de stock bajo usa
+- [X] T027 [US3] En `src/features/inicio/components/InicioView.tsx`, `FilaAlerta` de stock bajo usa
   `etiquetaStockBajo` (desaparece "Stock crítico") y `RenglonAlerta`. T024 y T025 en verde.
 
 **Checkpoint**: US3 completa. No tocar la etiqueta "Stock crítico" de Inventario
@@ -197,7 +201,7 @@ lote; al tocarlas se abre el detalle del insumo y al cerrarlo se vuelve (FR-006 
 
 ### Tests for User Story 4
 
-- [ ] T028 [US4] Actualizar `tests/integration/alta-material.test.tsx`: reemplazar `/Sujeto a
+- [X] T028 [US4] Actualizar `tests/integration/alta-material.test.tsx`: reemplazar `/Sujeto a
   caducidad/` por `/¿Caduca\?/` en los `getByRole('switch', …)` (líneas ~388, ~395 y ~795) y agregar
   una prueba de orden: en el DOM, el campo "Proveedor" precede al switch y el switch precede al campo
   "Fecha de vencimiento" (`compareDocumentPosition`); con el switch apagado la fecha no está y el
@@ -205,7 +209,7 @@ lote; al tocarlas se abre el detalle del insumo y al cerrarlo se vuelve (FR-006 
 
 ### Implementation for User Story 4
 
-- [ ] T029 [US4] En `src/features/insumos/components/AltaMaterialView.tsx` (R7, UI §5): mover el bloque
+- [X] T029 [US4] *(Hecho con un ajuste: sin stock inicial no hay tarjeta del lote ni fecha, y el interruptor queda solo debajo del código de barras, porque "¿Caduca?" es un dato del insumo; con prueba.)* En `src/features/insumos/components/AltaMaterialView.tsx` (R7, UI §5): mover el bloque
   del `role="switch"` dentro de la tarjeta del lote, entre "Proveedor" y el bloque condicional de
   "Fecha de vencimiento"; cambiar el texto "Sujeto a caducidad" por "¿Caduca?"; sin cambios en
   `toggleCaduca`, `ORDEN_CAMPOS` ni validaciones. T028 en verde.
@@ -216,17 +220,17 @@ lote; al tocarlas se abre el detalle del insumo y al cerrarlo se vuelve (FR-006 
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T030 Recorrer QS §2 en Chrome (o Edge) y Firefox de escritorio reales: rueda y trackpad sobre cada
+- [X] T030 *(Hecho 2026-10-22: Chromium con la rueda real — ver research.md R8 — y prueba manual del usuario en su navegador: la rueda no cambia los campos numéricos.)* Recorrer QS §2 en Chrome (o Edge) y Firefox de escritorio reales: rueda y trackpad sobre cada
   campo de la lista, desplazamiento de la página, flechas ↑/↓ con el foco; en móvil (o emulación),
   teclado numérico y + / −. Anotar el resultado y los navegadores con versión en research.md R8.
-- [ ] T031 Verificación visual con `run-indentory` (QS §6): Alertas e Inicio en 390 y 1280 px, con un
+- [X] T031 *(Hecho: Alertas, detalle, Inicio y alta en 390 y 1280 px con un lugar; renglones con `touch-target`; la segunda línea se parte bien en 390 px. Ajuste que salió de las capturas: la insignia del nivel decía "1 días" → "1 día", con prueba.)* Verificación visual con `run-indentory` (QS §6): Alertas e Inicio en 390 y 1280 px, con un
   lugar y en "Todos", y el alta de material en móvil. Confirmar objetivos ≥ 48 px en los renglones
   (Constitución III) y que el texto de la segunda línea no se corta mal en 390 px.
-- [ ] T032 Recorrer QS §3–§5 (automatizado o en el navegador) y confirmar que funciona en modo avión.
-- [ ] T033 [P] Confirmar que `tests/unit/lecturas-movimientos.test.ts` sigue pasando sin agregar
+- [X] T032 *(Hecho, automatizado: §3 en `alertas-detalle.test.tsx` e `inicio.test.tsx`, §4 en los mismos, §5 en `alta-material.test.tsx`; todo sale de los stores locales, sin red.)* Recorrer QS §3–§5 (automatizado o en el navegador) y confirmar que funciona en modo avión.
+- [X] T033 [P] Confirmar que `tests/unit/lecturas-movimientos.test.ts` sigue pasando sin agregar
   permitidos (`DetalleDesdeAlerta` usa los movimientos de la vista, no `db.movimientos`).
-- [ ] T034 Correr `npm run lint && npm run build && npm test`, todo verde, con más pruebas que en T001.
-- [ ] T035 [P] En `../1stDocs`, actualizar `005-roadmap/002-DentdeLion.md` (018 hecha, con las
+- [X] T034 *(Hecho: lint sin avisos, build, 795 pruebas en 108 archivos; línea base 750 en 103.)* Correr `npm run lint && npm run build && npm test`, todo verde, con más pruebas que en T001.
+- [X] T035 [P] *(Hecho en `../1stDocs`, sin commit: roadmap con estado y decisiones, backlog con "Detalles" y "bug" tachados y la entrada de la spec.)* En `../1stDocs`, actualizar `005-roadmap/002-DentdeLion.md` (018 hecha, con las
   decisiones de Clarifications) y `002-backlog/002-DentdeLion.md` (sección "Detalles" y "Corregir
   'bug'" hechas).
 - [ ] T036 Descripción del PR a `develop`: los 4 pedidos, la decisión de bloquear solo la rueda (R1,

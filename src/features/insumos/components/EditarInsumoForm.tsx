@@ -17,6 +17,7 @@ import { hayVariosLugares, nombreLugar, useLugarStore } from '../../../stores/lu
 import { guardarMinimoLugar } from '../lib/minimos'
 import { PresentacionFields } from './PresentacionFields'
 import { ConvertirUnidadDialog } from './ConvertirUnidadDialog'
+import { NumeroInput } from '../../../components/ui/NumeroInput'
 
 export interface EditarInsumoFormProps {
   insumo: Insumo
@@ -313,9 +314,8 @@ export function EditarInsumoForm({
             <Minus size={16} />
           </TouchButton>
           <div className="touch-target flex flex-1 items-center justify-center rounded-md border border-border bg-surface">
-            <input
+            <NumeroInput
               id="editar-stock-minimo"
-              type="number"
               step="any"
               min={0}
               value={stockMinimo}
@@ -342,9 +342,8 @@ export function EditarInsumoForm({
             Stock mínimo en {nombreLugar(lugares, lugarMinimo)}
           </label>
           <div className="touch-target flex items-center rounded-md border border-border bg-surface px-3.5">
-            <input
+            <NumeroInput
               id="editar-minimo-lugar"
-              type="number"
               step="any"
               min={0}
               value={minimoLugar}

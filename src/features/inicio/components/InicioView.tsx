@@ -1,6 +1,6 @@
+import { useCallback, useState } from 'react'
 import type { Vista } from '../../../app/navegacion'
 import {
-  AlertTriangle,
   Bell,
   ChevronRight,
   CircleAlert,
@@ -21,6 +21,13 @@ import { ChipLugar } from '../../../app/ChipLugar'
 import { useValorInventario } from '../../reportes/useReportes'
 import { formatearMonto, textoVariacion } from '../../reportes/lib/formato'
 import type { ValorInventario } from '../../reportes/lib/valorInventario'
+import { etiquetaStockBajo } from '../../alertas/lib/etiquetaStock'
+import { formatearFechaCaducidad, textoTiempoCaducidad } from '../../alertas/lib/textoCaducidad'
+import { RenglonAlerta } from '../../alertas/components/RenglonAlerta'
+import {
+  DetalleDesdeAlerta,
+  type DetalleAbierto,
+} from '../../alertas/components/DetalleDesdeAlerta'
 
 export interface InicioViewProps {
   onNavegar: (vista: Vista) => void
@@ -32,58 +39,72 @@ const fecha = new Intl.DateTimeFormat('es-CL', {
   month: 'long',
 })
 
-function textoDias(dias: number): string {
-  if (dias < 0)
-    return `venció hace ${Math.abs(dias)} ${Math.abs(dias) === 1 ? 'día' : 'días'}`
-  if (dias === 0) return 'vence hoy'
-  return `vence en ${dias} ${dias === 1 ? 'día' : 'días'}`
+/** Spec 018 FR-006/FR-007: fecha legible y tiempo restante, sin lote. */
+function textoVencimiento(fechaCaducidad: string | null | undefined, dias: number): string {
+  return `${formatearFechaCaducidad(fechaCaducidad ?? '')} · ${textoTiempoCaducidad(dias)}`
 }
 
-function FilaAlerta({ alerta, conLugar }: { alerta: AlertaInicio; conLugar: boolean }) {
+function FilaAlerta({
+  alerta,
+  conLugar,
+  onAbrir,
+}: {
+  alerta: AlertaInicio
+  conLugar: boolean
+  onAbrir: () => void
+}) {
   const { insumo, tipo, lote, diasRestantes, stockActual, lugar } = alerta
   const chip = conLugar && lugar ? <ChipLugar nombre={lugar.nombre} /> : null
   if (tipo === 'stock-bajo') {
-    const critico = stockActual === 0
+    // Spec 018 FR-012: la misma etiqueta que en Alertas ("Sin stock" / "Bajo mínimo").
+    const etiqueta = etiquetaStockBajo(stockActual ?? 0)
     return (
-      <li className="flex items-center gap-3 py-2.5">
-        {critico ? (
-          <CircleAlert size={18} className="shrink-0 text-danger" />
-        ) : (
-          <AlertTriangle size={18} className="shrink-0 text-warning-icon" />
-        )}
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-sm font-bold text-text">
-            {insumo.nombre}
-          </span>
-          <span className="text-caption text-text-muted">
-            Stock: {stockActual} (mínimo {insumo.stockMinimo}) {chip}
-          </span>
-        </span>
-        <Badge variant={critico ? 'danger' : 'warning-30'}>
-          {critico ? 'Stock crítico' : 'Bajo mínimo'}
-        </Badge>
+      <li>
+        <RenglonAlerta
+          variante="lista"
+          onAbrir={onAbrir}
+          icono={
+            <etiqueta.icono
+              size={18}
+              className={`shrink-0 ${etiqueta.variante === 'danger' ? 'text-danger' : 'text-warning-icon'}`}
+            />
+          }
+          titulo={insumo.nombre}
+          detalle={
+            <>
+              Stock: {stockActual} (mínimo {insumo.stockMinimo}) {chip}
+            </>
+          }
+          badge={<Badge variant={etiqueta.variante}>{etiqueta.texto}</Badge>}
+        />
       </li>
     )
   }
   const caducado = tipo === 'caducado'
   return (
-    <li className="flex items-center gap-3 py-2.5">
-      {caducado ? (
-        <CircleAlert size={18} className="shrink-0 text-danger" />
-      ) : (
-        <Clock size={18} className="shrink-0 text-warning-icon" />
-      )}
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-sm font-bold text-text">
-          {insumo.nombre}
-        </span>
-        <span className="text-caption text-text-muted">
-          Lote {lote?.numeroLote} · {textoDias(diasRestantes ?? 0)} {chip}
-        </span>
-      </span>
-      <Badge variant={caducado ? 'danger' : 'urgent-7'}>
-        {caducado ? 'Caducado' : 'Por vencer'}
-      </Badge>
+    <li>
+      <RenglonAlerta
+        variante="lista"
+        onAbrir={onAbrir}
+        icono={
+          caducado ? (
+            <CircleAlert size={18} className="shrink-0 text-danger" />
+          ) : (
+            <Clock size={18} className="shrink-0 text-warning-icon" />
+          )
+        }
+        titulo={insumo.nombre}
+        detalle={
+          <>
+            {textoVencimiento(lote?.fechaCaducidad, diasRestantes ?? 0)} {chip}
+          </>
+        }
+        badge={
+          <Badge variant={caducado ? 'danger' : 'urgent-7'}>
+            {caducado ? 'Caducado' : 'Por vencer'}
+          </Badge>
+        }
+      />
     </li>
   )
 }
@@ -98,7 +119,9 @@ function puntoVencimiento(dias: number): string {
  * Inicio (spec 013 US3, DS §17/§20/§41.3): saludo, 4 KPIs y las listas de
  * alertas y próximos vencimientos, calculados con `resumenInicio` sobre los
  * datos locales. Cada tarjeta y enlace solo lleva a la sección donde se
- * resuelve el tema — Inicio no agrega acciones ni datos (FR-024/FR-026).
+ * resuelve el tema — Inicio no agrega acciones ni datos (FR-024/FR-026). La
+ * spec 018 (FR-009) solo suma abrir el detalle del insumo desde una alerta o
+ * un vencimiento, de solo lectura.
  */
 export function InicioView({ onNavegar }: InicioViewProps) {
   const usuario = useAuthStore((s) => s.usuario)
@@ -119,6 +142,11 @@ export function InicioView({ onNavegar }: InicioViewProps) {
   const hoy = fecha.format(new Date())
 
   const valorInventario = useValorInventario()
+
+  const [detalle, setDetalle] = useState<DetalleAbierto | null>(null)
+  const cerrarDetalle = useCallback(() => setDetalle(null), [])
+  const abrir = (insumoId: string, lugar: { id: string } | null | undefined) => () =>
+    setDetalle({ insumoId, lugarId: lugar?.id ?? null })
 
   const kpis = [
     {
@@ -219,6 +247,7 @@ export function InicioView({ onNavegar }: InicioViewProps) {
                   key={`${alerta.lugar?.id ?? ''}-${alerta.tipo}-${alerta.lote?.id ?? alerta.insumo.id}`}
                   alerta={alerta}
                   conLugar={esTodos}
+                  onAbrir={abrir(alerta.insumo.id, alerta.lugar)}
                 />
               ))}
             </ul>
@@ -251,20 +280,24 @@ export function InicioView({ onNavegar }: InicioViewProps) {
             <ul className="flex flex-col divide-y divide-border">
               {resumen.proximosVencimientos.map(
                 ({ insumo, lote, diasRestantes, lugar }) => (
-                  <li key={`${lugar?.id ?? ''}-${lote.id}`} className="flex items-center gap-3 py-2.5">
-                    <span
-                      aria-hidden="true"
-                      className={`h-2.5 w-2.5 shrink-0 rounded-full ${puntoVencimiento(diasRestantes)}`}
+                  <li key={`${lugar?.id ?? ''}-${lote.id}`}>
+                    <RenglonAlerta
+                      variante="lista"
+                      onAbrir={abrir(insumo.id, lugar)}
+                      icono={
+                        <span
+                          aria-hidden="true"
+                          className={`h-2.5 w-2.5 shrink-0 rounded-full ${puntoVencimiento(diasRestantes)}`}
+                        />
+                      }
+                      titulo={insumo.nombre}
+                      detalle={
+                        <>
+                          {textoVencimiento(lote.fechaCaducidad, diasRestantes)}{' '}
+                          {esTodos && lugar && <ChipLugar nombre={lugar.nombre} />}
+                        </>
+                      }
                     />
-                    <span className="flex min-w-0 flex-1 flex-col">
-                      <span className="truncate text-sm font-bold text-text">
-                        {insumo.nombre}
-                      </span>
-                      <span className="text-caption text-text-muted">
-                        Lote {lote.numeroLote} · {textoDias(diasRestantes)}{' '}
-                        {esTodos && lugar && <ChipLugar nombre={lugar.nombre} />}
-                      </span>
-                    </span>
                   </li>
                 ),
               )}
@@ -289,6 +322,10 @@ export function InicioView({ onNavegar }: InicioViewProps) {
             Ver lista de compra
           </TouchButton>
         </Card>
+      )}
+
+      {detalle && (
+        <DetalleDesdeAlerta abierto={detalle} vistas={vistas} onClose={cerrarDetalle} />
       )}
     </div>
   )

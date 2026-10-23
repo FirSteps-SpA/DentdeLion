@@ -239,6 +239,22 @@ export function AltaMaterialView({
     onCancel()
   }
 
+  // Spec 018 FR-013: "¿Caduca?" justo antes de la fecha de vencimiento, dentro
+  // del primer lote. Sin stock inicial no hay fecha y queda solo, más abajo:
+  // sigue siendo un dato del insumo.
+  const interruptorCaduca = (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={datos.caduca}
+      onClick={toggleCaduca}
+      className="touch-target flex w-full items-center justify-between rounded-md border border-border bg-surface px-3.5 text-left text-sm font-bold text-text"
+    >
+      ¿Caduca?
+      <span className="text-text-muted">{datos.caduca ? 'Sí' : 'No'}</span>
+    </button>
+  )
+
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-bg">
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -478,6 +494,7 @@ export function AltaMaterialView({
                 </IconField>
                 <ErrorCampo id="error-proveedor" mensaje={errores.proveedor} />
               </div>
+              {interruptorCaduca}
               {datos.caduca && (
                 <div className="flex flex-col gap-1">
                   <IconField
@@ -545,16 +562,7 @@ export function AltaMaterialView({
             )}
           </div>
 
-          <button
-            type="button"
-            role="switch"
-            aria-checked={datos.caduca}
-            onClick={toggleCaduca}
-            className="touch-target flex w-full items-center justify-between rounded-md border border-border bg-surface px-3.5 text-left text-sm font-bold text-text"
-          >
-            Sujeto a caducidad
-            <span className="text-text-muted">{datos.caduca ? 'Sí' : 'No'}</span>
-          </button>
+          {datos.stockInicial <= 0 && interruptorCaduca}
 
           {errorGeneral && (
             <Card className="bg-danger-bg px-3.5 py-2.5">

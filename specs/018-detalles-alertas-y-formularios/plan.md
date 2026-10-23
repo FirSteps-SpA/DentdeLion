@@ -119,7 +119,9 @@ tests/
 │   ├── alertas/etiquetaStock.test.ts
 │   └── sin-input-number-suelto.test.ts      # arquitectura (R2)
 └── integration/
-    ├── rueda-campos-numericos.test.tsx      # NUEVO: rueda en cada formulario (FR-005)
+    ├── (rueda por formulario)               # FR-005: un describe "rueda del mouse" en alta-material,
+    │                                        #   consumo, conversion-unidad, ingreso-precio, ajustes,
+    │                                        #   porcentaje-lugar y tratamientos (helpers/rueda.ts)
     ├── alertas-detalle.test.tsx             # NUEVO: textos, sin lote, detalle, "Sin stock"
     ├── inicio.test.tsx                      # ampliado: resumen y próximos vencimientos
     └── alta-material.test.tsx               # ampliado: orden del interruptor
