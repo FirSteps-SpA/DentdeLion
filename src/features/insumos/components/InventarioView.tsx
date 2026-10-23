@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   useInventoryStore,
   searchInsumosPorTexto,
@@ -34,6 +34,9 @@ import { BottomSheet } from '../../../components/ui/BottomSheet'
 import { Card } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { Plus } from '../../../components/icons'
+import { VerMas } from '../../../components/ui/VerMas'
+import { Paginador } from '../../../components/ui/Paginador'
+import { rangoPagina, useListaPaginada } from '../../../lib/paginacion'
 import {
   porLugar,
   resumenPorLugar,
@@ -79,6 +82,7 @@ export function InventarioView() {
   const categoriasRows = useInventoryStore((s) => s.categorias)
   const nivelesAvisoDias = useAlertasStore((s) => s.nivelesAvisoDias)
   const rol = useAuthStore((s) => s.usuario?.rol)
+  const lugarActivoId = useLugarStore((s) => s.lugarActivoId)
 
   const [texto, setTexto] = useState('')
   const [categoria, setCategoria] = useState('')
@@ -114,9 +118,12 @@ export function InventarioView() {
   const idsCategoria = new Set(
     searchInsumosPorCategoria(insumos, categoria).map((insumo) => insumo.id),
   )
-  const resultados = searchInsumosPorEstado(estadosInsumo, estado).filter(
-    (e) => idsTexto.has(e.insumo.id) && idsCategoria.has(e.insumo.id),
-  )
+  // Spec 020 R4: orden alfabético estable, para que cada página signifique algo.
+  const resultados = searchInsumosPorEstado(estadosInsumo, estado)
+    .filter((e) => idsTexto.has(e.insumo.id) && idsCategoria.has(e.insumo.id))
+    .sort((a, b) =>
+      a.insumo.nombre.localeCompare(b.insumo.nombre, 'es', { sensitivity: 'base' }),
+    )
 
   const hayFiltrosActivos =
     texto.trim() !== '' || categoria !== '' || estado.length > 0
@@ -140,6 +147,33 @@ export function InventarioView() {
     posibleDuplicado: duplicados.has(estadoInsumo.insumo.id),
     desglose: resumenTodos?.get(estadoInsumo.insumo.id)?.desglose,
   }))
+
+  // Spec 020: solo se recorta lo que se muestra; búsqueda, filtros y alertas
+  // ya se calcularon sobre todo el inventario (FR-008). Cambiar un filtro o
+  // el lugar vuelve al comienzo (FR-009).
+  const lista = useListaPaginada(filas, {
+    clave: [texto, categoria, estado.join(','), lugarActivoId].join('|'),
+    modo: disposicion === 'desktop' ? 'paginas' : 'ver-mas',
+  })
+
+  // Tras "Ver más", el foco pasa a la primera tarjeta agregada (R6).
+  const primerNuevoRef = useRef<HTMLLIElement>(null)
+  const { indicePrimerNuevo } = lista
+  useEffect(() => {
+    if (indicePrimerNuevo !== null) primerNuevoRef.current?.focus()
+  }, [indicePrimerNuevo])
+
+  // Al elegir otra página en la tabla, su comienzo queda a la vista y el foco
+  // en el título con el rango (R6); no en el render inicial ni al filtrar.
+  const tituloTablaRef = useRef<HTMLTableCaptionElement>(null)
+  const [cambiosDePagina, setCambiosDePagina] = useState(0)
+  useEffect(() => {
+    if (cambiosDePagina === 0) return
+    const titulo = tituloTablaRef.current
+    titulo?.closest('div')?.scrollIntoView?.({ block: 'start' })
+    titulo?.focus()
+  }, [cambiosDePagina])
+  const rango = rangoPagina(lista.pagina, lista.total)
 
   function limpiarFiltros() {
     setTexto('')
@@ -188,7 +222,6 @@ export function InventarioView() {
   }
 
   // Spec 014 US6-5: "Trasladar" solo con 2 o más lugares activos.
-  const lugarActivoId = useLugarStore((s) => s.lugarActivoId)
   function abrirTraslado(insumoId: string) {
     if (esTodos || !lugarActivoId || lugarActivoId === 'todos') {
       setOverlay({ tipo: 'elegirLugar', accion: 'trasladar', insumoId })
@@ -246,29 +279,58 @@ export function InventarioView() {
       {/* Spec 013 US5: misma información y acciones; tabla en desktop, tarjetas en el resto. */}
       {disposicion === 'desktop' ? (
         resultados.length > 0 && (
-          <InventarioTabla
-            filas={filas}
-            onOpen={setInsumoSeleccionadoId}
-            onConsumirUno={(id) => void handleConsumirUno(id)}
-            onAbrirMenu={(id) => setOverlay({ tipo: 'menu', insumoId: id })}
-          />
+          <>
+            <InventarioTabla
+              filas={lista.visibles}
+              titulo={`Insumos ${rango.desde}–${rango.hasta} de ${lista.total}`}
+              tituloRef={tituloTablaRef}
+              onOpen={setInsumoSeleccionadoId}
+              onConsumirUno={(id) => void handleConsumirUno(id)}
+              onAbrirMenu={(id) => setOverlay({ tipo: 'menu', insumoId: id })}
+            />
+            <Paginador
+              pagina={lista.pagina}
+              paginas={lista.paginas}
+              total={lista.total}
+              etiqueta="Páginas del inventario"
+              onIrAPagina={(p) => {
+                lista.irAPagina(p)
+                setCambiosDePagina((n) => n + 1)
+              }}
+            />
+          </>
         )
       ) : (
-        <ul className="flex flex-col gap-2">
-          {filas.map(({ estadoInsumo, disponibilidad, posibleDuplicado, desglose }) => (
-            <li key={estadoInsumo.insumo.id}>
-              <InsumoCard
-                estadoInsumo={estadoInsumo}
-                disponibilidad={disponibilidad}
-                posibleDuplicado={posibleDuplicado}
-                desglose={desglose}
-                onOpen={setInsumoSeleccionadoId}
-                onConsumirUno={(id) => void handleConsumirUno(id)}
-                onAbrirMenu={(id) => setOverlay({ tipo: 'menu', insumoId: id })}
-              />
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="flex flex-col gap-2">
+            {lista.visibles.map(
+              ({ estadoInsumo, disponibilidad, posibleDuplicado, desglose }, i) => (
+                <li
+                  key={estadoInsumo.insumo.id}
+                  ref={i === indicePrimerNuevo ? primerNuevoRef : undefined}
+                  tabIndex={i === indicePrimerNuevo ? -1 : undefined}
+                  className="focus:outline-none"
+                >
+                  <InsumoCard
+                    estadoInsumo={estadoInsumo}
+                    disponibilidad={disponibilidad}
+                    posibleDuplicado={posibleDuplicado}
+                    desglose={desglose}
+                    onOpen={setInsumoSeleccionadoId}
+                    onConsumirUno={(id) => void handleConsumirUno(id)}
+                    onAbrirMenu={(id) => setOverlay({ tipo: 'menu', insumoId: id })}
+                  />
+                </li>
+              ),
+            )}
+          </ul>
+          <VerMas
+            quedan={lista.quedan}
+            mostrados={lista.visibles.length}
+            total={lista.total}
+            onVerMas={lista.verMas}
+          />
+        </>
       )}
 
       {resultados.length === 0 && insumos.length === 0 && (
@@ -296,13 +358,19 @@ export function InventarioView() {
         </Card>
       )}
 
+      {/* Spec 020 R5: en una hoja encima de la lista, que así no se mueve. */}
       {insumoDetalle && (
-        <InsumoDetalle
-          insumo={insumoDetalle}
-          lotes={lotes.filter((lote) => lote.insumoId === insumoDetalle.id)}
-          movimientos={movimientos}
+        <BottomSheet
+          titulo="Detalle del insumo"
           onClose={() => setInsumoSeleccionadoId(null)}
-        />
+        >
+          <InsumoDetalle
+            insumo={insumoDetalle}
+            lotes={lotes.filter((lote) => lote.insumoId === insumoDetalle.id)}
+            movimientos={movimientos}
+            onClose={() => setInsumoSeleccionadoId(null)}
+          />
+        </BottomSheet>
       )}
 
       {overlay?.tipo === 'menu' && insumoOverlay && (

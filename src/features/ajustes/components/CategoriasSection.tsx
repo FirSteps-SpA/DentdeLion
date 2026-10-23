@@ -13,6 +13,8 @@ import { Badge } from '../../../components/ui/Badge'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { BottomSheet } from '../../../components/ui/BottomSheet'
 import { IconField } from '../../../components/ui/IconField'
+import { VerMas } from '../../../components/ui/VerMas'
+import { useListaPaginada } from '../../../lib/paginacion'
 
 /**
  * Sección "Categorías" (spec 010 FR-013..019): listar, crear, renombrar/
@@ -23,6 +25,8 @@ export function CategoriasSection({ sinTitulo = false }: { sinTitulo?: boolean }
   const insumos = useInventoryStore((s) => s.insumos)
   const categorias = useInventoryStore((s) => s.categorias)
   const catalogo = catalogoCategoriasCompleto(categorias, insumos)
+  // Spec 020 FR-014: de a 25 con "Ver más".
+  const lista = useListaPaginada(catalogo, { clave: '', modo: 'ver-mas' })
 
   const [modo, setModo] = useState<'crear' | 'renombrar' | null>(null)
   const [categoriaIdEnEdicion, setCategoriaIdEnEdicion] = useState<string | null>(
@@ -112,7 +116,7 @@ export function CategoriasSection({ sinTitulo = false }: { sinTitulo?: boolean }
       )}
 
       <Card className="flex flex-col divide-y divide-border px-3.5">
-        {catalogo.map((entrada) => (
+        {lista.visibles.map((entrada) => (
           <div
             key={entrada.clave}
             className="flex items-center justify-between gap-2 py-2.5 text-sm text-text"
@@ -153,6 +157,12 @@ export function CategoriasSection({ sinTitulo = false }: { sinTitulo?: boolean }
           </div>
         ))}
       </Card>
+      <VerMas
+        quedan={lista.quedan}
+        mostrados={lista.visibles.length}
+        total={lista.total}
+        onVerMas={lista.verMas}
+      />
 
       {modo && (
         <BottomSheet

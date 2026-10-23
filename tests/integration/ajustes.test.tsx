@@ -48,7 +48,10 @@ import { AjustesView } from '../../src/features/ajustes/components/AjustesView'
 import { AppHeader } from '../../src/app/AppHeader'
 import { TENANT_1 } from '../helpers/tenancy'
 import { esperarQueLaRuedaNoCambie } from '../helpers/rueda'
-import { CATEGORIAS_PRECARGADAS } from '../../src/features/insumos/lib/categorias'
+import {
+  CATEGORIAS_PRECARGADAS,
+  catalogoCategoriasCompleto,
+} from '../../src/features/insumos/lib/categorias'
 
 const insumosT = db.insumos as unknown as MemoryTable<Insumo>
 const lotesT = db.lotes as unknown as MemoryTable<Lote>
@@ -669,5 +672,99 @@ describe('Permisos por rol (spec 019 US2)', () => {
     expect(screen.getByText(/niveles de aviso de caducidad/i)).toBeInTheDocument()
     expect(screen.getByText('Aviso de cambios sin subir')).toBeInTheDocument()
     expect(screen.getByText(/stock mínimo por insumo/i)).toBeInTheDocument()
+  })
+})
+
+describe('Listas de Ajustes por partes (spec 020 US4)', () => {
+  const dosDigitos = (n: number) => String(n).padStart(2, '0')
+  /** 1..n en un orden revuelto pero fijo. */
+  const revueltos = (n: number) =>
+    Array.from({ length: n }, (_, i) => ((i * 7) % n) + 1)
+
+  beforeEach(() => {
+    useAuthStore.setState({ usuario: admin, isReady: true })
+  })
+
+  it('Categorías muestra 25 con "Ver más" y renombrar no cierra los grupos (FR-014, FR-016)', async () => {
+    categoriasT.seed(
+      revueltos(40).map((n) => categoria(`c${n}`, `Cat ${dosDigitos(n)}`)),
+    )
+    reflejarStore()
+    renderSeccion('Categorías')
+    const { categorias, insumos } = useInventoryStore.getState()
+    const total = catalogoCategoriasCompleto(categorias, insumos).length
+    expect(
+      screen.getByRole('button', { name: `Ver más (quedan ${total - 25})` }),
+    ).toBeInTheDocument()
+
+    while (screen.queryByRole('button', { name: /^Ver más/ })) {
+      fireEvent.click(screen.getByRole('button', { name: /^Ver más/ }))
+    }
+    expect(screen.getAllByText(/^Cat \d\d$/)).toHaveLength(40)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Renombrar Cat 39' }))
+    fireEvent.change(screen.getByLabelText('Nombre'), {
+      target: { value: 'Cat 99' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(screen.getByText('Cat 99')).toBeInTheDocument())
+    expect(screen.getAllByText(/^Cat \d\d$/)).toHaveLength(40)
+    expect(
+      screen.queryByRole('button', { name: /^Ver más/ }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('Insumos dados de baja: orden alfabético, "Ver más" y restaurar ajusta lo que queda', async () => {
+    insumosT.seed(
+      revueltos(30).map((n) =>
+        insumo(`baja-${n}`, `Baja ${dosDigitos(n)}`, {
+          dadoDeBajaEn: '2026-09-01T00:00:00.000Z',
+          dadoDeBajaPor: 'admin-1',
+        }),
+      ),
+    )
+    reflejarStore()
+    renderSeccion('Insumos dados de baja')
+    const nombres = () =>
+      screen.getAllByText(/^Baja \d\d$/).map((el) => el.textContent)
+    expect(nombres()).toHaveLength(25)
+    expect(nombres()[0]).toBe('Baja 01')
+    expect(nombres()[24]).toBe('Baja 25')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver más (quedan 5)' }))
+    expect(nombres()).toHaveLength(30)
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Restaurar/i })[0])
+    await waitFor(() => expect(nombres()).toHaveLength(29))
+    expect(
+      screen.queryByRole('button', { name: /^Ver más/ }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('al volver al índice y entrar otra vez la lista empieza desde el comienzo', async () => {
+    insumosT.seed(
+      revueltos(30).map((n) =>
+        insumo(`baja-${n}`, `Baja ${dosDigitos(n)}`, {
+          dadoDeBajaEn: '2026-09-01T00:00:00.000Z',
+          dadoDeBajaPor: 'admin-1',
+        }),
+      ),
+    )
+    reflejarStore()
+    renderSeccion('Insumos dados de baja')
+    fireEvent.click(screen.getByRole('button', { name: 'Ver más (quedan 5)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Volver a Ajustes' }))
+    // "Volver" usa `history.back()`; el índice llega con el `popstate`.
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Insumos dados de baja' }),
+    )
+    expect(screen.getAllByText(/^Baja \d\d$/)).toHaveLength(25)
+  })
+
+  it('con 25 o menos no hay "Ver más"', () => {
+    renderSeccion('Categorías')
+    expect(
+      screen.queryByRole('button', { name: /^Ver más/ }),
+    ).not.toBeInTheDocument()
   })
 })

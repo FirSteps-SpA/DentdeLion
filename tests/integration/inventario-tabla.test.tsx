@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -224,7 +225,9 @@ describe('inventario en tabla (spec 013 US5)', () => {
         name: /^Guantes nitrilo M/,
       }),
     )
-    expect(screen.getByLabelText('Cerrar detalle')).toBeInTheDocument()
+    expect(
+      screen.getByRole('dialog', { name: 'Detalle del insumo' }),
+    ).toBeInTheDocument()
   })
 
   it('con menos de 1200 px se ven tarjetas y no la tabla', () => {
@@ -284,5 +287,95 @@ describe('rendimiento de las conversiones y costos (spec 015 T070)', () => {
     expect(costos.size).toBe(300)
     expect(costos.get('i0')?.costo).toBe(100) // $1.000 por caja ÷ 10 unidades
     expect(duracion).toBeLessThan(100)
+  })
+})
+
+describe('tabla por páginas (spec 020 US3)', () => {
+  const muchos = (n: number) =>
+    Array.from({ length: n }, (_, i) =>
+      insumo(`p${n - i}`, `Insumo ${String(n - i).padStart(3, '0')}`, {
+        stockMinimo: null,
+      }),
+    )
+  const filasVisibles = () =>
+    screen
+      .getAllByRole('row')
+      .slice(1)
+      .map((row) => /Insumo \d{3}/.exec(row.textContent ?? '')?.[0])
+
+  it('muestra 25 filas y el paginador con el rango (FR-007)', () => {
+    useInventoryStore.setState({ insumos: muchos(60) })
+    render(<InventarioView />)
+    expect(filasVisibles()).toHaveLength(25)
+    expect(filasVisibles()[0]).toBe('Insumo 001')
+    const nav = screen.getByRole('navigation', {
+      name: 'Páginas del inventario',
+    })
+    expect(within(nav).getByText('1–25 de 60')).toBeInTheDocument()
+    expect(within(nav).getByRole('button', { name: 'Anterior' })).toBeDisabled()
+    expect(
+      screen.queryByRole('button', { name: /^Ver más/ }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('cambiar de página muestra sus filas y enfoca el título con el rango (R6)', () => {
+    useInventoryStore.setState({ insumos: muchos(60) })
+    render(<InventarioView />)
+    const nav = screen.getByRole('navigation', {
+      name: 'Páginas del inventario',
+    })
+    fireEvent.click(within(nav).getByRole('button', { name: 'Siguiente' }))
+    expect(filasVisibles()[0]).toBe('Insumo 026')
+    expect(within(nav).getByText('26–50 de 60')).toBeInTheDocument()
+
+    fireEvent.click(within(nav).getByRole('button', { name: 'Página 3' }))
+    expect(filasVisibles()).toHaveLength(10)
+    expect(
+      within(nav).getByRole('button', { name: 'Siguiente' }),
+    ).toBeDisabled()
+    const titulo = screen.getByText('Insumos 51–60 de 60')
+    expect(titulo.tagName).toBe('CAPTION')
+    expect(document.activeElement).toBe(titulo)
+  })
+
+  it('la página se conserva al abrir y cerrar el detalle (FR-010)', () => {
+    useInventoryStore.setState({ insumos: muchos(60) })
+    render(<InventarioView />)
+    fireEvent.click(screen.getByRole('button', { name: 'Página 3' }))
+    fireEvent.click(
+      within(fila('Insumo 055')).getByRole('button', { name: /^Insumo 055/ }),
+    )
+    const hoja = screen.getByRole('dialog', { name: 'Detalle del insumo' })
+    fireEvent.click(within(hoja).getByRole('button', { name: 'Cerrar' }))
+    expect(filasVisibles()[0]).toBe('Insumo 051')
+  })
+
+  it('si la página queda vacía, muestra la última con insumos (FR-011)', () => {
+    useInventoryStore.setState({ insumos: muchos(60) })
+    render(<InventarioView />)
+    fireEvent.click(screen.getByRole('button', { name: 'Página 3' }))
+    act(() => useInventoryStore.setState({ insumos: muchos(45) }))
+    expect(filasVisibles()[0]).toBe('Insumo 026')
+    expect(screen.getByText('26–45 de 45')).toBeInTheDocument()
+  })
+
+  it('con 25 insumos no hay paginador (FR-002)', () => {
+    useInventoryStore.setState({ insumos: muchos(25) })
+    render(<InventarioView />)
+    expect(
+      screen.queryByRole('navigation', { name: 'Páginas del inventario' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('al pasar a tarjetas conserva la posición (FR-012)', () => {
+    useInventoryStore.setState({ insumos: muchos(100) })
+    render(<InventarioView />)
+    fireEvent.click(screen.getByRole('button', { name: 'Página 3' }))
+    act(() => simularAncho(800))
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    expect(screen.getAllByText(/^Insumo \d{3}$/)).toHaveLength(75)
+    expect(
+      screen.getByRole('button', { name: 'Ver más (quedan 25)' }),
+    ).toBeInTheDocument()
   })
 })

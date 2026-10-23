@@ -3,9 +3,6 @@ import { hayVariosLugares, lugaresActivos, type SeleccionLugar } from '../../../
 import { plegar } from '../../insumos/lib/categorias'
 import { minimoEfectivo } from '../../insumos/lib/minimos'
 
-/** Spec 019 (FR-015): filas del editor de mínimos por tanda. */
-export const TAMANO_PAGINA_MINIMOS = 25
-
 export type OrigenMinimo = 'lugar' | 'catalogo'
 
 /**

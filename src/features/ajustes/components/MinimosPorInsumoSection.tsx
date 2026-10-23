@@ -4,13 +4,15 @@ import { useLugarStore } from '../../../stores/lugarStore'
 import { actualizarStockMinimo } from '../../alertas/lib/configuracion'
 import { validarStockMinimo } from '../../insumos/lib/catalogo'
 import { guardarMinimoLugar } from '../../insumos/lib/minimos'
-import { filasMinimos, modoEditorMinimos, TAMANO_PAGINA_MINIMOS, type FilaMinimo } from '../lib/minimosEditor'
+import { filasMinimos, modoEditorMinimos, type FilaMinimo } from '../lib/minimosEditor'
+import { useListaPaginada } from '../../../lib/paginacion'
 import { Search } from '../../../components/icons'
 import { Badge } from '../../../components/ui/Badge'
 import { Card } from '../../../components/ui/Card'
 import { IconField } from '../../../components/ui/IconField'
 import { NumeroInput } from '../../../components/ui/NumeroInput'
 import { TouchButton } from '../../../components/ui/TouchButton'
+import { VerMas } from '../../../components/ui/VerMas'
 
 function textoMinimo(minimo: number | null): string {
   return minimo === null ? 'sin mínimo' : String(minimo)
@@ -31,22 +33,23 @@ export function MinimosPorInsumoSection() {
   const seleccion = useLugarStore((s) => s.lugarActivoId)
 
   const [busqueda, setBusqueda] = useState('')
-  const [visibles, setVisibles] = useState(TAMANO_PAGINA_MINIMOS)
   const [errores, setErrores] = useState<Record<string, string>>({})
 
-  // Al cambiar la búsqueda o el lugar se vuelve a la primera tanda (FR-015).
-  const [claveTanda, setClaveTanda] = useState(`${busqueda}|${seleccion}`)
-  if (claveTanda !== `${busqueda}|${seleccion}`) {
-    setClaveTanda(`${busqueda}|${seleccion}`)
-    setVisibles(TAMANO_PAGINA_MINIMOS)
+  // Al cambiar la búsqueda o el lugar se vuelve a la primera tanda (FR-015)
+  // y se descartan los errores de la tanda anterior.
+  const claveTanda = `${busqueda}|${seleccion}`
+  const [claveErrores, setClaveErrores] = useState(claveTanda)
+  if (claveErrores !== claveTanda) {
+    setClaveErrores(claveTanda)
     setErrores({})
   }
 
   const modo = modoEditorMinimos(lugares, seleccion)
   const lugarActivo = lugares.find((l) => l.id === seleccion)
   const filas = filasMinimos(insumos, minimosLugar, seleccion, lugares, busqueda)
-  const mostradas = filas.slice(0, visibles)
-  const quedan = filas.length - mostradas.length
+  // Spec 020 FR-015: el mismo "Ver más" que las demás listas.
+  const lista = useListaPaginada(filas, { clave: claveTanda, modo: 'ver-mas' })
+  const mostradas = lista.visibles
   const buscando = busqueda.trim() !== ''
 
   async function guardar(fila: FilaMinimo, texto: string) {
@@ -176,15 +179,12 @@ export function MinimosPorInsumoSection() {
         </Card>
       )}
 
-      {quedan > 0 && (
-        <TouchButton
-          type="button"
-          variant="secondary"
-          onClick={() => setVisibles((n) => n + TAMANO_PAGINA_MINIMOS)}
-        >
-          Ver más (quedan {quedan})
-        </TouchButton>
-      )}
+      <VerMas
+        quedan={lista.quedan}
+        mostrados={mostradas.length}
+        total={lista.total}
+        onVerMas={lista.verMas}
+      />
     </section>
   )
 }

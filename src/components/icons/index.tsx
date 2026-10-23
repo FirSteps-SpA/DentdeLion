@@ -12,6 +12,7 @@ import {
   ChartColumn as LucideChartColumn,
   Check as LucideCheck,
   ChevronDown as LucideChevronDown,
+  ChevronLeft as LucideChevronLeft,
   ChevronRight as LucideChevronRight,
   CircleAlert as LucideCircleAlert,
   CircleCheck as LucideCircleCheck,
@@ -130,6 +131,7 @@ export const Undo = deLucide(Undo2)
 export const X = deLucide(LucideX)
 export const MoreVertical = deLucide(Ellipsis)
 export const ChevronDown = deLucide(LucideChevronDown)
+export const ChevronLeft = deLucide(LucideChevronLeft)
 export const ChevronRight = deLucide(LucideChevronRight)
 
 // Estados (DS §21)
