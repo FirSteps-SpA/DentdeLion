@@ -248,7 +248,7 @@ sección; el editor de mínimos sin cambios de comportamiento.
   al comienzo de este archivo, como en la 019).
 - [X] T031 *(Hecho: lint sin avisos, build, 896 pruebas en 118 archivos; línea base 850 en 113.)* Correr `npm run lint && npm run build && npm test`, todo verde, con más pruebas que en
   T001.
-- [ ] T032 Descripción del PR a `develop`: paginación común (R1–R3), Inventario con "Ver más" y
+- [X] T032 *(Hecho: PR #16.)* Descripción del PR a `develop`: paginación común (R1–R3), Inventario con "Ver más" y
   páginas, detalle en hoja (R5), orden alfabético (R4) y por qué, Ajustes con el mismo control,
   resultado de T026 y T028 y capturas de T027. Sin migración: se despliega solo el front.
 
