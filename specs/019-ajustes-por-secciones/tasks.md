@@ -316,7 +316,7 @@ llegan todas.
   decisiones de Clarifications: sección en la URL, mínimo por lugar activo, misma navegación en
   desktop; resumen de Perfil sin conteo de equipo; deuda `minimos_lugar` cerrada) y
   `002-backlog/002-DentdeLion.md` (sección "AJUSTES" tachada con la referencia a la spec).
-- [ ] T036 Descripción del PR a `develop`: índice y secciones, sección en el hash (R1), permisos, el
+- [X] T036 *(Hecho: PR #15.)* Descripción del PR a `develop`: índice y secciones, sección en el hash (R1), permisos, el
   cambio de qué mínimo edita Ajustes (R4, DM) y por qué, descarga paginada de `minimos_lugar` (R5),
   notas para 020/021 (plan.md), resultado de T031 y capturas de T032. Sin migración: se despliega solo
   el front.
