@@ -16,6 +16,7 @@ vi.mock('../../src/lib/db', async () => {
       movimientos: new MemoryTable(),
       configuracionAlertas: new MemoryTable(),
       proveedores: new MemoryTable(),
+      marcas: new MemoryTable(),
       cambiosInsumo: new MemoryTable(),
       cambiosLote: new MemoryTable(),
       tratamientos: new MemoryTable(),
@@ -139,6 +140,7 @@ function insumo(overrides: Partial<Insumo>): Insumo {
     stockMinimo: null,
     dadoDeBajaEn: null,
     dadoDeBajaPor: null,
+    marcaId: null,
     creadoPor: null,
     ...overrides,
   }

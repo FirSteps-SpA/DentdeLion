@@ -16,6 +16,7 @@ import {
   type Lugar,
   type MinimoLugar,
   type Movimiento,
+  type Marca,
   type Proveedor,
 } from '../db'
 import { fetchPerfilPropio } from '../supabase/perfiles'
@@ -54,6 +55,8 @@ interface InsumoRow {
   dado_de_baja_en?: string | null
   dado_de_baja_por?: string | null
   creado_por?: string | null
+  /** Spec 023 — opcional al bajar por robustez (servidor sin la migración). */
+  marca_id?: string | null
 }
 
 interface ConfiguracionAlertasRow {
@@ -543,6 +546,8 @@ function toInsumoRow(insumo: Insumo): InsumoRow {
     dado_de_baja_en: insumo.dadoDeBajaEn,
     dado_de_baja_por: insumo.dadoDeBajaPor,
     creado_por: insumo.creadoPor,
+    // Spec 023 (R3): solo cuenta en el INSERT; en UPDATE el servidor la conserva.
+    marca_id: insumo.marcaId ?? null,
   }
 }
 
@@ -563,6 +568,7 @@ function fromInsumoRow(row: InsumoRow): Insumo {
     dadoDeBajaEn: row.dado_de_baja_en ?? null,
     dadoDeBajaPor: row.dado_de_baja_por ?? null,
     creadoPor: row.creado_por ?? null,
+    marcaId: row.marca_id ?? null,
   }
 }
 
@@ -717,6 +723,41 @@ function fromProveedorRow(row: ProveedorRow): Proveedor {
     nombre: row.nombre,
     whatsapp: row.whatsapp ?? null,
     contacto: row.contacto ?? null,
+    creadoPor: row.creado_por ?? null,
+    creadoEn: row.creado_en,
+    desactivadoEn: row.desactivado_en ?? null,
+    eliminadoEn: row.eliminado_en ?? null,
+    sincronizado: true,
+  }
+}
+
+interface MarcaRow {
+  id: string
+  tenant_id: string
+  nombre: string
+  creado_por: string | null
+  creado_en: string
+  desactivado_en: string | null
+  eliminado_en: string | null
+}
+
+function toMarcaRow(marca: Marca): MarcaRow {
+  return {
+    id: marca.id,
+    tenant_id: marca.tenantId,
+    nombre: marca.nombre,
+    creado_por: marca.creadoPor,
+    creado_en: marca.creadoEn,
+    desactivado_en: marca.desactivadoEn,
+    eliminado_en: marca.eliminadoEn,
+  }
+}
+
+function fromMarcaRow(row: MarcaRow): Marca {
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    nombre: row.nombre,
     creadoPor: row.creado_por ?? null,
     creadoEn: row.creado_en,
     desactivadoEn: row.desactivado_en ?? null,
@@ -973,11 +1014,23 @@ async function pushCambiosInsumo(
 ): Promise<CambioInsumo[]> {
   const usuarioId = usuarioActualId()
   if (!usuarioId) return []
+  // Spec 023 (R5): un cambio de marca espera a que su marca esté en el
+  // servidor — si se remapea por un duplicado, nunca llegó con el id local.
+  const marcasSinSubir = new Set(
+    (await db.marcas.toArray())
+      .filter((marca) => !marca.sincronizado)
+      .map((marca) => marca.id),
+  )
   const pendientes = delTenantActual(await db.cambiosInsumo.toArray()).filter(
     (cambio) =>
       !cambio.sincronizado &&
       cambio.rechazadoEn === null &&
-      cambio.usuarioId === usuarioId,
+      cambio.usuarioId === usuarioId &&
+      !(
+        cambio.campo === 'marcaId' &&
+        typeof cambio.valorNuevo === 'string' &&
+        marcasSinSubir.has(cambio.valorNuevo)
+      ),
   )
   if (pendientes.length === 0) return []
 
@@ -1598,6 +1651,149 @@ async function pullProveedores(
   )
 }
 
+/**
+ * Spec 023 (contracts/supabase-schema.md §4, research.md R5) — como
+ * `pushProveedores`: quien no es administrador solo inserta las marcas que
+ * creó (RLS: como sí mismo); administración hace upsert.
+ * - `23505`: ver `resolverMarcaDuplicada`.
+ * - `marca_con_insumos`: la baja no se aplica; se da por subida para que el
+ *   pull traiga el estado real, y se avisa.
+ * - Sin permisos: queda pendiente; el pull trae la versión del servidor.
+ */
+async function pushMarcas(client: SupabaseClient, ciclo: CicloSync): Promise<void> {
+  const usuarioId = usuarioActualId()
+  if (!usuarioId) return
+  const admin = esAdministradorActual()
+  const pendientes = delTenantActual(await db.marcas.toArray()).filter(
+    (marca) => !marca.sincronizado,
+  )
+  for (const marca of pendientes) {
+    if (!admin && marca.creadoPor !== usuarioId) continue
+    const fila = toMarcaRow(marca)
+    const respuesta = admin
+      ? await client.from('marcas').upsert(fila)
+      : await client.from('marcas').insert(fila)
+
+    if (!respuesta.error) {
+      await marcarMarcaSubida(marca)
+      continue
+    }
+    if (respuesta.error.code === '23505') {
+      await resolverMarcaDuplicada(client, ciclo, marca)
+      continue
+    }
+    if (/marca_con_insumos/.test(respuesta.error.message ?? '')) {
+      await db.marcas.update(marca.id, { sincronizado: true })
+      useAvisosStore.getState().agregar({
+        tipo: 'marca-no-eliminada',
+        movimientoId: null,
+        loteId: null,
+        insumoNombre: marca.nombre,
+        unidadMedida: null,
+      })
+      continue
+    }
+    if (esRechazoDePermisos(respuesta.error)) continue
+    ciclo.registrar('push marcas', errorDe(respuesta))
+  }
+}
+
+async function marcarMarcaSubida(marca: Marca): Promise<void> {
+  const actual = await db.marcas.get(marca.id)
+  if (actual && mismaFila(actual, marca)) {
+    await db.marcas.update(marca.id, { sincronizado: true })
+  }
+}
+
+/**
+ * Clave repetida al subir una marca (como `resolverProveedorDuplicado`): si
+ * el servidor ya tiene este id, es un renombrado que choca con otra marca — no
+ * se aplica y se avisa; si no, es una creada aquí que otro dispositivo creó
+ * antes con el mismo nombre — se reemplaza por la del servidor.
+ */
+async function resolverMarcaDuplicada(
+  client: SupabaseClient,
+  ciclo: CicloSync,
+  marca: Marca,
+): Promise<void> {
+  const porId = await client.from('marcas').select('*').eq('id', marca.id).limit(1)
+  ciclo.registrar('push marcas (duplicado)', errorDe(porId))
+  if (porId.error) return
+  const [misma] = (porId.data ?? []) as MarcaRow[]
+  if (misma) {
+    if (claveNombre(misma.nombre) === claveNombre(marca.nombre)) {
+      await marcarMarcaSubida(marca)
+      return
+    }
+    await db.marcas.update(marca.id, { sincronizado: true })
+    useAvisosStore.getState().agregar({
+      tipo: 'marca-repetida',
+      movimientoId: null,
+      loteId: null,
+      insumoNombre: marca.nombre,
+      unidadMedida: null,
+    })
+    return
+  }
+
+  const porClave = await client
+    .from('marcas')
+    .select('*')
+    .eq('clave', claveNombre(marca.nombre))
+    .is('eliminado_en', null)
+    .limit(1)
+  ciclo.registrar('push marcas (duplicado)', errorDe(porClave))
+  const [existente] = (porClave.data ?? []) as MarcaRow[]
+  if (porClave.error || !existente) return
+  await remapearMarca(marca.id, fromMarcaRow(existente))
+}
+
+/**
+ * Reemplaza una marca local por la del servidor en todo lo que la usa (R5):
+ * insumos, cambios `marcaId` aún sin subir (los subidos nunca la nombran:
+ * `pushCambiosInsumo` los retiene mientras la marca no sube) y el borrador del
+ * alta.
+ */
+export async function remapearMarca(localId: string, delServidor: Marca): Promise<void> {
+  await db.transaction(
+    'rw',
+    db.insumos,
+    db.cambiosInsumo,
+    db.marcas,
+    db.borradores,
+    async () => {
+      await db.insumos
+        .filter((insumo) => insumo.marcaId === localId)
+        .modify({ marcaId: delServidor.id })
+      await db.cambiosInsumo
+        .filter((cambio) => cambio.campo === 'marcaId' && !cambio.sincronizado)
+        .modify((cambio) => {
+          if (cambio.valorNuevo === localId) cambio.valorNuevo = delServidor.id
+          if (cambio.valorAnterior === localId) cambio.valorAnterior = delServidor.id
+        })
+      await db.borradores.toCollection().modify((borrador) => {
+        if (borrador.id !== 'alta-material') return
+        const datos = borrador.datos as { marcaId?: string | null }
+        if (datos.marcaId === localId) datos.marcaId = delServidor.id
+      })
+      await db.marcas.delete(localId)
+      await db.marcas.put(delServidor)
+    },
+  )
+}
+
+async function pullMarcas(client: SupabaseClient, ciclo: CicloSync): Promise<void> {
+  const respuesta = await seleccionarTodo(client, 'marcas')
+  ciclo.registrar('pull marcas', errorDe(respuesta))
+  if (respuesta.error || !respuesta.data) return
+  const locales = new Map((await db.marcas.toArray()).map((marca) => [marca.id, marca]))
+  await db.marcas.bulkPut(
+    (respuesta.data as unknown as MarcaRow[])
+      .filter((row) => !conservarCambioLocal(locales.get(row.id)))
+      .map(fromMarcaRow),
+  )
+}
+
 async function pushLugares(
   client: SupabaseClient,
   ciclo: CicloSync,
@@ -1910,6 +2106,10 @@ async function ejecutarCiclo(
   // y los lotes los referencian (FK compuesta).
   await pushProveedores(client, ciclo)
   await pullProveedores(client, ciclo)
+
+  // Spec 023: las marcas antes de insumos (FK de `insumos.marca_id`).
+  await pushMarcas(client, ciclo)
+  await pullMarcas(client, ciclo)
 
   // Spec 014: los lugares primero — lotes, movimientos e ítems de compra los
   // referencian (FK compuesta en el servidor).

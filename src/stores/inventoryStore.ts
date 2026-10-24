@@ -7,13 +7,14 @@ import {
   type Insumo,
   type ItemCompra,
   type Lote,
+  type Marca,
   type MinimoLugar,
   type Movimiento,
   type Proveedor,
 } from '../lib/db'
 import { delTenant } from '../lib/tenancy'
 import type { Estado, EstadoInsumo } from '../features/insumos/lib/estado'
-import { claveCategoria } from '../features/insumos/lib/categorias'
+import { claveCategoria, plegar } from '../features/insumos/lib/categorias'
 import {
   normalizarMovimientos,
   type MovimientoNormalizado,
@@ -60,6 +61,8 @@ interface InventoryState {
   minimosLugar: MinimoLugar[]
   /** Spec 021 — proveedores del tenant sin los eliminados (baja lógica, R7). */
   proveedores: Proveedor[]
+  /** Spec 023 — marcas del tenant sin las eliminadas (baja lógica, R6). */
+  marcas: Marca[]
   isReady: boolean
   subscribe: () => () => void
 }
@@ -75,6 +78,7 @@ export const useInventoryStore = create<InventoryState>((set) => ({
   itemsCompra: [],
   minimosLugar: [],
   proveedores: [],
+  marcas: [],
   isReady: false,
   subscribe: () => {
     // Spec 015 (R4): fuentes crudas de la normalización de movimientos, que se
@@ -132,7 +136,11 @@ export const useInventoryStore = create<InventoryState>((set) => ({
       next: (proveedores) =>
         set({ proveedores: proveedores.filter((proveedor) => !proveedor.eliminadoEn) }),
     })
+    const marcasSub = liveQuery(() => delTenant('marcas')).subscribe({
+      next: (marcas) => set({ marcas: marcas.filter((marca) => !marca.eliminadoEn) }),
+    })
     return () => {
+      marcasSub.unsubscribe()
       proveedoresSub.unsubscribe()
       minimosSub.unsubscribe()
       cambiosSub.unsubscribe()
@@ -150,10 +158,18 @@ export const useInventoryStore = create<InventoryState>((set) => ({
 export function searchInsumosPorTexto(
   insumos: Insumo[],
   texto: string,
+  marcasPorId?: ReadonlyMap<string, Marca>,
 ): Insumo[] {
   const q = texto.trim().toLowerCase()
   if (!q) return insumos
-  return insumos.filter((insumo) => insumo.nombre.toLowerCase().includes(q))
+  // Spec 023 (FR-013, R9): también por el nombre de la marca, sin tildes. El
+  // nombre del insumo se sigue comparando como antes.
+  const qPlegado = plegar(texto.trim())
+  return insumos.filter((insumo) => {
+    if (insumo.nombre.toLowerCase().includes(q)) return true
+    const marca = insumo.marcaId ? marcasPorId?.get(insumo.marcaId) : undefined
+    return !!marca && !marca.eliminadoEn && plegar(marca.nombre).includes(qPlegado)
+  })
 }
 
 /**

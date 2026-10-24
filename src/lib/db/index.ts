@@ -55,6 +55,12 @@ export interface Insumo {
   dadoDeBajaPor: string | null
   /** Feature 008 (R10) — autor del alta; `null` en insumos anteriores a esta spec. */
   creadoPor: string | null
+  /**
+   * Spec 023 (research.md R2, R3) — marca opcional del catálogo; `null` = sin
+   * marca. Se fija en el alta; después solo la cambia un `CambioInsumo` con
+   * `campo: 'marcaId'` (solo administración).
+   */
+  marcaId: string | null
 }
 
 /** Campos de `Insumo` que un administrador puede editar (feature 007 FR-013). */
@@ -67,6 +73,8 @@ export type CampoEditableInsumo =
   | 'stockMinimo'
   | 'codigoFabricante'
   | 'caduca'
+  /** Spec 023 (R4). */
+  | 'marcaId'
 
 /**
  * Feature 007 data-model.md — CambioInsumo. Append-only per-field ledger:
@@ -355,6 +363,23 @@ export interface Proveedor {
 }
 
 /**
+ * Spec 023 data-model.md — Marca del catálogo del tenant. La crea cualquier
+ * miembro (también desde el alta); la renombran, desactivan y eliminan solo
+ * administradores. `eliminadoEn` es una baja lógica (R6), solo sin insumos.
+ */
+export interface Marca {
+  id: string
+  tenantId: string
+  nombre: string
+  creadoPor: string | null
+  creadoEn: string
+  desactivadoEn: string | null
+  eliminadoEn: string | null
+  /** Local: `false` = creada o cambiada aquí y aún sin subir. */
+  sincronizado: boolean
+}
+
+/**
  * Spec 014 FR-007 — mínimo de un insumo en un lugar. `stockMinimo: null` =
  * usar el del catálogo (`Insumo.stockMinimo`).
  */
@@ -501,6 +526,7 @@ export const db = new Dexie('inDENToryDB') as Dexie & {
   cambiosTratamiento: EntityTable<CambioTratamiento, 'id'>
   tratamientosRealizados: EntityTable<TratamientoRealizado, 'id'>
   proveedores: EntityTable<Proveedor, 'id'>
+  marcas: EntityTable<Marca, 'id'>
 }
 
 db.version(1).stores({
@@ -786,6 +812,22 @@ db.version(13)
       .toCollection()
       .modify((lugar: Partial<Lugar>) => {
         lugar.proveedorPredeterminadoId ??= null
+      })
+  })
+
+// Version 14 (spec 023, data-model.md): catálogo de marcas e
+// `Insumo.marcaId` (los existentes quedan sin marca).
+db.version(14)
+  .stores({
+    marcas: 'id, tenantId, sincronizado',
+    insumos: 'id, nombre, categoria, codigoFabricante, tenantId, marcaId',
+  })
+  .upgrade(async (tx) => {
+    await tx
+      .table('insumos')
+      .toCollection()
+      .modify((insumo: Partial<Insumo>) => {
+        insumo.marcaId ??= null
       })
   })
 

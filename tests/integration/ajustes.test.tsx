@@ -17,6 +17,7 @@ vi.mock('../../src/lib/db', async () => {
   return {
     db: createMemoryDb({
       proveedores: new MemoryTable(),
+      marcas: new MemoryTable(),
       lugares: new MemoryTable(),
       minimosLugar: new MemoryTable(),
       lugarActivo: new MemoryTable(),
@@ -85,6 +86,7 @@ function insumo(id: string, nombre: string, overrides: Partial<Insumo> = {}): In
     stockMinimo: 5,
     dadoDeBajaEn: null,
     dadoDeBajaPor: null,
+    marcaId: null,
     creadoPor: null,
     ...overrides,
   }
@@ -414,6 +416,7 @@ describe('Ajustes — Insumos dados de baja (User Story 6)', () => {
       insumo('bajado', 'Composite Viejo', {
         dadoDeBajaEn: '2026-09-01T00:00:00.000Z',
         dadoDeBajaPor: 'admin-1',
+        marcaId: null,
       }),
     ])
     reflejarStore()
@@ -500,7 +503,7 @@ describe('Índice de Ajustes (spec 019 US1)', () => {
   const tarjetas = () =>
     within(screen.getByRole('list', { name: 'Secciones de Ajustes' })).getAllByRole('button')
 
-  it('abre en el índice con las seis tarjetas en orden y sus resúmenes', () => {
+  it('abre en el índice con las siete tarjetas en orden y sus resúmenes', () => {
     useAuthStore.setState({ usuario: admin, isReady: true })
     categoriasT.seed([categoria('c1', 'Ortodoncia')])
     insumosT.seed([insumo('a', 'Anestesia local', { categoria: 'Ortodoncia' })])
@@ -514,6 +517,7 @@ describe('Índice de Ajustes (spec 019 US1)', () => {
       'Notificaciones y avisosStock bajo y caducidad · Avisos a 30, 7 y 1 días',
       `Categorías${CATEGORIAS_PRECARGADAS.length + 1} categorías`,
       'ProveedoresSin proveedores',
+      'MarcasSin marcas',
       'Insumos dados de bajaSin insumos dados de baja',
     ])
     expect(screen.getByRole('button', { name: 'Categorías' })).toHaveAccessibleDescription(
@@ -723,6 +727,7 @@ describe('Listas de Ajustes por partes (spec 020 US4)', () => {
         insumo(`baja-${n}`, `Baja ${dosDigitos(n)}`, {
           dadoDeBajaEn: '2026-09-01T00:00:00.000Z',
           dadoDeBajaPor: 'admin-1',
+          marcaId: null,
         }),
       ),
     )
@@ -750,6 +755,7 @@ describe('Listas de Ajustes por partes (spec 020 US4)', () => {
         insumo(`baja-${n}`, `Baja ${dosDigitos(n)}`, {
           dadoDeBajaEn: '2026-09-01T00:00:00.000Z',
           dadoDeBajaPor: 'admin-1',
+          marcaId: null,
         }),
       ),
     )

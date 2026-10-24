@@ -13,6 +13,7 @@ vi.mock('../../../src/lib/db', async () => {
   return {
     db: createMemoryDb({
       proveedores: new MemoryTable(),
+      marcas: new MemoryTable(),
       lugares: new MemoryTable(),
       minimosLugar: new MemoryTable(),
       lugarActivo: new MemoryTable(),
@@ -62,6 +63,7 @@ function insumo(overrides: Partial<Insumo>): Insumo {
     stockMinimo: null,
     dadoDeBajaEn: null,
     dadoDeBajaPor: null,
+    marcaId: null,
     creadoPor: null,
     ...overrides,
   }
@@ -247,6 +249,7 @@ describe('darDeBajaInsumo (FR-018, Clarification Q5)', () => {
     ])
     expect(await db.insumos.get('i1')).toMatchObject({
       dadoDeBajaPor: 'admin-1',
+      marcaId: null,
       dadoDeBajaEn: expect.any(String),
     })
     expect(movimientosT.all()).toHaveLength(0)
@@ -286,6 +289,64 @@ describe('restaurarInsumo (spec 010 FR-023/024)', () => {
     expect(await db.insumos.get('i1')).toMatchObject({
       dadoDeBajaEn: null,
       dadoDeBajaPor: null,
+      marcaId: null,
     })
   })
 })
+
+/** Spec 023 T030 (FR-008, FR-009): la marca es catálogo y va al historial. */
+describe('editarInsumo — marca (spec 023)', () => {
+  const marcasT = db.marcas as unknown as MemoryTable<{ id: string } & Record<string, unknown>>
+
+  beforeEach(() => {
+    marcasT.seed([
+      { id: 'tres', tenantId: TENANT_1, nombre: '3M', desactivadoEn: null, eliminadoEn: null },
+      { id: 'gc', tenantId: TENANT_1, nombre: 'GC', desactivadoEn: null, eliminadoEn: null },
+    ])
+  })
+
+  it('poner, cambiar y quitar la marca escribe un cambio marcaId cada vez', async () => {
+    // Un milisegundo entre ediciones: con el mismo `creadoEn`, la proyección
+    // desempata por id (aleatorio) y la siguiente edición leería otra marca.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      vi.setSystemTime(new Date('2026-10-24T10:00:00.000Z'))
+      await editarInsumo('i1', { marcaId: 'tres' })
+      expect((await db.insumos.get('i1'))?.marcaId).toBe('tres')
+      vi.setSystemTime(new Date('2026-10-24T10:00:01.000Z'))
+      await editarInsumo('i1', { marcaId: 'gc' })
+      expect((await db.insumos.get('i1'))?.marcaId).toBe('gc')
+      vi.setSystemTime(new Date('2026-10-24T10:00:02.000Z'))
+      await editarInsumo('i1', { marcaId: null })
+      expect((await db.insumos.get('i1'))?.marcaId).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+
+    const cambios = cambiosT.all().filter((c) => c.campo === 'marcaId')
+    // La tabla en memoria no conserva el orden de inserción.
+    expect(cambios).toHaveLength(3)
+    expect(cambios.map((c) => [c.valorAnterior, c.valorNuevo])).toEqual(
+      expect.arrayContaining([
+        [null, 'tres'],
+        ['tres', 'gc'],
+        ['gc', null],
+      ]),
+    )
+  })
+
+  it('sin cambio de marca no escribe nada, aunque el insumo no tenga el campo', async () => {
+    const { marcaId: _sinCampo, ...anterior } = a
+    void _sinCampo
+    insumosT.seed([anterior as Insumo, b])
+    await editarInsumo('i1', { marcaId: null, nombre: 'Anestesia' })
+    expect(cambiosT.all()).toHaveLength(0)
+  })
+
+  it('personal no puede cambiar la marca', async () => {
+    useAuthStore.setState({ usuario: personal, isReady: true })
+    await expect(editarInsumo('i1', { marcaId: 'tres' })).rejects.toThrow()
+    expect(cambiosT.all()).toHaveLength(0)
+  })
+})
+

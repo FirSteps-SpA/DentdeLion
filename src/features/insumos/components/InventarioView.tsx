@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   useInventoryStore,
   searchInsumosPorTexto,
@@ -46,6 +46,7 @@ import {
 import { ElegirLugarSheet } from '../../../app/ElegirLugarSheet'
 import { hayVariosLugares, nombreLugar, useLugarStore } from '../../../stores/lugarStore'
 import { TrasladoForm } from './TrasladoForm'
+import { mapaMarcas } from '../../marcas/lib/marcas'
 
 // Spec 014 FR-014: en "Todos", las acciones que modifican stock pasan antes por
 // "¿En qué lugar?" (`elegirLugar`) y siguen con el lugar elegido.
@@ -80,6 +81,9 @@ export function InventarioView() {
   const { vistas, esTodos } = useVistasDeLugar()
   const lugares = useLugarStore((s) => s.lugares)
   const categoriasRows = useInventoryStore((s) => s.categorias)
+  // Spec 023 (FR-012/FR-013): marca junto al nombre y en la búsqueda.
+  const marcas = useInventoryStore((s) => s.marcas)
+  const marcasPorId = useMemo(() => mapaMarcas(marcas), [marcas])
   const nivelesAvisoDias = useAlertasStore((s) => s.nivelesAvisoDias)
   const rol = useAuthStore((s) => s.usuario?.rol)
   const lugarActivoId = useLugarStore((s) => s.lugarActivoId)
@@ -113,7 +117,7 @@ export function InventarioView() {
     return peor ? { ...estadoInsumo, estado: peor } : estadoInsumo
   })
   const idsTexto = new Set(
-    searchInsumosPorTexto(insumos, texto).map((insumo) => insumo.id),
+    searchInsumosPorTexto(insumos, texto, marcasPorId).map((insumo) => insumo.id),
   )
   const idsCategoria = new Set(
     searchInsumosPorCategoria(insumos, categoria).map((insumo) => insumo.id),

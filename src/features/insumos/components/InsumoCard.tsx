@@ -10,6 +10,7 @@ import { formatearPresentacion } from '../lib/presentacion'
 import { formatearEquivalente } from '../../../lib/unidades'
 import { formatearCLP } from '../lib/precio'
 import { useCostosUnitarios } from '../lib/useCostosUnitarios'
+import { NombreConMarca } from '../../marcas/components/NombreConMarca'
 
 export interface InsumoCardProps {
   estadoInsumo: EstadoInsumo
@@ -71,9 +72,11 @@ export function InsumoCard({
             <Badge variant="warning-30">Posible duplicado</Badge>
           )}
         </span>
-        <span className="text-[15px] leading-5 font-bold text-text">
-          {insumo.nombre}
-        </span>
+        <NombreConMarca
+          nombre={insumo.nombre}
+          marcaId={insumo.marcaId}
+          className="text-[15px] leading-5 font-bold text-text"
+        />
         {insumo.unidadCompra !== insumo.unidadMedida && (
           // Spec 015 FR-005 (UI §3): "Caja × 50 cartuchos".
           <span className="text-xs text-text-muted">{formatearPresentacion(insumo)}</span>

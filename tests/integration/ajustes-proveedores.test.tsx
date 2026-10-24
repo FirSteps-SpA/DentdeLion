@@ -14,6 +14,7 @@ vi.mock('../../src/lib/db', async () => {
   return {
     db: createMemoryDb({
       proveedores: new MemoryTable(),
+      marcas: new MemoryTable(),
       lugares: new MemoryTable(),
       lotes: new MemoryTable(),
       minimosLugar: new MemoryTable(),
@@ -121,7 +122,8 @@ describe('Ajustes → Proveedores', () => {
     const i = tarjetas.findIndex((t) => t?.startsWith('Proveedores'))
     expect(tarjetas[i]).toBe('Proveedores2 proveedores')
     expect(tarjetas[i - 1]).toMatch(/^Categorías/)
-    expect(tarjetas[i + 1]).toMatch(/^Insumos dados de baja/)
+    // Spec 023: Marcas va entre Proveedores e Insumos dados de baja.
+    expect(tarjetas[i + 1]).toMatch(/^Marcas/)
   })
 
   it('lista los activos en orden, con WhatsApp, contacto y "Predeterminado"', () => {

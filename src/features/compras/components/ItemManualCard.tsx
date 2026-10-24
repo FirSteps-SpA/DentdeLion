@@ -6,6 +6,7 @@ import { BottomSheet } from '../../../components/ui/BottomSheet'
 import { Card } from '../../../components/ui/Card'
 import type { ValorItem } from '../lib/pedido'
 import { CasillaSeleccion, ValorDelItem } from './CasillaSeleccion'
+import { NombreConMarca } from '../../marcas/components/NombreConMarca'
 
 export interface ItemManualCardProps {
   item: ItemCompra
@@ -48,7 +49,12 @@ export function ItemManualCard({
       />
       <div className="flex flex-1 flex-col gap-1 py-1">
         <Badge variant="neutral">Manual</Badge>
-        <span className="text-sm font-bold text-text">{item.nombre}</span>
+        {/* Spec 023: la marca del insumo vinculado, si tiene. */}
+        <NombreConMarca
+          nombre={item.nombre}
+          marcaId={insumoVinculado?.marcaId}
+          className="text-sm font-bold text-text"
+        />
         {(item.cantidad !== null || item.nota) && (
           <span className="text-xs text-text-muted">
             {item.cantidad !== null ? item.cantidad : ''}

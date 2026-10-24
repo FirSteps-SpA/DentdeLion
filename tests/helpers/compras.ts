@@ -21,6 +21,7 @@ export function insumoCompra(overrides: Partial<Insumo>): Insumo {
     stockMinimo: null,
     dadoDeBajaEn: null,
     dadoDeBajaPor: null,
+    marcaId: null,
     creadoPor: null,
     ...overrides,
   }

@@ -15,7 +15,8 @@ import {
 } from '../lib/alta'
 import { ALTA_VACIA, useBorradorAlta } from '../lib/useBorradorAlta'
 import { permiteDecimales } from '../lib/quantity'
-import { Hash, Truck, Calendar } from '../../../components/icons'
+import { Hash, Factory, Truck, Calendar } from '../../../components/icons'
+import { useAvisosStore } from '../../../stores/avisosStore'
 import { Card } from '../../../components/ui/Card'
 import { IconField } from '../../../components/ui/IconField'
 import { TouchButton } from '../../../components/ui/TouchButton'
@@ -27,6 +28,7 @@ import { CantidadIngresoField } from './CantidadIngresoField'
 import { PrecioIngresoField } from './PrecioIngresoField'
 import { convertirIngreso } from '../lib/ingreso'
 import { SelectorProveedor } from '../../proveedores/components/SelectorProveedor'
+import { SelectorMarca } from '../../marcas/components/SelectorMarca'
 import { usePredeterminado } from '../../proveedores/lib/usePredeterminado'
 
 export interface AltaMaterialViewProps {
@@ -203,6 +205,15 @@ export function AltaMaterialView({
     setErrorGeneral(null)
     try {
       const resultado = await darDeAltaMaterial(datosParaGuardar, { lugarId })
+      if (resultado.marcaDescartada) {
+        useAvisosStore.getState().agregar({
+          tipo: 'marca-descartada',
+          movimientoId: null,
+          loteId: null,
+          insumoNombre: resultado.insumo.nombre,
+          unidadMedida: null,
+        })
+      }
       // Cancels any still-pending debounced borrador write (useBorradorAlta
       // would otherwise resurrect it on unmount) — the transaction above
       // already deleted the row, so this is a no-op on the DB.
@@ -402,6 +413,15 @@ export function AltaMaterialView({
             )}
             <ErrorCampo id="error-categoria" mensaje={errores.categoria} />
           </div>
+
+          {/* Spec 023 FR-005/FR-006: marca opcional, sin predeterminado. */}
+          <IconField label="Marca (opcional)" icon={<Factory size={18} />} htmlFor="alta-marca">
+            <SelectorMarca
+              id="alta-marca"
+              valor={datos.marcaId ?? null}
+              onCambio={(marcaId) => setDatos({ marcaId })}
+            />
+          </IconField>
 
           {/* Spec 015 FR-006: cualquier rol define la presentación en el alta. */}
           <PresentacionFields

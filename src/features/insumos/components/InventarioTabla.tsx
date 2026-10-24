@@ -11,6 +11,7 @@ import { formatearPresentacion } from '../lib/presentacion'
 import { etiquetaUnidad, formatearEquivalente } from '../../../lib/unidades'
 import { formatearCLP } from '../lib/precio'
 import { useCostosUnitarios } from '../lib/useCostosUnitarios'
+import { NombreConMarca } from '../../marcas/components/NombreConMarca'
 
 export interface FilaInventario {
   estadoInsumo: EstadoInsumo
@@ -93,9 +94,11 @@ export function InventarioTabla({
                     onClick={() => onOpen(insumo.id)}
                     className="touch-target flex flex-col items-start justify-center rounded-md text-left focus-visible:outline-2 focus-visible:outline-brand"
                   >
-                    <span className="text-sm font-bold text-text">
-                      {insumo.nombre}
-                    </span>
+                    <NombreConMarca
+                      nombre={insumo.nombre}
+                      marcaId={insumo.marcaId}
+                      className="text-sm font-bold text-text"
+                    />
                     <span className="text-caption text-text-muted">
                       {etiquetaUnidad(insumo.unidadMedida)}
                     </span>

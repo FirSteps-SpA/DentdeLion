@@ -7,6 +7,7 @@ vi.mock('../../../src/lib/db', async () => {
   return {
     db: createMemoryDb({
       proveedores: new MemoryTable(),
+      marcas: new MemoryTable(),
       lugares: new MemoryTable(),
       minimosLugar: new MemoryTable(),
       lugarActivo: new MemoryTable(),
@@ -111,6 +112,7 @@ const insumo: Insumo = {
   stockMinimo: null,
   dadoDeBajaEn: null,
   dadoDeBajaPor: null,
+  marcaId: null,
   creadoPor: null,
 }
 

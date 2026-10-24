@@ -30,6 +30,7 @@ function makeInsumo(overrides: Partial<Insumo>): Insumo {
     stockMinimo: null,
     dadoDeBajaEn: null,
     dadoDeBajaPor: null,
+    marcaId: null,
     creadoPor: null,
     ...overrides,
   }
@@ -95,6 +96,7 @@ const insumoBajoStock = makeInsumo({
   stockMinimo: 20,
   dadoDeBajaEn: null,
   dadoDeBajaPor: null,
+  marcaId: null,
 })
 const loteBajoStock = makeLote({ id: 'lote-bajo-stock', insumoId: 'bajo-stock' })
 
@@ -276,3 +278,41 @@ describe('InventarioView (User Story 1 — resumen y tap-to-filter)', () => {
     ).toBeInTheDocument()
   })
 })
+
+/** Spec 023 T039 (US3-2/3, FR-012/FR-013). */
+describe('InventarioView — marca (spec 023)', () => {
+  it('muestra "Nombre · Marca" y la búsqueda encuentra por marca', () => {
+    seed()
+    useInventoryStore.setState({
+      insumos: [
+        ...useInventoryStore.getState().insumos,
+        makeInsumo({ id: 'z350', nombre: 'Composite Z350', marcaId: 'tres' }),
+      ],
+      marcas: [
+        {
+          id: 'tres',
+          tenantId: TENANT_1,
+          nombre: '3M',
+          creadoPor: null,
+          creadoEn: '2026-10-24T10:00:00.000Z',
+          desactivadoEn: null,
+          eliminadoEn: null,
+          sincronizado: true,
+        },
+      ],
+    })
+    render(<InventarioView />)
+
+    const nombre = screen.getByText('Composite Z350')
+    expect(nombre.parentElement).toHaveTextContent('Composite Z350 · 3M')
+    expect(screen.getByText('Insumo Ok').parentElement).toHaveTextContent(/^Insumo Ok$/)
+
+    fireEvent.change(screen.getByPlaceholderText('Nombre del insumo'), {
+      target: { value: '3m' },
+    })
+    expect(screen.getByText('Composite Z350')).toBeInTheDocument()
+    expect(screen.queryByText('Insumo Ok')).toBeNull()
+    useInventoryStore.setState({ marcas: [] })
+  })
+})
+

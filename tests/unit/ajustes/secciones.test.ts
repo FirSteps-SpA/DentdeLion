@@ -16,17 +16,19 @@ describe('SECCIONES_AJUSTES', () => {
       'avisos',
       'categorias',
       'proveedores',
+      'marcas',
       'baja',
     ])
   })
 
-  it('la administración ve las seis en orden; el personal solo perfil y avisos', () => {
+  it('la administración ve las siete en orden; el personal solo perfil y avisos', () => {
     expect(seccionesVisibles('administrador').map((s) => s.id)).toEqual([
       'perfil',
       'lugares',
       'avisos',
       'categorias',
       'proveedores',
+      'marcas',
       'baja',
     ])
     expect(seccionesVisibles('personal').map((s) => s.id)).toEqual(['perfil', 'avisos'])
@@ -42,6 +44,7 @@ describe('SECCIONES_AJUSTES', () => {
       avisos: ['Notificaciones y avisos', 'Notificaciones'],
       categorias: ['Categorías', 'Categorías'],
       proveedores: ['Proveedores', 'Proveedores'],
+      marcas: ['Marcas', 'Marcas'],
       baja: ['Insumos dados de baja', 'Insumos dados de baja'],
     })
   })
@@ -62,6 +65,7 @@ describe('resumenSeccion', () => {
     categoriasActivas: 12,
     insumosDadosDeBaja: 3,
     proveedoresActivos: 6,
+    marcasActivas: 12,
     notificaciones: { stockBajo: true, caducidad: true },
     nivelesAvisoDias: [7, 30, 15],
   }
@@ -87,6 +91,11 @@ describe('resumenSeccion', () => {
       'Sin proveedores',
     )
     expect(resumenSeccion('proveedores', { ...listos, proveedoresActivos: null })).toBeNull()
+    // Spec 023.
+    expect(resumenSeccion('marcas', listos)).toBe('12 marcas')
+    expect(resumenSeccion('marcas', { ...listos, marcasActivas: 1 })).toBe('1 marca')
+    expect(resumenSeccion('marcas', { ...listos, marcasActivas: 0 })).toBe('Sin marcas')
+    expect(resumenSeccion('marcas', { ...listos, marcasActivas: null })).toBeNull()
     expect(resumenSeccion('baja', { ...listos, insumosDadosDeBaja: 1 })).toBe(
       '1 insumo dado de baja',
     )

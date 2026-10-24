@@ -24,6 +24,7 @@ function insumo(id: string, unidadMedida: string, extra: Partial<Insumo> = {}): 
     stockMinimo: null,
     dadoDeBajaEn: null,
     dadoDeBajaPor: null,
+    marcaId: null,
     creadoPor: null,
     ...extra,
   }

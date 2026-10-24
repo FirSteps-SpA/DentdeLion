@@ -14,6 +14,7 @@ import { reproyectarEnTransaccion } from './proyeccion'
 import { permiteDecimales } from './quantity'
 import { esUnidad } from '../../../lib/unidades'
 import { validarPresentacion } from './presentacion'
+import { marcaParaInsumo } from '../../marcas/lib/marcas'
 
 export type CambiosInsumoInput = Partial<Pick<Insumo, CampoEditableInsumo>>
 
@@ -30,6 +31,7 @@ const CAMPOS_EDITABLES: CampoEditableInsumo[] = [
   'stockMinimo',
   'codigoFabricante',
   'caduca',
+  'marcaId',
 ]
 
 export function claveNombre(nombre: string): string {
@@ -71,6 +73,9 @@ function normalizar(cambios: CambiosInsumoInput): CambiosInsumoInput {
     normalizados.codigoFabricante =
       normalizados.codigoFabricante?.trim() || null
   }
+  // Spec 023: "" o ausente = sin marca.
+  if (normalizados.marcaId !== undefined)
+    normalizados.marcaId = normalizados.marcaId || null
   return normalizados
 }
 
@@ -184,10 +189,13 @@ export async function editarInsumo(
 
   await db.transaction(
     'rw',
-    [db.insumos, db.cambiosInsumo, db.categorias, db.lotes],
+    [db.insumos, db.cambiosInsumo, db.categorias, db.lotes, db.marcas],
     async () => {
       const insumo = await db.insumos.get(insumoId)
       if (!insumo) throw new Error('El insumo no existe.')
+      // Spec 023 (Edge Cases): una marca eliminada en el ínterin queda sin marca.
+      if (normalizados.marcaId !== undefined)
+        normalizados.marcaId = await marcaParaInsumo(normalizados.marcaId)
 
       // Spec 015 (FR-007a): con lotes (y por lo tanto movimientos), cambiar la
       // unidad de consumo es una conversión con factor, no una edición.
@@ -216,14 +224,16 @@ export async function editarInsumo(
         throw new Error(Object.values(validacion.errores).join(' '))
       }
 
+      // `?? null`: un insumo anterior a la spec 023 puede no tener `marcaId`.
+      const actual = (campo: CampoEditableInsumo) => insumo[campo] ?? null
       const nuevos = CAMPOS_EDITABLES.filter(
         (campo) =>
-          campo in normalizados && normalizados[campo] !== insumo[campo],
+          campo in normalizados && (normalizados[campo] ?? null) !== actual(campo),
       ).map((campo) =>
         nuevoCambio(
           insumoId,
           campo,
-          insumo[campo],
+          actual(campo),
           normalizados[campo] ?? null,
           usuarioId,
         ),
