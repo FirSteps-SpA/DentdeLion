@@ -8,6 +8,7 @@ vi.mock('../../../src/lib/db', async () => {
   return {
     db: createMemoryDb({
       proveedores: new MemoryTable(),
+      marcas: new MemoryTable(),
       lugares: new MemoryTable(),
       minimosLugar: new MemoryTable(),
       lugarActivo: new MemoryTable(),
@@ -122,4 +123,21 @@ describe('useBorradorAlta (spec 008 R6)', () => {
 
     expect(borradoresT.all()).toHaveLength(0)
   })
+
+  it('spec 023: un borrador anterior sin marcaId se restaura sin marca', async () => {
+    borradoresT.seed([
+      {
+        id: 'alta-material',
+        datos: { nombre: 'Viejo' },
+        actualizadoEn: '2026-10-01T00:00:00.000Z',
+      },
+    ])
+    const { result } = renderHook(() => useBorradorAlta({}))
+    await flush()
+
+    expect(result.current.restaurado).toBe(true)
+    expect(result.current.datos.nombre).toBe('Viejo')
+    expect(result.current.datos.marcaId).toBeNull()
+  })
 })
+

@@ -1,4 +1,5 @@
-import type { ConfiguracionAlertas, Insumo, ItemCompra } from '../../../lib/db'
+import type { ConfiguracionAlertas, Insumo, ItemCompra, Marca } from '../../../lib/db'
+import { nombreDeMarca } from '../../marcas/lib/marcas'
 import { formatearCantidad } from '../../../lib/unidades'
 import type { CostoUnitario } from '../../insumos/lib/precio'
 import type { ItemSugerido } from './sugeridos'
@@ -145,11 +146,14 @@ export function construirMensajePedido(
   saludo: string,
   items: ItemPedido[],
   nombresLugar?: Map<string, string>,
+  marcasPorId?: ReadonlyMap<string, Marca>,
 ): string {
   const renglones = items.map((item) => {
     const cantidad = cantidadDelRenglon(item)
     const lugar = nombresLugar?.get(item.lugarId)
-    return `- ${item.nombre}${cantidad ? ` — ${cantidad}` : ''}${lugar ? ` (${lugar})` : ''}`
+    // Spec 023 (FR-014, R10): "Nombre · Marca" si el insumo del ítem tiene marca.
+    const marca = item.insumo && marcasPorId ? nombreDeMarca(item.insumo, marcasPorId) : null
+    return `- ${item.nombre}${marca ? ` · ${marca}` : ''}${cantidad ? ` — ${cantidad}` : ''}${lugar ? ` (${lugar})` : ''}`
   })
   return [saludo.trim(), '', ...renglones].join('\n')
 }

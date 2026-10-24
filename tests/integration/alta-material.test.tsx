@@ -9,6 +9,7 @@ import {
   within,
 } from '@testing-library/react'
 import type {
+  Marca,
   Borrador,
   Categoria,
   Insumo,
@@ -24,6 +25,7 @@ vi.mock('../../src/lib/db', async () => {
   return {
     db: createMemoryDb({
       proveedores: new MemoryTable(),
+      marcas: new MemoryTable(),
       lugares: new MemoryTable(),
       minimosLugar: new MemoryTable(),
       lugarActivo: new MemoryTable(),
@@ -71,6 +73,7 @@ const insumosT = db.insumos as unknown as MemoryTable<Insumo>
 const categoriasT = db.categorias as unknown as MemoryTable<Categoria>
 const lotesT = db.lotes as unknown as MemoryTable<Lote>
 const proveedoresT = db.proveedores as unknown as MemoryTable<Proveedor>
+const marcasT = db.marcas as unknown as MemoryTable<Marca>
 const movimientosT = db.movimientos as unknown as MemoryTable<Movimiento>
 const borradoresT = db.borradores as unknown as MemoryTable<Borrador>
 
@@ -90,6 +93,7 @@ function insumo(overrides: Partial<Insumo>): Insumo {
     stockMinimo: null,
     dadoDeBajaEn: null,
     dadoDeBajaPor: null,
+    marcaId: null,
     creadoPor: null,
     ...overrides,
   }
@@ -113,6 +117,7 @@ function reflejarStore() {
     movimientos: movimientosT.all(),
     cambiosInsumo: [],
     categorias: categoriasT.all(),
+    marcas: marcasT.all().filter((m) => !m.eliminadoEn),
     isReady: true,
   })
 }
@@ -165,6 +170,7 @@ beforeEach(() => {
   lotesT.seed([])
   movimientosT.seed([])
   borradoresT.seed([])
+  marcasT.seed([])
   scan.mockReset()
   stop.mockReset()
   reflejarStore()
@@ -839,3 +845,46 @@ describe('rueda del mouse (spec 018 FR-005)', () => {
     esperarQueLaRuedaNoCambie(screen.getByLabelText('Stock mínimo (opcional)'), '5')
   })
 })
+
+/** Spec 023 T030/T034 (US1-1, US2-2, FR-005..FR-007). */
+describe('AltaMaterialView — marca (spec 023)', () => {
+  async function abrirAlta(nombre: string) {
+    render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Material' }))
+    await screen.findByLabelText('Nombre del material')
+    fireEvent.change(screen.getByLabelText('Nombre del material'), {
+      target: { value: nombre },
+    })
+    fireEvent.change(screen.getByLabelText('Categoría'), {
+      target: { value: 'Restauración' },
+    })
+  }
+
+  it('el campo viene en "Sin marca" y se guarda sin tocarlo', async () => {
+    await abrirAlta('Composite Z250')
+    expect(screen.getByLabelText('Marca (opcional)')).toHaveTextContent('Sin marca')
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    await screen.findByText('«Composite Z250» agregado al inventario')
+    expect(insumosT.all()[0].marcaId).toBeNull()
+  })
+
+  it('el personal agrega una marca nueva desde el alta, sin perder lo escrito', async () => {
+    await abrirAlta('Composite Z350')
+    fireEvent.click(screen.getByLabelText('Marca (opcional)'))
+    fireEvent.change(screen.getByLabelText('Buscar marca'), { target: { value: '3M' } })
+    fireEvent.click(screen.getByRole('option', { name: /Agregar marca «3M»/ }))
+
+    await waitFor(() =>
+      expect(screen.getByLabelText('Marca (opcional)')).toHaveTextContent('3M'),
+    )
+    expect(screen.getByLabelText('Nombre del material')).toHaveValue('Composite Z350')
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    await screen.findByText('«Composite Z350» agregado al inventario')
+    const [marca] = marcasT.all()
+    expect(marca).toMatchObject({ nombre: '3M', creadoPor: 'personal-1', sincronizado: false })
+    expect(insumosT.all()[0].marcaId).toBe(marca.id)
+  })
+})
+

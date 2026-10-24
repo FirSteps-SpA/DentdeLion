@@ -298,6 +298,7 @@ describe('US2 — última sincronización exitosa', () => {
       stockMinimo: null,
       dadoDeBajaEn: null,
       dadoDeBajaPor: null,
+      marcaId: null,
       creadoPor: null,
     }
     useInventoryStore.setState({ insumos: [insumo], lotes: [], isReady: true })

@@ -74,6 +74,7 @@ function insumo(id: string, nombre: string, unidadMedida: string, extra: Partial
     stockMinimo: null,
     dadoDeBajaEn: null,
     dadoDeBajaPor: null,
+    marcaId: null,
     creadoPor: null,
     ...extra,
   }

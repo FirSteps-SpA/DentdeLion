@@ -17,6 +17,7 @@ vi.mock('../../src/lib/db', async () => {
   return {
     db: createMemoryDb({
       proveedores: new MemoryTable(),
+      marcas: new MemoryTable(),
       lugares: new MemoryTable(),
       minimosLugar: new MemoryTable(),
       lugarActivo: new MemoryTable(),
@@ -82,6 +83,7 @@ function makeInsumo(overrides: Partial<Insumo>): Insumo {
     stockMinimo: null,
     dadoDeBajaEn: null,
     dadoDeBajaPor: null,
+    marcaId: null,
     creadoPor: null,
     ...overrides,
   }
@@ -642,3 +644,35 @@ describe('ComprasView — Polish: touch targets (FR-026)', () => {
     ).toHaveClass('touch-target')
   })
 })
+
+/** Spec 023 T040 (FR-012). */
+describe('ComprasView — marca (spec 023)', () => {
+  it('un sugerido con marca se ve "Nombre · Marca"', () => {
+    insumosT.seed([makeInsumo({ id: 'i1', nombre: 'Composite Z350', stockMinimo: 20, marcaId: 'tres' })])
+    lotesT.seed([makeLote({ id: 'l1', insumoId: 'i1' })])
+    movimientosT.seed([makeIngreso('l1', 5)])
+    reflejarStore()
+    useInventoryStore.setState({
+      marcas: [
+        {
+          id: 'tres',
+          tenantId: TENANT_1,
+          nombre: '3M',
+          creadoPor: null,
+          creadoEn: '2026-10-24T10:00:00.000Z',
+          desactivadoEn: null,
+          eliminadoEn: null,
+          sincronizado: true,
+        },
+      ],
+    })
+
+    render(<ComprasView />)
+
+    expect(screen.getByText('Composite Z350').parentElement).toHaveTextContent(
+      'Composite Z350 · 3M',
+    )
+    useInventoryStore.setState({ marcas: [] })
+  })
+})
+

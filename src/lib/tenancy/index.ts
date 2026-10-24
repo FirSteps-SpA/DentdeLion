@@ -12,6 +12,7 @@ import {
   type Movimiento,
   type Tratamiento,
   type TratamientoRealizado,
+  type Marca,
   type Proveedor,
 } from '../db'
 
@@ -33,6 +34,8 @@ interface TablasPorTenant {
   tratamientosRealizados: TratamientoRealizado
   /** Spec 021 (Dexie v13). */
   proveedores: Proveedor
+  /** Spec 023 (Dexie v14). */
+  marcas: Marca
 }
 
 /** Lo mínimo de una tabla Dexie indexada por `tenantId` que necesita `delTenant`. */
@@ -65,7 +68,7 @@ export async function delTenant<K extends keyof TablasPorTenant>(
  *
  * "Pendiente" según la tabla:
  * - `movimientos`, `cambiosInsumo`, `cambiosLote`, `categorias`, `lugares`,
- *   `minimosLugar`, `proveedores`: la bandera `sincronizado` (un proveedor
+ *   `minimosLugar`, `proveedores`, `marcas`: la bandera `sincronizado` (un proveedor
  *   pendiente se conserva, así los lotes pendientes que lo usan pueden subir);
  * - `insumos` y `lotes` no tienen bandera: se conservan los que referencia un
  *   pendiente que se conserva (sin ellos, ese pendiente no podría subir);
@@ -92,6 +95,7 @@ export async function aislarDatosLocales(tenantId: string): Promise<void> {
       db.tratamientosRealizados,
       db.configuracionAlertas,
       db.proveedores,
+      db.marcas,
     ],
     async () => {
       const ajeno = (fila: { tenantId?: string }) => fila.tenantId !== tenantId
@@ -180,6 +184,9 @@ export async function aislarDatosLocales(tenantId: string): Promise<void> {
       )
       await db.proveedores.bulkDelete(
         (await db.proveedores.toArray()).filter(sincronizadoAjeno).map((p) => p.id),
+      )
+      await db.marcas.bulkDelete(
+        (await db.marcas.toArray()).filter(sincronizadoAjeno).map((m) => m.id),
       )
       const config = await db.configuracionAlertas.get('global')
       if (config && ajeno(config)) await db.configuracionAlertas.delete('global')

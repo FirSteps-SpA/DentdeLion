@@ -27,6 +27,7 @@ const insumo = (unidadMedida: string): Insumo => ({
   stockMinimo: null,
   dadoDeBajaEn: null,
   dadoDeBajaPor: null,
+  marcaId: null,
   creadoPor: null,
 })
 

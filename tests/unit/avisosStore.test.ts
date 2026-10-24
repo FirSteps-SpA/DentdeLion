@@ -136,4 +136,34 @@ describe('avisosStore (spec 007 FR-006/FR-009)', () => {
     ])
     expect(avisos.every((a) => a.tipo === 'consumo')).toBe(true)
   })
+
+  it('spec 023: los avisos de marcas son informativos y ceden su lugar a un consumo', () => {
+    useAvisosStore.getState().agregar(aviso(1))
+    useAvisosStore.getState().agregar(aviso(2))
+    useAvisosStore.getState().agregar({
+      tipo: 'marca-no-eliminada',
+      movimientoId: null,
+      loteId: null,
+      insumoNombre: '3M',
+      unidadMedida: null,
+    })
+    useAvisosStore.getState().agregar(aviso(3))
+
+    expect(useAvisosStore.getState().avisos.map((a) => a.tipo)).toEqual([
+      'consumo',
+      'consumo',
+      'consumo',
+    ])
+
+    useAvisosStore.setState({ avisos: [] })
+    for (let n = 1; n <= 3; n++) useAvisosStore.getState().agregar(aviso(n))
+    useAvisosStore.getState().agregar({
+      tipo: 'marca-repetida',
+      movimientoId: null,
+      loteId: null,
+      insumoNombre: 'GC',
+      unidadMedida: null,
+    })
+    expect(useAvisosStore.getState().avisos.every((a) => a.tipo === 'consumo')).toBe(true)
+  })
 })

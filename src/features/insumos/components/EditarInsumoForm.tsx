@@ -9,7 +9,8 @@ import {
   type CambiosInsumoInput,
 } from '../lib/catalogo'
 import { catalogoCategorias, resolverCategoria } from '../lib/categorias'
-import { Minus, Plus, Scan } from '../../../components/icons'
+import { Factory, Minus, Plus, Scan } from '../../../components/icons'
+import { SelectorMarca } from '../../marcas/components/SelectorMarca'
 import { Card } from '../../../components/ui/Card'
 import { IconField } from '../../../components/ui/IconField'
 import { TouchButton } from '../../../components/ui/TouchButton'
@@ -163,6 +164,8 @@ export function EditarInsumoForm({
     insumo.codigoFabricante ?? '',
   )
   const [caduca, setCaduca] = useState(insumo.caduca)
+  // Spec 023 (FR-008): solo administración llega aquí (menú del insumo).
+  const [marcaId, setMarcaId] = useState<string | null>(insumo.marcaId ?? null)
   const [errores, setErrores] = useState<
     Partial<Record<CampoEditableInsumo, string>>
   >({})
@@ -182,6 +185,7 @@ export function EditarInsumoForm({
     stockMinimo: stockMinimoValor,
     codigoFabricante: codigoFabricante.trim() || null,
     caduca,
+    marcaId,
   }
   const hayCambios =
     nombre.trim() !== insumo.nombre ||
@@ -191,7 +195,8 @@ export function EditarInsumoForm({
     contenidoFinal !== insumo.contenido ||
     stockMinimoValor !== insumo.stockMinimo ||
     (codigoFabricante.trim() || null) !== insumo.codigoFabricante ||
-    caduca !== insumo.caduca
+    caduca !== insumo.caduca ||
+    marcaId !== (insumo.marcaId ?? null)
   const cambiaMinimoLugar = lugarMinimo !== null && minimoLugarValor !== minimoLugarActual
   const tieneLotes = lotesDeInsumo(lotes, insumo.id).length > 0
 
@@ -376,6 +381,10 @@ export function EditarInsumoForm({
           />
         </IconField>
       </div>
+
+      <IconField label="Marca (opcional)" icon={<Factory size={18} />} htmlFor="editar-marca">
+        <SelectorMarca id="editar-marca" valor={marcaId} onCambio={setMarcaId} />
+      </IconField>
 
       <div className="flex flex-col gap-1">
         <label className="touch-target flex items-center gap-2 text-sm font-bold text-text">

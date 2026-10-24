@@ -351,6 +351,7 @@ for (const tabla of [
   'configuracion_alertas',
   'minimos_lugar',
   'proveedores',
+  'marcas',
 ]) {
   r = await http('GET', `/rest/v1/${tabla}?select=tenant_id`, { token: perB.token })
   const ajenas = Array.isArray(r.data) ? r.data.filter((f) => f.tenant_id !== TENANT_B) : null
@@ -1437,6 +1438,231 @@ r = await http('PATCH', `/rest/v1/items_compra?id=eq.${itemDeAdm.id}`, {
 check(
   'otro tenant no actualiza el ítem',
   (await leer(`items_compra?select=estado&id=eq.${itemDeAdm.id}`))[0]?.estado === 'comprado',
+  `HTTP ${r.status}`,
+)
+
+// ---------------------------------------------------------------------------
+// Spec 023 — marcas (contracts/supabase-schema.md §5)
+// ---------------------------------------------------------------------------
+
+const nuevaMarca = (creado_por, nombre, extra = {}) => ({
+  id: randomUUID(),
+  nombre,
+  creado_por,
+  creado_en: new Date().toISOString(),
+  ...extra,
+})
+const marcaDe = async (id) =>
+  (await leer(`insumos?id=eq.${id}&select=marca_id`))[0]?.marca_id
+const upsertInsumo = (token, body) =>
+  http('POST', '/rest/v1/insumos', {
+    token,
+    body,
+    prefer: 'resolution=merge-duplicates,return=minimal',
+  })
+const cambioMarca = (usuario, insumoId, valor_nuevo, creado_en, extra = {}) => ({
+  id: randomUUID(),
+  insumo_id: insumoId,
+  campo: 'marcaId',
+  valor_anterior: null,
+  valor_nuevo,
+  usuario_id: usuario.id,
+  creado_en,
+  ...extra,
+})
+
+// 1–3. Crear, permisos, clave repetida.
+const tresM = nuevaMarca(per.id, `3M ${run}`)
+r = await http('POST', '/rest/v1/marcas', { token: per.token, body: tresM })
+check('marcas: personal crea una marca en su tenant', r.status === 201, `HTTP ${r.status}`)
+const [filaTresM] = await leer(`marcas?id=eq.${tresM.id}&select=tenant_id,clave`)
+check(
+  'marcas: cae en el tenant de quien la crea, con su clave',
+  filaTresM?.tenant_id === TENANT_1 && filaTresM?.clave === `3m ${run}`,
+  JSON.stringify(filaTresM),
+)
+r = await http('POST', '/rest/v1/marcas', {
+  token: per.token,
+  body: nuevaMarca(adm.id, `Ajena ${run}`),
+})
+check('marcas: nadie crea una marca a nombre de otra persona', r.status >= 400, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/marcas', {
+  token: adm.token,
+  body: nuevaMarca(adm.id, ` 3m   ${run.toUpperCase()} `),
+})
+check(
+  'marcas: un nombre con la misma clave se rechaza en el mismo tenant',
+  r.status === 409 && r.data?.code === '23505',
+  `HTTP ${r.status} ${r.data?.code}`,
+)
+r = await http('POST', '/rest/v1/marcas', {
+  token: admB.token,
+  body: nuevaMarca(admB.id, `3M ${run}`),
+})
+check('marcas: el mismo nombre en otro tenant se acepta', r.status === 201, `HTTP ${r.status}`)
+
+await http('PATCH', `/rest/v1/marcas?id=eq.${tresM.id}`, {
+  token: per.token,
+  body: { nombre: 'Cambiada', desactivado_en: new Date().toISOString() },
+})
+let [marcaLeida] = await leer(`marcas?id=eq.${tresM.id}&select=nombre,desactivado_en`)
+check(
+  'marcas: personal no renombra ni desactiva',
+  marcaLeida?.nombre === `3M ${run}` && marcaLeida?.desactivado_en === null,
+  JSON.stringify(marcaLeida),
+)
+await http('PATCH', `/rest/v1/marcas?id=eq.${tresM.id}`, {
+  token: perB.token,
+  body: { nombre: 'Desde B' },
+})
+;[marcaLeida] = await leer(`marcas?id=eq.${tresM.id}&select=nombre`)
+check('marcas: otro tenant no actualiza la marca', marcaLeida?.nombre === `3M ${run}`)
+
+// 10. Alta de personal con marca; 5. FK de otro tenant.
+const insumoMarca = randomUUID()
+r = await http('POST', '/rest/v1/insumos', {
+  token: per.token,
+  body: {
+    id: insumoMarca,
+    nombre: `Composite Z350 ${run}`,
+    categoria: 'Restauración',
+    unidad_medida: 'unidad',
+    permite_decimales: false,
+    marca_id: tresM.id,
+  },
+})
+check(
+  'marcas: personal da de alta un insumo con marca',
+  r.status === 201 && (await marcaDe(insumoMarca)) === tresM.id,
+  `HTTP ${r.status}`,
+)
+const marcaDeB = nuevaMarca(admB.id, `Solo B ${run}`)
+await http('POST', '/rest/v1/marcas', { token: admB.token, body: marcaDeB })
+r = await http('POST', '/rest/v1/insumos', {
+  token: adm.token,
+  body: {
+    id: randomUUID(),
+    nombre: `Con marca ajena ${run}`,
+    categoria: 'Restauración',
+    unidad_medida: 'unidad',
+    permite_decimales: false,
+    marca_id: marcaDeB.id,
+  },
+})
+check('marcas: un insumo no usa una marca de otro tenant', r.status >= 400, `HTTP ${r.status}`)
+
+// 6. Convivencia 2.5.0: upsert sin la clave marca_id conserva la marca.
+r = await upsertInsumo(adm.token, {
+  id: insumoMarca,
+  nombre: `Composite Z350 ${run}`,
+  categoria: 'Restauración',
+  unidad_medida: 'unidad',
+  permite_decimales: false,
+  stock_minimo: 3,
+})
+check(
+  'marcas: 2.5.0 (sin marca_id) actualiza el insumo y conserva la marca',
+  r.status < 300 &&
+    (await marcaDe(insumoMarca)) === tresM.id &&
+    (await leer(`insumos?id=eq.${insumoMarca}&select=stock_minimo`))[0]?.stock_minimo === 3,
+  `HTTP ${r.status}`,
+)
+
+// 7. Fila desfasada: administración sube marca_id null; el servidor la conserva.
+r = await upsertInsumo(adm.token, {
+  id: insumoMarca,
+  nombre: `Composite Z350 ${run}`,
+  categoria: 'Restauración',
+  unidad_medida: 'unidad',
+  permite_decimales: false,
+  marca_id: null,
+})
+check(
+  'marcas: un upsert con marca_id null (fila desfasada) no borra la marca',
+  r.status < 300 && (await marcaDe(insumoMarca)) === tresM.id,
+  `HTTP ${r.status}`,
+)
+
+// 8. El historial de administración cambia la marca; gana el más reciente.
+const gcMarca = nuevaMarca(adm.id, `GC ${run}`)
+await http('POST', '/rest/v1/marcas', { token: adm.token, body: gcMarca })
+const marcaT0 = new Date(Date.now() + 1000).toISOString()
+const marcaT1 = new Date(Date.now() + 2000).toISOString()
+r = await http('POST', '/rest/v1/cambios_insumo', {
+  token: adm.token,
+  body: cambioMarca(adm, insumoMarca, gcMarca.id, marcaT1, { valor_anterior: tresM.id }),
+})
+check(
+  'marcas: un cambio marcaId de administración cambia la marca',
+  r.status === 201 && (await marcaDe(insumoMarca)) === gcMarca.id,
+  `HTTP ${r.status}`,
+)
+r = await http('POST', '/rest/v1/cambios_insumo', {
+  token: adm.token,
+  body: cambioMarca(adm, insumoMarca, tresM.id, marcaT0),
+})
+check(
+  'marcas: un cambio más antiguo que llega después no pisa al más reciente',
+  r.status === 201 && (await marcaDe(insumoMarca)) === gcMarca.id,
+  `HTTP ${r.status}`,
+)
+r = await http('POST', '/rest/v1/cambios_insumo', {
+  token: adm.token,
+  body: cambioMarca(adm, insumoMarca, null, new Date(Date.now() + 3000).toISOString()),
+})
+check(
+  'marcas: un cambio a null deja el insumo sin marca',
+  r.status === 201 && (await marcaDe(insumoMarca)) === null,
+  `HTTP ${r.status}`,
+)
+
+// 9. Personal no cambia la marca de un insumo existente.
+r = await http('POST', '/rest/v1/cambios_insumo', {
+  token: per.token,
+  body: cambioMarca(per, insumoMarca, tresM.id, new Date(Date.now() + 4000).toISOString()),
+})
+check(
+  'marcas: personal no cambia la marca de un insumo existente',
+  r.status >= 400 && (await marcaDe(insumoMarca)) === null,
+  `HTTP ${r.status}`,
+)
+r = await http('POST', '/rest/v1/cambios_insumo', {
+  token: adm.token,
+  body: cambioMarca(adm, insumoMarca, marcaDeB.id, new Date(Date.now() + 5000).toISOString()),
+})
+check(
+  'marcas: un cambio a una marca de otro tenant se rechaza',
+  r.status >= 400 && (await marcaDe(insumoMarca)) === null,
+  `HTTP ${r.status}`,
+)
+
+// 4. No se elimina con insumos (también dados de baja); sin insumos, sí.
+await http('POST', '/rest/v1/cambios_insumo', {
+  token: adm.token,
+  body: cambioMarca(adm, insumoMarca, gcMarca.id, new Date(Date.now() + 6000).toISOString()),
+})
+await http('PATCH', `/rest/v1/insumos?id=eq.${insumoMarca}`, {
+  token: adm.token,
+  body: { dado_de_baja_en: new Date().toISOString(), dado_de_baja_por: adm.id },
+})
+r = await http('PATCH', `/rest/v1/marcas?id=eq.${gcMarca.id}`, {
+  token: adm.token,
+  body: { eliminado_en: new Date().toISOString() },
+})
+;[marcaLeida] = await leer(`marcas?id=eq.${gcMarca.id}&select=eliminado_en`)
+check(
+  'marcas: una marca con insumos (dados de baja) no se elimina',
+  r.status >= 400 && marcaLeida?.eliminado_en === null && /marca_con_insumos/.test(JSON.stringify(r.data)),
+  `HTTP ${r.status}`,
+)
+r = await http('PATCH', `/rest/v1/marcas?id=eq.${tresM.id}`, {
+  token: adm.token,
+  body: { eliminado_en: new Date().toISOString() },
+})
+;[marcaLeida] = await leer(`marcas?id=eq.${tresM.id}&select=eliminado_en`)
+check(
+  'marcas: una marca sin insumos se elimina (baja lógica)',
+  r.status < 300 && marcaLeida?.eliminado_en !== null,
   `HTTP ${r.status}`,
 )
 

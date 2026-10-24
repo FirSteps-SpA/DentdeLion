@@ -70,7 +70,7 @@ describe('Dexie v13 (spec 021)', () => {
     const { db } = await import('../../src/lib/db')
     await db.open()
 
-    expect(db.verno).toBe(13)
+    expect(db.verno).toBe(14) // la v13 corre dentro de la cadena hasta la última versión
     expect(await db.lotes.get('l1')).toMatchObject({
       proveedor: 'Dental Sur',
       proveedorId: null,

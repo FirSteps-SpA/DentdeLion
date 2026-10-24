@@ -22,6 +22,12 @@ export interface Aviso {
     | 'proveedor-no-eliminado'
     /** Spec 021 (research.md R6): un cambio de nombre chocó con otro proveedor del servidor. */
     | 'proveedor-repetido'
+    /** Spec 023 (research.md R5, R6): el servidor rechazó eliminar una marca con insumos. */
+    | 'marca-no-eliminada'
+    /** Spec 023 (research.md R5): un cambio de nombre chocó con otra marca del servidor. */
+    | 'marca-repetida'
+    /** Spec 023 (Edge Cases): la marca elegida se eliminó antes de guardar el alta. */
+    | 'marca-descartada'
   /**
    * Consumo: el movimiento de consumo. Traslado (spec 014): la salida del par.
    * Tratamiento (spec 016): el tratamiento realizado.
@@ -42,7 +48,10 @@ function esInformativo(aviso: Pick<Aviso, 'tipo'>): boolean {
     aviso.tipo === 'material-creado' ||
     aviso.tipo === 'categoria-rechazada' ||
     aviso.tipo === 'proveedor-no-eliminado' ||
-    aviso.tipo === 'proveedor-repetido'
+    aviso.tipo === 'proveedor-repetido' ||
+    aviso.tipo === 'marca-no-eliminada' ||
+    aviso.tipo === 'marca-repetida' ||
+    aviso.tipo === 'marca-descartada'
   )
 }
 

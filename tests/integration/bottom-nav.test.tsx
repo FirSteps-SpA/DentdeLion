@@ -140,6 +140,7 @@ const insumoBajo = {
   stockMinimo: 100,
   dadoDeBajaEn: null,
   dadoDeBajaPor: null,
+  marcaId: null,
   creadoPor: null,
 }
 const loteBajo = {

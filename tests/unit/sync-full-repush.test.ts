@@ -16,6 +16,7 @@ vi.mock('../../src/lib/db', async () => {
       movimientos: new MemoryTable(),
       configuracionAlertas: new MemoryTable(),
       proveedores: new MemoryTable(),
+      marcas: new MemoryTable(),
       cambiosInsumo: new MemoryTable(),
       cambiosLote: new MemoryTable(),
       tratamientos: new MemoryTable(),
@@ -78,6 +79,7 @@ const insumoA: Insumo = {
   stockMinimo: null,
   dadoDeBajaEn: null,
   dadoDeBajaPor: null,
+  marcaId: null,
   creadoPor: null,
 }
 const insumoB: Insumo = { ...insumoA, id: 'b', nombre: 'Bisturí' }

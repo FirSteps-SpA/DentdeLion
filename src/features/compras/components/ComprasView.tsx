@@ -29,6 +29,7 @@ import { ChipLugar } from '../../../app/ChipLugar'
 import { ElegirLugarSheet } from '../../../app/ElegirLugarSheet'
 import { nombreLugar, useLugarStore } from '../../../stores/lugarStore'
 import { useInventoryStore } from '../../../stores/inventoryStore'
+import { mapaMarcas } from '../../marcas/lib/marcas'
 import { useAlertasStore } from '../../../stores/alertasStore'
 import { usePredeterminado } from '../../proveedores/lib/usePredeterminado'
 
@@ -75,6 +76,7 @@ export function ComprasView() {
   // guardada en el dispositivo y el precio de la última compra de cada insumo.
   const todosLosInsumos = useInventoryStore((s) => s.insumos)
   const lotesTenant = useInventoryStore((s) => s.lotes)
+  const marcas = useInventoryStore((s) => s.marcas)
   const movimientosTenant = useInventoryStore((s) => s.movimientos)
   const itemsCompraTenant = useInventoryStore((s) => s.itemsCompra)
   const minimosLugar = useInventoryStore((s) => s.minimosLugar)
@@ -147,6 +149,7 @@ export function ComprasView() {
     saludo,
     seleccionados,
     esTodos ? new Map(lugares.map((lugar) => [lugar.id, lugar.nombre])) : undefined,
+    mapaMarcas(marcas),
   )
 
   // FR-013: el predeterminado del lugar del pedido. En "Todos", solo si todo

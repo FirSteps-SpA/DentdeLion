@@ -9,6 +9,7 @@ import {
   within,
 } from '@testing-library/react'
 import type {
+  Marca,
   CambioInsumo,
   Insumo,
   Lote,
@@ -22,6 +23,7 @@ vi.mock('../../src/lib/db', async () => {
   return {
     db: createMemoryDb({
       proveedores: new MemoryTable(),
+      marcas: new MemoryTable(),
       lugares: new MemoryTable(),
       minimosLugar: new MemoryTable(),
       lugarActivo: new MemoryTable(),
@@ -86,6 +88,7 @@ function insumo(
     stockMinimo: null,
     dadoDeBajaEn: null,
     dadoDeBajaPor: null,
+    marcaId: null,
     creadoPor: null,
     ...overrides,
   }
@@ -152,6 +155,7 @@ function reflejarStore() {
     lotes: lotesT.all(),
     movimientos: movimientosT.all(),
     cambiosInsumo: cambiosT.all(),
+    marcas: (db.marcas as unknown as MemoryTable<Marca>).all(),
     isReady: true,
   })
 }
@@ -539,3 +543,42 @@ describe('Baja (User Story 4)', () => {
     expect(screen.queryByText(/Bisturí/)).not.toBeInTheDocument()
   })
 })
+
+/** Spec 023 T030 (US1-3, FR-008/FR-009). */
+describe('Edición — marca (spec 023)', () => {
+  it('administración cambia la marca y queda un cambio marcaId', async () => {
+    ;(db.marcas as unknown as MemoryTable<Marca>).seed([
+      {
+        id: 'tres',
+        tenantId: TENANT_1,
+        nombre: '3M',
+        creadoPor: 'admin-1',
+        creadoEn: '2026-10-24T10:00:00.000Z',
+        desactivadoEn: null,
+        eliminadoEn: null,
+        sincronizado: true,
+      },
+    ])
+    reflejarStore()
+    useAuthStore.setState({ usuario: admin })
+    render(<Harness />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Más opciones de Anestesia' }))
+    fireEvent.click(screen.getByText('Editar'))
+    const form = screen.getByRole('dialog', { name: 'Editar insumo' })
+    expect(within(form).getByLabelText('Marca (opcional)')).toHaveTextContent('Sin marca')
+
+    fireEvent.click(within(form).getByLabelText('Marca (opcional)'))
+    fireEvent.change(screen.getByLabelText('Buscar marca'), { target: { value: '3m' } })
+    fireEvent.click(screen.getByRole('option', { name: '3M' }))
+    expect(within(form).getByLabelText('Marca (opcional)')).toHaveTextContent('3M')
+    fireEvent.click(within(form).getByRole('button', { name: 'Guardar' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(cambiosT.all()).toEqual([
+      expect.objectContaining({ campo: 'marcaId', valorAnterior: null, valorNuevo: 'tres' }),
+    ])
+    expect(insumosT.all().find((i) => i.id === 'a')?.marcaId).toBe('tres')
+  })
+})
+

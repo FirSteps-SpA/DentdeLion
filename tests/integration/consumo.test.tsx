@@ -49,6 +49,7 @@ const insumo: Insumo = {
   stockMinimo: null,
   dadoDeBajaEn: null,
   dadoDeBajaPor: null,
+  marcaId: null,
   creadoPor: null,
 }
 
