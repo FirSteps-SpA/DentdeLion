@@ -306,10 +306,22 @@ describe('editarInsumo — marca (spec 023)', () => {
   })
 
   it('poner, cambiar y quitar la marca escribe un cambio marcaId cada vez', async () => {
-    await editarInsumo('i1', { marcaId: 'tres' })
-    expect((await db.insumos.get('i1'))?.marcaId).toBe('tres')
-    await editarInsumo('i1', { marcaId: 'gc' })
-    await editarInsumo('i1', { marcaId: null })
+    // Un milisegundo entre ediciones: con el mismo `creadoEn`, la proyección
+    // desempata por id (aleatorio) y la siguiente edición leería otra marca.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      vi.setSystemTime(new Date('2026-10-24T10:00:00.000Z'))
+      await editarInsumo('i1', { marcaId: 'tres' })
+      expect((await db.insumos.get('i1'))?.marcaId).toBe('tres')
+      vi.setSystemTime(new Date('2026-10-24T10:00:01.000Z'))
+      await editarInsumo('i1', { marcaId: 'gc' })
+      expect((await db.insumos.get('i1'))?.marcaId).toBe('gc')
+      vi.setSystemTime(new Date('2026-10-24T10:00:02.000Z'))
+      await editarInsumo('i1', { marcaId: null })
+      expect((await db.insumos.get('i1'))?.marcaId).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
 
     const cambios = cambiosT.all().filter((c) => c.campo === 'marcaId')
     // La tabla en memoria no conserva el orden de inserción.
