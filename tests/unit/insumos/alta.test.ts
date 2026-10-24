@@ -28,6 +28,7 @@ vi.mock('../../../src/lib/db', async () => {
       tratamientosRealizados: new MemoryTable(),
       configuracionAlertas: new MemoryTable(),
       proveedores: new MemoryTable(),
+      marcas: new MemoryTable(),
       itemsCompra: new MemoryTable(),
       usuarioActual: new MemoryTable(),
     }),
@@ -79,6 +80,7 @@ function insumo(overrides: Partial<Insumo>): Insumo {
     stockMinimo: null,
     dadoDeBajaEn: null,
     dadoDeBajaPor: null,
+    marcaId: null,
     creadoPor: null,
     ...overrides,
   }
@@ -565,3 +567,53 @@ describe('posiblesDuplicados (US4, R9)', () => {
     expect(posiblesDuplicados([a, bRenombrado])).toEqual(new Set())
   })
 })
+
+/** Spec 023 T030 (FR-004..FR-007, Edge Cases). */
+describe('darDeAltaMaterial — marca (spec 023)', () => {
+  const marca = (id: string, extra: Record<string, unknown> = {}) => ({
+    id,
+    tenantId: TENANT_1,
+    nombre: id.toUpperCase(),
+    creadoPor: 'admin-1',
+    creadoEn: '2026-10-24T10:00:00.000Z',
+    desactivadoEn: null,
+    eliminadoEn: null,
+    sincronizado: true,
+    ...extra,
+  })
+  const marcasT = db.marcas as unknown as MemoryTable<ReturnType<typeof marca>>
+
+  beforeEach(() => {
+    marcasT.seed([
+      marca('tres'),
+      marca('gc', { desactivadoEn: '2026-10-24T11:00:00.000Z' }),
+      marca('vieja', { eliminadoEn: '2026-10-24T11:00:00.000Z' }),
+    ])
+  })
+
+  it('sin marca, como antes', async () => {
+    const { insumo: creado, marcaDescartada } = await darDeAltaMaterial(inputBase())
+    expect(creado.marcaId).toBeNull()
+    expect(marcaDescartada).toBe(false)
+  })
+
+  it('con una marca del catálogo, también desde personal', async () => {
+    useAuthStore.setState({ usuario: personal, isReady: true })
+    const { insumo: creado } = await darDeAltaMaterial(inputBase({ marcaId: 'tres' }))
+    expect(insumosT.all()[0]).toMatchObject({ id: creado.id, marcaId: 'tres' })
+  })
+
+  it('una desactivada mientras el formulario estaba abierto se acepta', async () => {
+    const { insumo: creado } = await darDeAltaMaterial(inputBase({ marcaId: 'gc' }))
+    expect(creado.marcaId).toBe('gc')
+  })
+
+  it('una eliminada se descarta y lo avisa', async () => {
+    const { insumo: creado, marcaDescartada } = await darDeAltaMaterial(
+      inputBase({ marcaId: 'vieja' }),
+    )
+    expect(creado.marcaId).toBeNull()
+    expect(marcaDescartada).toBe(true)
+  })
+})
+

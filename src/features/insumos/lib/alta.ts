@@ -20,6 +20,7 @@ import { convertirIngreso, snapshotIngreso, type CantidadIngreso } from './ingre
 import { precioPorUnidadCompra, validarPrecio, type PrecioIngreso } from './precio'
 import { normalizarPresentacion, validarPresentacion, type Presentacion } from './presentacion'
 import { permiteDecimales } from './quantity'
+import { marcaParaInsumo } from '../../marcas/lib/marcas'
 import {
   MENSAJE_FALTA_PROVEEDOR,
   proveedorParaLote,
@@ -73,6 +74,11 @@ export interface AltaMaterialInput {
   /** Unidades de consumo por unidad de compra; ignorado si `unidadCompra` es `null`. */
   contenido?: number | null
   codigoFabricante: string
+  /**
+   * Spec 023 (FR-005) — marca opcional del catálogo; `null` = sin marca.
+   * Opcional para borradores anteriores a la spec.
+   */
+  marcaId?: string | null
   stockMinimo: number | null
   caduca: boolean
   /** 0 por defecto — sin stock inicial. */
@@ -204,7 +210,7 @@ export function validarAltaMaterial(
 export async function darDeAltaMaterial(
   input: AltaMaterialInput,
   opciones: { lugarId?: string } = {},
-): Promise<{ insumo: Insumo; conLoteInicial: boolean }> {
+): Promise<{ insumo: Insumo; conLoteInicial: boolean; marcaDescartada: boolean }> {
   const usuarioId = getUsuarioActualId()
   if (!usuarioId) {
     throw new Error(
@@ -229,7 +235,15 @@ export async function darDeAltaMaterial(
 
   return db.transaction(
     'rw',
-    [db.insumos, db.categorias, db.lotes, db.movimientos, db.borradores, db.proveedores],
+    [
+      db.insumos,
+      db.categorias,
+      db.lotes,
+      db.movimientos,
+      db.borradores,
+      db.proveedores,
+      db.marcas,
+    ],
     async () => {
       const insumosActivos = (await db.insumos.toArray()).filter(
         (i) => !i.dadoDeBajaEn,
@@ -272,6 +286,10 @@ export async function darDeAltaMaterial(
       }
 
       const presentacion = presentacionDeAlta(input)
+      // Spec 023 (Edge Cases): una marca eliminada mientras el formulario
+      // estaba abierto se descarta y se avisa.
+      const marcaId = await marcaParaInsumo(input.marcaId)
+      const marcaDescartada = !!input.marcaId && marcaId === null
       const insumo: Insumo = {
         id: crypto.randomUUID(),
         tenantId,
@@ -288,6 +306,7 @@ export async function darDeAltaMaterial(
         dadoDeBajaEn: null,
         dadoDeBajaPor: null,
         creadoPor: usuarioId,
+        marcaId,
       }
       await db.insumos.add(insumo)
 
@@ -325,7 +344,7 @@ export async function darDeAltaMaterial(
 
       await db.borradores.delete('alta-material')
 
-      return { insumo, conLoteInicial }
+      return { insumo, conLoteInicial, marcaDescartada }
     },
   )
 }

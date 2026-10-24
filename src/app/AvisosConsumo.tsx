@@ -17,6 +17,15 @@ function textoAviso(aviso: Aviso): string {
   if (aviso.tipo === 'proveedor-repetido') {
     return `El cambio en «${aviso.insumoNombre}» no se guardó: ya existe un proveedor con ese nombre.`
   }
+  if (aviso.tipo === 'marca-no-eliminada') {
+    return `No se pudo eliminar «${aviso.insumoNombre}»: la usan insumos.`
+  }
+  if (aviso.tipo === 'marca-repetida') {
+    return `No se pudo renombrar a «${aviso.insumoNombre}»: ya existe una marca con ese nombre.`
+  }
+  if (aviso.tipo === 'marca-descartada') {
+    return `«${aviso.insumoNombre}» se guardó sin marca: la marca elegida ya no existe.`
+  }
   if (aviso.tipo === 'traslado') {
     return aviso.estado === 'revertido' ? 'Traslado revertido' : (aviso.detalle ?? 'Traslado registrado')
   }
@@ -58,7 +67,10 @@ export function AvisosConsumo() {
           {aviso.tipo === 'cambio-rechazado' ||
           aviso.tipo === 'categoria-rechazada' ||
           aviso.tipo === 'proveedor-no-eliminado' ||
-          aviso.tipo === 'proveedor-repetido' ? (
+          aviso.tipo === 'proveedor-repetido' ||
+          aviso.tipo === 'marca-no-eliminada' ||
+          aviso.tipo === 'marca-repetida' ||
+          aviso.tipo === 'marca-descartada' ? (
             <AlertTriangle size={18} className="shrink-0 text-warning-30-bg" />
           ) : (
             <CircleCheck size={18} className="shrink-0 text-success" />

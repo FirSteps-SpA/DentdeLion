@@ -31,6 +31,7 @@ export function insumo(id: string, extra: Partial<Insumo> = {}): Insumo {
     stockMinimo: null,
     dadoDeBajaEn: null,
     dadoDeBajaPor: null,
+    marcaId: null,
     creadoPor: null,
     ...extra,
   }

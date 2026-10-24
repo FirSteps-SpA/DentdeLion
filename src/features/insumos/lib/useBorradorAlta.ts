@@ -13,6 +13,7 @@ export const ALTA_VACIA: AltaMaterialInput = {
   unidadCompra: null,
   contenido: null,
   codigoFabricante: '',
+  marcaId: null,
   stockMinimo: null,
   caduca: true,
   stockInicial: 0,

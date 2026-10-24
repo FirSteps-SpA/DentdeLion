@@ -52,6 +52,7 @@ function insumo(id: string, nombre: string, extra: Partial<Insumo> = {}): Insumo
     stockMinimo: null,
     dadoDeBajaEn: null,
     dadoDeBajaPor: null,
+    marcaId: null,
     creadoPor: null,
     ...extra,
   }
@@ -180,6 +181,37 @@ describe('Alertas de caducidad (spec 018 US2)', () => {
     const hoja = screen.getByRole('dialog', { name: 'Detalle del insumo' })
     expect(within(hoja).getByText(/Lote L-1 · Dental Sur Ltda\. — vence/)).toBeInTheDocument()
     expect(within(hoja).getByText(/Lote L-2 · Proveedor X — vence/)).toBeInTheDocument()
+  })
+
+  it('spec 023: el detalle muestra la marca solo si el insumo tiene una', () => {
+    const { insumos } = useInventoryStore.getState()
+    useInventoryStore.setState({
+      insumos: insumos.map((i) =>
+        i.nombre === 'Lidocaína 2 %' ? { ...i, marcaId: 'septo' } : i,
+      ),
+      marcas: [
+        {
+          id: 'septo',
+          tenantId: TENANT_1,
+          nombre: 'Septodont',
+          creadoPor: null,
+          creadoEn: '2026-10-24T10:00:00.000Z',
+          desactivadoEn: null,
+          eliminadoEn: null,
+          sincronizado: true,
+        },
+      ],
+    })
+    render(<AlertasView />)
+    fireEvent.click(screen.getAllByRole('button', { name: /Ver detalle de Lidocaína 2 %/ })[0])
+    let hoja = screen.getByRole('dialog', { name: 'Detalle del insumo' })
+    expect(within(hoja).getByText('Marca: Septodont')).toBeInTheDocument()
+    fireEvent.click(within(hoja).getByRole('button', { name: 'Cerrar' }))
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Ver detalle de Resina A2/ })[0])
+    hoja = screen.getByRole('dialog', { name: 'Detalle del insumo' })
+    expect(within(hoja).queryByText(/^Marca:/)).toBeNull()
+    useInventoryStore.setState({ marcas: [] })
   })
 
   it('tocar una alerta abre el detalle con los lotes y cerrarlo vuelve a Alertas', () => {

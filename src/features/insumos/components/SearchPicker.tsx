@@ -7,6 +7,7 @@ import {
   useInventoryStore,
 } from '../../../stores/inventoryStore'
 import { categoriasEnUso } from '../lib/categorias'
+import { mapaMarcas } from '../../marcas/lib/marcas'
 import { Search } from '../../../components/icons'
 import { Card } from '../../../components/ui/Card'
 import { IconField } from '../../../components/ui/IconField'
@@ -31,6 +32,7 @@ interface SearchPickerProps {
 export function SearchPicker({ onSelect }: SearchPickerProps) {
   const insumos = useInventoryStore((s) => s.insumos)
   const categoriasRows = useInventoryStore((s) => s.categorias)
+  const marcas = useInventoryStore((s) => s.marcas)
   const [texto, setTexto] = useState('')
   const [categoria, setCategoria] = useState('')
   const [mostrarCrearInsumo, setMostrarCrearInsumo] = useState(false)
@@ -39,7 +41,7 @@ export function SearchPicker({ onSelect }: SearchPickerProps) {
   const resultados = categoria
     ? searchInsumosPorCategoria(insumos, categoria)
     : texto.trim()
-      ? searchInsumosPorTexto(insumos, texto)
+      ? searchInsumosPorTexto(insumos, texto, mapaMarcas(marcas))
       : insumosRecientes(insumos)
 
   const sinCoincidencias = texto.trim() !== '' && resultados.length === 0

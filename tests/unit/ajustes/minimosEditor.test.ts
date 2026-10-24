@@ -21,6 +21,7 @@ function insumo(id: string, nombre: string, overrides: Partial<Insumo> = {}): In
     stockMinimo: 5,
     dadoDeBajaEn: null,
     dadoDeBajaPor: null,
+    marcaId: null,
     creadoPor: null,
     ...overrides,
   }

@@ -23,6 +23,7 @@ const articaina: Insumo = {
   stockMinimo: 120,
   dadoDeBajaEn: null,
   dadoDeBajaPor: null,
+  marcaId: null,
   creadoPor: null,
 }
 

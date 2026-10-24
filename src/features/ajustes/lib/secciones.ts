@@ -1,12 +1,20 @@
 import type { ComponentType } from 'react'
-import { Archive, Bell, MapPin, Tag, Truck, User, type IconProps } from '../../../components/icons'
+import { Archive, Bell, Factory, MapPin, Tag, Truck, User, type IconProps } from '../../../components/icons'
 import type { UsuarioActual } from '../../../lib/db'
 
 /**
  * Spec 019 (research.md R2): secciones de Ajustes, en el orden del índice.
  * Spec 021 (research.md R9): `'proveedores'` entre `categorias` y `baja`.
+ * Spec 023 (research.md R11): `'marcas'` entre `proveedores` y `baja`.
  */
-export type IdSeccion = 'perfil' | 'lugares' | 'avisos' | 'categorias' | 'proveedores' | 'baja'
+export type IdSeccion =
+  | 'perfil'
+  | 'lugares'
+  | 'avisos'
+  | 'categorias'
+  | 'proveedores'
+  | 'marcas'
+  | 'baja'
 
 export interface SeccionAjustes {
   id: IdSeccion
@@ -49,6 +57,12 @@ export const SECCIONES_AJUSTES: readonly SeccionAjustes[] = [
     soloAdministracion: true,
   },
   {
+    id: 'marcas',
+    titulo: () => 'Marcas',
+    Icon: Factory,
+    soloAdministracion: true,
+  },
+  {
     id: 'baja',
     titulo: () => 'Insumos dados de baja',
     Icon: Archive,
@@ -76,6 +90,8 @@ export interface DatosResumen {
   insumosDadosDeBaja: number | null
   /** Spec 021 — proveedores activos. */
   proveedoresActivos: number | null
+  /** Spec 023 — marcas activas. */
+  marcasActivas: number | null
   notificaciones: { stockBajo: boolean; caducidad: boolean } | null
   nivelesAvisoDias: number[] | null
 }
@@ -121,6 +137,9 @@ export function resumenSeccion(id: IdSeccion, datos: DatosResumen): string | nul
     case 'proveedores':
       if (datos.proveedoresActivos === null) return null
       return contar(datos.proveedoresActivos, 'proveedor', 'proveedores', 'Sin proveedores')
+    case 'marcas':
+      if (datos.marcasActivas === null) return null
+      return contar(datos.marcasActivas, 'marca', 'marcas', 'Sin marcas')
     case 'baja':
       if (datos.insumosDadosDeBaja === null) return null
       return contar(

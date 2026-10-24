@@ -75,6 +75,7 @@ beforeEach(async () => {
     'lugares',
     'usuarioActual',
     'configuracionAlertas',
+    'marcas',
   ] as const) {
     await db[nombre].clear()
   }
@@ -154,5 +155,30 @@ describe('aislarDatosLocales (spec 014 FR-004)', () => {
         await delTenant('categorias'),
       ).map((p) => p.usuarioId),
     ).toEqual(['ana'])
+  })
+
+  it('spec 023: borra las marcas sincronizadas del otro tenant y conserva las pendientes', async () => {
+    const marca = (id: string, sincronizado: boolean, tenantId = TENANT_1) => ({
+      id,
+      tenantId,
+      nombre: id,
+      creadoPor: 'ana',
+      creadoEn: '2026-10-24T10:00:00.000Z',
+      desactivadoEn: null,
+      eliminadoEn: null,
+      sincronizado,
+    })
+    await db.marcas.bulkPut([
+      marca('3m', true),
+      marca('gc-pendiente', false),
+      marca('propia', true, TENANT_2),
+    ])
+
+    await aislarDatosLocales(TENANT_2)
+
+    expect(tabla(db.marcas).all().map((m) => m.id).sort()).toEqual([
+      'gc-pendiente',
+      'propia',
+    ])
   })
 })

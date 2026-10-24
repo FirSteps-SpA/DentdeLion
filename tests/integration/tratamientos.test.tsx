@@ -68,6 +68,7 @@ function insumo(id: string, nombre: string, unidadMedida: string): Insumo {
     stockMinimo: null,
     dadoDeBajaEn: null,
     dadoDeBajaPor: null,
+    marcaId: null,
     creadoPor: null,
   }
 }

@@ -36,6 +36,7 @@ function insumo(overrides: Partial<Insumo>): Insumo {
     stockMinimo: 100,
     dadoDeBajaEn: null,
     dadoDeBajaPor: null,
+    marcaId: null,
     creadoPor: null,
     ...overrides,
   }
@@ -311,6 +312,61 @@ describe('construirMensajePedido (spec 022 R5)', () => {
       '- Anestesia Articaína — 2 cajas (Providencia)',
       '- Anestesia Articaína — 2 cajas (Las Condes)',
     ])
+  })
+})
+
+/** Spec 023 T035 (FR-014, R10). */
+describe('construirMensajePedido — marca (spec 023)', () => {
+  const marcas = new Map([
+    [
+      'tres',
+      {
+        id: 'tres',
+        tenantId: TENANT_1,
+        nombre: '3M',
+        creadoPor: null,
+        creadoEn: '2026-10-24T10:00:00.000Z',
+        desactivadoEn: null,
+        eliminadoEn: null,
+        sincronizado: true,
+      },
+    ],
+  ])
+
+  it('"Nombre · Marca" en los ítems con marca; los demás, como hoy', () => {
+    const mensaje = construirMensajePedido(
+      'Hola',
+      [
+        pedido({ nombre: 'Composite Z350', insumo: insumo({ marcaId: 'tres' }) }),
+        pedido({ clave: 'b', nombre: 'Anestesia Articaína' }),
+        pedido({
+          clave: 'm',
+          origen: 'manual',
+          nombre: 'Resina vinculada',
+          insumo: insumo({ id: 'i9', marcaId: 'tres' }),
+          cantidad: 1,
+        }),
+        pedido({ clave: 'n', origen: 'manual', nombre: 'Eyectores', insumo: null, unidadCompra: null, cantidad: 3 }),
+      ],
+      undefined,
+      marcas,
+    )
+    expect(mensaje.split('\n').slice(2)).toEqual([
+      '- Composite Z350 · 3M — 2 cajas',
+      '- Anestesia Articaína — 2 cajas',
+      '- Resina vinculada · 3M — 1 caja',
+      '- Eyectores — 3',
+    ])
+  })
+
+  it('una marca que no está en el dispositivo no se muestra', () => {
+    const mensaje = construirMensajePedido(
+      'Hola',
+      [pedido({ insumo: insumo({ marcaId: 'otra' }) })],
+      undefined,
+      marcas,
+    )
+    expect(mensaje.split('\n')[2]).toBe('- Anestesia Articaína — 2 cajas')
   })
 })
 

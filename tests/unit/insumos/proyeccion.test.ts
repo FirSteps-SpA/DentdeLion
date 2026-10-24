@@ -21,6 +21,7 @@ const base: Insumo = {
   stockMinimo: null,
   dadoDeBajaEn: null,
   dadoDeBajaPor: null,
+  marcaId: null,
   creadoPor: null,
 }
 
@@ -108,6 +109,7 @@ describe('proyectarInsumo (spec 007 FR-021a, research.md R9)', () => {
       nombre: 'Editado',
       dadoDeBajaEn: '2026-09-04T00:00:00.000Z',
       dadoDeBajaPor: 'admin-a',
+      marcaId: null,
     })
   })
 
@@ -129,6 +131,7 @@ describe('proyectarInsumo (spec 007 FR-021a, research.md R9)', () => {
     expect(r).toMatchObject({
       dadoDeBajaEn: '2026-09-05T00:00:00.000Z',
       dadoDeBajaPor: 'admin-b',
+      marcaId: null,
     })
   })
 
@@ -172,6 +175,7 @@ describe('proyectarInsumo (spec 007 FR-021a, research.md R9)', () => {
     expect(r).toMatchObject({
       dadoDeBajaEn: '2026-09-05T00:00:00.000Z',
       dadoDeBajaPor: 'admin-b',
+      marcaId: null,
     })
   })
 
@@ -192,6 +196,7 @@ describe('proyectarInsumo (spec 007 FR-021a, research.md R9)', () => {
       nombre: 'Rechazado',
       dadoDeBajaEn: 'x',
       dadoDeBajaPor: 'y',
+      marcaId: null,
     }
     const r = proyectarInsumo(localmenteAplicado, [
       cambio({
@@ -206,6 +211,7 @@ describe('proyectarInsumo (spec 007 FR-021a, research.md R9)', () => {
       nombre: 'Anestesia',
       dadoDeBajaEn: null,
       dadoDeBajaPor: null,
+      marcaId: null,
     })
   })
 })

@@ -16,6 +16,7 @@ vi.mock('../../src/lib/db', async () => {
   return {
     db: createMemoryDb({
       proveedores: new MemoryTable(),
+      marcas: new MemoryTable(),
       lugares: new MemoryTable(),
       minimosLugar: new MemoryTable(),
       lugarActivo: new MemoryTable(),
@@ -65,6 +66,7 @@ function insumo(
     stockMinimo: 5,
     dadoDeBajaEn: null,
     dadoDeBajaPor: null,
+    marcaId: null,
     creadoPor: null,
     ...extra,
   }
@@ -381,3 +383,33 @@ describe('tabla por páginas (spec 020 US3)', () => {
     ).toBeInTheDocument()
   })
 })
+
+/** Spec 023 T039 (FR-012). */
+describe('inventario en tabla — marca (spec 023)', () => {
+  it('la fila muestra "Nombre · Marca" y se encuentra buscando la marca', () => {
+    const conMarca = insumos.map((i) => (i.nombre.startsWith('Guantes') ? { ...i, marcaId: 'tres' } : i))
+    useInventoryStore.setState({
+      insumos: conMarca,
+      marcas: [
+        {
+          id: 'tres',
+          tenantId: TENANT_1,
+          nombre: '3M',
+          creadoPor: null,
+          creadoEn: '2026-10-24T10:00:00.000Z',
+          desactivadoEn: null,
+          eliminadoEn: null,
+          sincronizado: true,
+        },
+      ],
+    })
+    render(<InventarioView />)
+
+    expect(within(fila('Guantes')).getByText(/· 3M/)).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Buscar insumo'), { target: { value: '3m' } })
+    expect(fila('Guantes')).toBeInTheDocument()
+    expect(screen.queryByRole('row', { name: /Eyectores/ })).not.toBeInTheDocument()
+    useInventoryStore.setState({ marcas: [] })
+  })
+})
+

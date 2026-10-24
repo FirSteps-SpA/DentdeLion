@@ -41,6 +41,7 @@ import {
   Share2,
   ShoppingCart as LucideShoppingCart,
   Tag as LucideTag,
+  Factory as LucideFactory,
   Trash2,
   TriangleAlert,
   Truck as LucideTruck,
@@ -150,6 +151,8 @@ export const Truck = deLucide(LucideTruck)
 export const Mail = deLucide(LucideMail)
 export const Lock = deLucide(LucideLock)
 export const Tag = deLucide(LucideTag)
+/** Spec 023 — Marcas (fabricante). */
+export const Factory = deLucide(LucideFactory)
 export const User = deLucide(CircleUserRound)
 export const Building = deLucide(Building2)
 /** Spec 017 — Valor de inventario (DS §20). */

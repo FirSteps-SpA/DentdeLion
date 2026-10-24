@@ -1,5 +1,12 @@
 import { db, type Lote, type Lugar, type Proveedor } from '../../../lib/db'
-import { claveCategoria, plegar } from '../../insumos/lib/categorias'
+import { claveCategoria } from '../../insumos/lib/categorias'
+import {
+  activosDe,
+  buscarEnCatalogo,
+  coincidenciaEn,
+  desactivadosDe,
+  ordenarCatalogo,
+} from '../../../lib/catalogo'
 
 /**
  * Spec 021 (research.md R1) — clave de un nombre de proveedor: la misma regla
@@ -15,23 +22,16 @@ const visible = (p: Proveedor) => p.eliminadoEn === null
 export function ordenarProveedores(
   proveedores: readonly Proveedor[],
 ): Proveedor[] {
-  return [...proveedores].sort((a, b) => {
-    const porNombre = plegar(a.nombre).localeCompare(plegar(b.nombre), 'es')
-    return porNombre !== 0 ? porNombre : a.id.localeCompare(b.id)
-  })
+  return ordenarCatalogo(proveedores)
 }
 
 /** Los que se pueden elegir al registrar (FR-005). */
 export function activos(proveedores: readonly Proveedor[]): Proveedor[] {
-  return ordenarProveedores(
-    proveedores.filter((p) => visible(p) && p.desactivadoEn === null),
-  )
+  return activosDe(proveedores)
 }
 
 export function desactivados(proveedores: readonly Proveedor[]): Proveedor[] {
-  return ordenarProveedores(
-    proveedores.filter((p) => visible(p) && p.desactivadoEn !== null),
-  )
+  return desactivadosDe(proveedores)
 }
 
 /** Activos cuyo nombre contiene el texto, sin distinguir mayúsculas ni tildes. */
@@ -39,12 +39,7 @@ export function buscarProveedores(
   proveedores: readonly Proveedor[],
   texto: string,
 ): Proveedor[] {
-  const buscado = plegar(texto.trim()).replace(/\s+/g, ' ')
-  const lista = activos(proveedores)
-  if (!buscado) return lista
-  return lista.filter((p) =>
-    plegar(p.nombre).replace(/\s+/g, ' ').includes(buscado),
-  )
+  return buscarEnCatalogo(proveedores, texto)
 }
 
 export type Coincidencia =
@@ -57,15 +52,10 @@ export function coincidencia(
   proveedores: readonly Proveedor[],
   texto: string,
 ): Coincidencia {
-  const clave = claveNombre(texto)
-  if (!clave) return { tipo: 'ninguna' }
-  const encontrado = proveedores.find(
-    (p) => visible(p) && claveNombre(p.nombre) === clave,
-  )
-  if (!encontrado) return { tipo: 'ninguna' }
-  return encontrado.desactivadoEn === null
-    ? { tipo: 'activo', proveedor: encontrado }
-    : { tipo: 'desactivado', proveedor: encontrado }
+  const encontrada = coincidenciaEn(proveedores, texto)
+  return encontrada.tipo === 'ninguna'
+    ? encontrada
+    : { tipo: encontrada.tipo, proveedor: encontrada.item }
 }
 
 /** El predeterminado del lugar, solo si sigue activo (FR-006, FR-013). */

@@ -5,6 +5,7 @@ import { Badge } from '../../../components/ui/Badge'
 import { Card } from '../../../components/ui/Card'
 import type { ValorItem } from '../lib/pedido'
 import { CasillaSeleccion, ValorDelItem } from './CasillaSeleccion'
+import { NombreConMarca } from '../../marcas/components/NombreConMarca'
 
 export interface ItemSugeridoCardProps {
   itemSugerido: ItemSugerido
@@ -58,7 +59,11 @@ export function ItemSugeridoCard({
             </Badge>
           )}
         </span>
-        <span className="text-sm font-bold text-text">{insumo.nombre}</span>
+        <NombreConMarca
+          nombre={insumo.nombre}
+          marcaId={insumo.marcaId}
+          className="text-sm font-bold text-text"
+        />
         <span className="text-sm font-bold text-text-muted">
           {stockTotal} {insumo.unidadMedida}
           {formatearEquivalente(stockTotal, insumo) && (

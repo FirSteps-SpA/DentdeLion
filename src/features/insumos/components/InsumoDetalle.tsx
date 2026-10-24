@@ -10,6 +10,7 @@ import { useAuthStore } from '../../../stores/authStore'
 import { Card } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { formatearPresentacion } from '../lib/presentacion'
+import { useNombreDeMarca } from '../../marcas/lib/useNombreDeMarca'
 import { etiquetaUnidad, formatearCantidad, formatearEquivalente } from '../../../lib/unidades'
 import { formatearCLP, precioVigenteLote } from '../lib/precio'
 import { useCostosUnitarios } from '../lib/useCostosUnitarios'
@@ -37,6 +38,7 @@ export function InsumoDetalle({
   movimientos,
   onClose,
 }: InsumoDetalleProps) {
+  const marca = useNombreDeMarca(insumo.marcaId)
   // Spec 014 US6-3: los traslados del lote, con el lugar del otro lado del par.
   const todosLosMovimientos = useInventoryStore((s) => s.movimientos)
   const lugares = useLugarStore((s) => s.lugares)
@@ -158,6 +160,8 @@ export function InsumoDetalle({
         <div className="flex flex-col gap-0.5">
           <span className="text-xs text-text-muted">{insumo.categoria}</span>
           <h3 className="text-h3 text-text">{insumo.nombre}</h3>
+          {/* Spec 023 FR-011: solo si tiene marca. */}
+          {marca && <span className="text-xs text-text-muted">Marca: {marca}</span>}
           <span className="text-xs text-text-muted">
             Presentación: {formatearPresentacion(insumo)}
           </span>
