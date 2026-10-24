@@ -13,6 +13,7 @@ vi.mock('../../src/lib/db', async () => {
   const { createMemoryDb, MemoryTable } = await import('../helpers/memoryDb')
   return {
     db: createMemoryDb({
+      proveedores: new MemoryTable(),
       lugares: new MemoryTable(),
       minimosLugar: new MemoryTable(),
       lugarActivo: new MemoryTable(),
@@ -87,6 +88,7 @@ const loteArticaina: Lote = {
   insumoId: 'art',
   numeroLote: 'A1',
   proveedor: 'Septodont',
+  proveedorId: null,
   fechaCaducidad: '2027-01-01',
   codigoFabricante: null,
   estado: 'activo',

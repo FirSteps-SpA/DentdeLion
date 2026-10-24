@@ -15,7 +15,7 @@ vi.mock('../../src/lib/db', async () => {
       lotes: new MemoryTable(),
       movimientos: new MemoryTable(),
       configuracionAlertas: new MemoryTable(),
-      configuracionClinica: new MemoryTable(),
+      proveedores: new MemoryTable(),
       cambiosInsumo: new MemoryTable(),
       cambiosLote: new MemoryTable(),
       tratamientos: new MemoryTable(),

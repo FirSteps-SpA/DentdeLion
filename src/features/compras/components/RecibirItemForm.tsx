@@ -17,6 +17,8 @@ import { ConfirmarLoteCaducadoDialog } from '../../insumos/components/ConfirmarL
 import { CantidadIngresoField } from '../../insumos/components/CantidadIngresoField'
 import { PrecioIngresoField } from '../../insumos/components/PrecioIngresoField'
 import { convertirIngreso } from '../../insumos/lib/ingreso'
+import { SelectorProveedor } from '../../proveedores/components/SelectorProveedor'
+import { usePredeterminado } from '../../proveedores/lib/usePredeterminado'
 
 export interface RecibirItemFormProps {
   insumo: Insumo
@@ -38,7 +40,7 @@ export interface RecibirItemFormProps {
 const ENTRADA_VACIA: RecepcionInput = {
   cantidad: 1,
   numeroLote: '',
-  proveedor: '',
+  proveedorId: null,
   fechaCaducidad: '',
   confirmarCaducado: false,
 }
@@ -69,8 +71,12 @@ export function RecibirItemForm({
   const [mostrarDialogoCaducado, setMostrarDialogoCaducado] = useState(false)
 
   const vidaUtil = insumo.caduca ? mesesRestantes(datos.fechaCaducidad) : null
+  // Spec 021 (FR-006): sin elección a mano, el predeterminado del lugar del ítem.
+  const proveedorPredeterminado = usePredeterminado(lugarId)
+  const proveedorEfectivo = datos.proveedorId ?? proveedorPredeterminado
 
-  async function intentarGuardar(datosParaGuardar: RecepcionInput) {
+  async function intentarGuardar(datosSinProveedor: RecepcionInput) {
+    const datosParaGuardar = { ...datosSinProveedor, proveedorId: proveedorEfectivo }
     const hoy = new Date().toISOString().slice(0, 10)
     const validacion = validarRecepcion(datosParaGuardar, insumo, hoy)
     if (!validacion.valido) {
@@ -156,12 +162,11 @@ export function RecibirItemForm({
           htmlFor="recepcion-proveedor"
           error={errores.proveedor}
         >
-          <input
+          <SelectorProveedor
             id="recepcion-proveedor"
-            type="text"
-            value={datos.proveedor}
-            onChange={(event) => setDatos({ ...datos, proveedor: event.target.value })}
-            className="h-full w-full border-none bg-transparent text-sm text-text outline-none"
+            valor={proveedorEfectivo}
+            onCambio={(proveedorId) => setDatos({ ...datos, proveedorId })}
+            invalido={!!errores.proveedor}
           />
         </IconField>
 

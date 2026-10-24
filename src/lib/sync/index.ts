@@ -16,6 +16,7 @@ import {
   type Lugar,
   type MinimoLugar,
   type Movimiento,
+  type Proveedor,
 } from '../db'
 import { fetchPerfilPropio } from '../supabase/perfiles'
 import {
@@ -34,6 +35,7 @@ import { useSyncStore, type ResultadoCiclo } from '../../stores/syncStore'
 import { reconcileOverdraft } from './reconcileOverdraft'
 import { esFallaDeRed, reportarErrorSync } from './reportar'
 import { normalizarUnidad } from '../unidades'
+import { claveNombre } from '../../features/proveedores/lib/proveedores'
 
 interface InsumoRow {
   id: string
@@ -60,6 +62,8 @@ interface ConfiguracionAlertasRow {
   niveles_aviso_dias: number[]
   /** Spec 012 FR-011 — se omite si el valor local es `undefined` (research.md R6). */
   horas_aviso_pendientes?: number
+  /** Spec 022 R1 — se omite si el valor local es `undefined`; `null` = el de la clienta. */
+  saludo_pedido?: string | null
 }
 
 interface LoteRow {
@@ -78,6 +82,8 @@ interface LoteRow {
   contenido?: number | null
   unidad_consumo?: string | null
   precio_compra?: number | null
+  /** Spec 021 — se omite al subir si es `null` (research.md R3). */
+  proveedor_id?: string | null
 }
 
 interface CambioInsumoRow {
@@ -474,6 +480,20 @@ function toItemCompraRow(item: ItemCompra): ItemCompraRow {
   }
 }
 
+/** Spec 022 R6: lo que un UPDATE de otra persona puede cambiar (sin autor ni tenant). */
+function cambiosDeItemCompra(item: ItemCompra): Partial<ItemCompraRow> {
+  return {
+    lugar_id: item.lugarId,
+    nombre: item.nombre,
+    cantidad: item.cantidad,
+    nota: item.nota,
+    insumo_id: item.insumoId,
+    estado: item.estado,
+    comprado_por: item.compradoPor,
+    comprado_en: item.compradoEn,
+  }
+}
+
 function fromItemCompraRow(row: ItemCompraRow): ItemCompra {
   return {
     id: row.id,
@@ -557,6 +577,10 @@ function toConfiguracionAlertasRow(
   if (config.horasAvisoPendientes !== undefined) {
     row.horas_aviso_pendientes = config.horasAvisoPendientes
   }
+  // Spec 022 R1: sin tocar aquí, no viaja (no pisa el saludo del servidor).
+  if (config.saludoPedido !== undefined) {
+    row.saludo_pedido = config.saludoPedido
+  }
   return row
 }
 
@@ -571,6 +595,11 @@ function fromConfiguracionAlertasRow(
   }
   if (row.horas_aviso_pendientes != null) {
     config.horasAvisoPendientes = row.horas_aviso_pendientes
+  }
+  // Spec 022 R1: `null` también se guarda, para que un "Restablecer" de otro
+  // dispositivo llegue aquí. Sin la columna (servidor sin migrar), no se define.
+  if ('saludo_pedido' in row) {
+    config.saludoPedido = row.saludo_pedido ?? null
   }
   return config
 }
@@ -592,6 +621,9 @@ function toLoteRow(lote: Lote): LoteRow {
     contenido: lote.contenido,
     unidad_consumo: lote.unidadConsumo,
     precio_compra: lote.precioCompra,
+    // Spec 021 (R3): un lote viejo sin `proveedorId` todavía (antes del primer
+    // pull tras actualizar) no manda la columna; el servidor la protege igual.
+    ...(lote.proveedorId ? { proveedor_id: lote.proveedorId } : {}),
   }
 }
 
@@ -614,6 +646,7 @@ function fromLoteRow(row: LoteRow): Lote {
     // conoce aquí; `unidad` vale como "sin conversión" en los factores.
     unidadConsumo: normalizarUnidad(row.unidad_consumo ?? 'unidad'),
     precioCompra: row.precio_compra ?? null,
+    proveedorId: row.proveedor_id ?? null,
   }
 }
 
@@ -623,6 +656,8 @@ interface LugarRow {
   nombre: string
   desactivado_en: string | null
   creado_en: string
+  /** Spec 021 (R2). */
+  proveedor_predeterminado_id?: string | null
 }
 
 function toLugarRow(lugar: Lugar): LugarRow {
@@ -632,6 +667,7 @@ function toLugarRow(lugar: Lugar): LugarRow {
     nombre: lugar.nombre,
     desactivado_en: lugar.desactivadoEn,
     creado_en: lugar.creadoEn,
+    proveedor_predeterminado_id: lugar.proveedorPredeterminadoId,
   }
 }
 
@@ -642,6 +678,49 @@ function fromLugarRow(row: LugarRow): Lugar {
     nombre: row.nombre,
     desactivadoEn: row.desactivado_en ?? null,
     creadoEn: row.creado_en,
+    sincronizado: true,
+    proveedorPredeterminadoId: row.proveedor_predeterminado_id ?? null,
+  }
+}
+
+/** Spec 021 contracts/supabase-schema.md §8. `clave` la genera el servidor: no se sube. */
+interface ProveedorRow {
+  id: string
+  tenant_id: string
+  nombre: string
+  whatsapp: string | null
+  contacto: string | null
+  creado_por: string | null
+  creado_en: string
+  desactivado_en: string | null
+  eliminado_en: string | null
+}
+
+function toProveedorRow(proveedor: Proveedor): ProveedorRow {
+  return {
+    id: proveedor.id,
+    tenant_id: proveedor.tenantId,
+    nombre: proveedor.nombre,
+    whatsapp: proveedor.whatsapp,
+    contacto: proveedor.contacto,
+    creado_por: proveedor.creadoPor,
+    creado_en: proveedor.creadoEn,
+    desactivado_en: proveedor.desactivadoEn,
+    eliminado_en: proveedor.eliminadoEn,
+  }
+}
+
+function fromProveedorRow(row: ProveedorRow): Proveedor {
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    nombre: row.nombre,
+    whatsapp: row.whatsapp ?? null,
+    contacto: row.contacto ?? null,
+    creadoPor: row.creado_por ?? null,
+    creadoEn: row.creado_en,
+    desactivadoEn: row.desactivado_en ?? null,
+    eliminadoEn: row.eliminado_en ?? null,
     sincronizado: true,
   }
 }
@@ -1170,16 +1249,61 @@ async function pullCambiosLote(
  * que no hace falta una bandera `sincronizado` ni reintento por fila — mismo
  * patrón simple que `pushLotes`.
  */
+/**
+ * Spec 022 (research.md R6; deuda de la spec 012 R4). La política de INSERT
+ * exige `creado_por = auth.uid()` y Postgres la aplica a **todas** las filas
+ * de un upsert, también a las que terminan en UPDATE: un upsert con un ítem de
+ * otra persona falla entero (y con él los propios), y en este dispositivo hay
+ * ítems ajenos apenas llega el primer pull. Por eso:
+ *
+ * - los propios suben en un upsert, como antes;
+ * - los ajenos solo si se cambiaron aquí (`cambioLocal`: lo marqué comprado o
+ *   lo eliminé), uno por uno con UPDATE, que pasa la política "actualizar en
+ *   el tenant". Si todavía no está en el servidor (su autora no sincronizó),
+ *   actualiza 0 filas y queda pendiente para el próximo ciclo, sin error.
+ *
+ * `cambioLocal` se limpia solo si la fila no cambió mientras subía.
+ */
 async function pushItemsCompra(
   client: SupabaseClient,
   ciclo: CicloSync,
 ): Promise<void> {
+  const usuarioId = usuarioActualId()
   const items = delTenantActual(await db.itemsCompra.toArray())
-  if (items.length === 0) return
-  const respuesta = await client
-    .from('items_compra')
-    .upsert(items.map(toItemCompraRow))
-  ciclo.registrar('push items_compra', errorDe(respuesta))
+  if (!usuarioId || items.length === 0) return
+  const propios = items.filter((item) => item.creadoPor === usuarioId)
+  const ajenos = items.filter((item) => item.creadoPor !== usuarioId && item.cambioLocal)
+  const subidos: ItemCompra[] = []
+
+  if (propios.length > 0) {
+    const respuesta = await client.from('items_compra').upsert(propios.map(toItemCompraRow))
+    ciclo.registrar('push items_compra', errorDe(respuesta))
+    if (!respuesta.error) subidos.push(...propios.filter((item) => item.cambioLocal))
+  }
+
+  for (const item of ajenos) {
+    const respuesta = await client
+      .from('items_compra')
+      .update(cambiosDeItemCompra(item))
+      .eq('id', item.id)
+      .select('id')
+    if (esRechazoDePermisos(respuesta.error)) {
+      reportarErrorSync('push items_compra ajeno', respuesta.error)
+      continue
+    }
+    if (respuesta.error) {
+      ciclo.registrar('push items_compra', errorDe(respuesta))
+      return
+    }
+    if ((respuesta.data ?? []).length > 0) subidos.push(item)
+  }
+
+  for (const item of subidos) {
+    const actual = await db.itemsCompra.get(item.id)
+    if (actual && mismaFila(actual, item)) {
+      await db.itemsCompra.update(item.id, { cambioLocal: false })
+    }
+  }
 }
 
 /**
@@ -1331,6 +1455,149 @@ async function pushConfiguracionAlertas(
  * nombre repetido, último lugar activo) descarta el cambio local para que el
  * pull traiga el valor del servidor, como la configuración global.
  */
+/**
+ * Spec 021 (research.md R6): sube los proveedores creados o cambiados aquí,
+ * antes que los lugares (predeterminado) y los lotes (FK). Administración usa
+ * `upsert`; el resto solo crea, con `insert` (no tiene política de UPDATE).
+ *
+ * - Clave repetida (`23505`): otro dispositivo creó el mismo proveedor; el
+ *   local se reemplaza por el del servidor en lotes, lugares y borrador.
+ * - Sin permisos: queda pendiente; como quien no es administrador no conserva
+ *   cambios locales, el pull trae la versión del servidor.
+ * - `proveedor_con_lotes`: la baja no se aplica; se da por subido para que el
+ *   pull traiga el estado real, y se avisa.
+ */
+async function pushProveedores(
+  client: SupabaseClient,
+  ciclo: CicloSync,
+): Promise<void> {
+  const usuarioId = usuarioActualId()
+  if (!usuarioId) return
+  const admin = esAdministradorActual()
+  const pendientes = delTenantActual(await db.proveedores.toArray()).filter(
+    (proveedor) => !proveedor.sincronizado,
+  )
+  for (const proveedor of pendientes) {
+    // Quien no es administrador solo sube lo que creó (RLS: como sí mismo).
+    if (!admin && proveedor.creadoPor !== usuarioId) continue
+    const fila = toProveedorRow(proveedor)
+    const respuesta = admin
+      ? await client.from('proveedores').upsert(fila)
+      : await client.from('proveedores').insert(fila)
+
+    if (!respuesta.error) {
+      await marcarProveedorSubido(proveedor)
+      continue
+    }
+    if (respuesta.error.code === '23505') {
+      await resolverProveedorDuplicado(client, ciclo, proveedor)
+      continue
+    }
+    if (/proveedor_con_lotes/.test(respuesta.error.message ?? '')) {
+      await db.proveedores.update(proveedor.id, { sincronizado: true })
+      useAvisosStore.getState().agregar({
+        tipo: 'proveedor-no-eliminado',
+        movimientoId: null,
+        loteId: null,
+        insumoNombre: proveedor.nombre,
+        unidadMedida: null,
+      })
+      continue
+    }
+    if (esRechazoDePermisos(respuesta.error)) continue
+    ciclo.registrar('push proveedores', errorDe(respuesta))
+  }
+}
+
+async function marcarProveedorSubido(proveedor: Proveedor): Promise<void> {
+  const actual = await db.proveedores.get(proveedor.id)
+  if (actual && mismaFila(actual, proveedor)) {
+    await db.proveedores.update(proveedor.id, { sincronizado: true })
+  }
+}
+
+/**
+ * Clave repetida al subir un proveedor:
+ * - si el servidor ya tiene esta fila (por id), es un cambio de nombre que
+ *   choca con otro proveedor: no se aplica (el pull trae la versión del
+ *   servidor) y se avisa, nunca se pierde en silencio (Constitución I);
+ * - si no, es uno creado aquí que otro dispositivo creó antes con el mismo
+ *   nombre: se reemplaza por el del servidor.
+ */
+async function resolverProveedorDuplicado(
+  client: SupabaseClient,
+  ciclo: CicloSync,
+  proveedor: Proveedor,
+): Promise<void> {
+  const porId = await client.from('proveedores').select('*').eq('id', proveedor.id).limit(1)
+  ciclo.registrar('push proveedores (duplicado)', errorDe(porId))
+  if (porId.error) return
+  const [mismo] = (porId.data ?? []) as ProveedorRow[]
+  if (mismo) {
+    if (claveNombre(mismo.nombre) === claveNombre(proveedor.nombre)) {
+      await marcarProveedorSubido(proveedor)
+      return
+    }
+    await db.proveedores.update(proveedor.id, { sincronizado: true })
+    useAvisosStore.getState().agregar({
+      tipo: 'proveedor-repetido',
+      movimientoId: null,
+      loteId: null,
+      insumoNombre: proveedor.nombre,
+      unidadMedida: null,
+    })
+    return
+  }
+
+  const porClave = await client
+    .from('proveedores')
+    .select('*')
+    .eq('clave', claveNombre(proveedor.nombre))
+    .is('eliminado_en', null)
+    .limit(1)
+  ciclo.registrar('push proveedores (duplicado)', errorDe(porClave))
+  const [existente] = (porClave.data ?? []) as ProveedorRow[]
+  if (porClave.error || !existente) return
+  await remapearProveedor(proveedor.id, fromProveedorRow(existente))
+}
+
+/** Reemplaza un proveedor local por el del servidor en todo lo que lo usa. */
+export async function remapearProveedor(localId: string, delServidor: Proveedor): Promise<void> {
+  await db.transaction('rw', db.lotes, db.lugares, db.proveedores, db.borradores, async () => {
+    await db.lotes
+      .where('proveedorId')
+      .equals(localId)
+      .modify({ proveedorId: delServidor.id, proveedor: delServidor.nombre })
+    await db.lugares
+      .filter((lugar) => lugar.proveedorPredeterminadoId === localId)
+      .modify({ proveedorPredeterminadoId: delServidor.id })
+    await db.borradores.toCollection().modify((borrador) => {
+      if (borrador.id !== 'alta-material') return
+      const lote = borrador.datos.lote as { proveedorId?: string | null } | undefined
+      if (lote?.proveedorId === localId) lote.proveedorId = delServidor.id
+    })
+    await db.proveedores.delete(localId)
+    await db.proveedores.put(delServidor)
+  })
+}
+
+async function pullProveedores(
+  client: SupabaseClient,
+  ciclo: CicloSync,
+): Promise<void> {
+  const respuesta = await seleccionarTodo(client, 'proveedores')
+  ciclo.registrar('pull proveedores', errorDe(respuesta))
+  if (respuesta.error || !respuesta.data) return
+  const locales = new Map(
+    (await db.proveedores.toArray()).map((proveedor) => [proveedor.id, proveedor]),
+  )
+  await db.proveedores.bulkPut(
+    (respuesta.data as unknown as ProveedorRow[])
+      .filter((row) => !conservarCambioLocal(locales.get(row.id)))
+      .map(fromProveedorRow),
+  )
+}
+
 async function pushLugares(
   client: SupabaseClient,
   ciclo: CicloSync,
@@ -1407,7 +1674,13 @@ async function pullMinimosLugar(
   client: SupabaseClient,
   ciclo: CicloSync,
 ): Promise<void> {
-  const respuesta = await client.from('minimos_lugar').select('*')
+  // Spec 019 (research.md R5): clave (insumo, lugar), sin `id`; paginado por
+  // cursor compuesto para no truncar en `max_rows`.
+  const respuesta = await seleccionarTodo<MinimoLugarRow & Record<string, unknown>>(
+    client,
+    'minimos_lugar',
+    { clave: ['insumo_id', 'lugar_id'] },
+  )
   ciclo.registrar('pull minimos_lugar', errorDe(respuesta))
   if (respuesta.error || !respuesta.data) return
   const locales = new Map(
@@ -1466,8 +1739,14 @@ async function pullItemsCompra(
   const respuesta = await seleccionarTodo(client, 'items_compra')
   ciclo.registrar('pull items_compra', errorDe(respuesta))
   if (respuesta.error || !respuesta.data) return
+  // Spec 022 R6: no pisa un cambio de este dispositivo que aún no sube.
+  const conCambio = new Set(
+    (await db.itemsCompra.toArray()).filter((item) => item.cambioLocal).map((item) => item.id),
+  )
   await db.itemsCompra.bulkPut(
-    (respuesta.data as ItemCompraRow[]).map(fromItemCompraRow),
+    (respuesta.data as ItemCompraRow[])
+      .filter((row) => !conCambio.has(row.id))
+      .map(fromItemCompraRow),
   )
 }
 
@@ -1626,6 +1905,11 @@ async function ejecutarCiclo(
   if (!(await validarSesion(client, ciclo))) return
 
   const loteIdsTocados = new Set<string>()
+
+  // Spec 021: los proveedores antes que todo — el predeterminado de cada lugar
+  // y los lotes los referencian (FK compuesta).
+  await pushProveedores(client, ciclo)
+  await pullProveedores(client, ciclo)
 
   // Spec 014: los lugares primero — lotes, movimientos e ítems de compra los
   // referencian (FK compuesta en el servidor).

@@ -14,7 +14,8 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:rls": "node scripts/test-rls.mjs",
-    "alta-tenant": "node scripts/alta-tenant.mjs"
+    "alta-tenant": "node scripts/alta-tenant.mjs",
+    "proveedores": "node scripts/proveedores.mjs"
   },
   "dependencies": {
     "@fontsource/manrope": "^5.3.0",

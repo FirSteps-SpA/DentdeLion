@@ -9,6 +9,7 @@ import {
   type Lote,
   type MinimoLugar,
   type Movimiento,
+  type Proveedor,
 } from '../lib/db'
 import { delTenant } from '../lib/tenancy'
 import type { Estado, EstadoInsumo } from '../features/insumos/lib/estado'
@@ -57,6 +58,8 @@ interface InventoryState {
   itemsCompra: ItemCompra[]
   /** Spec 014 FR-007 — mínimos por lugar del tenant. */
   minimosLugar: MinimoLugar[]
+  /** Spec 021 — proveedores del tenant sin los eliminados (baja lógica, R7). */
+  proveedores: Proveedor[]
   isReady: boolean
   subscribe: () => () => void
 }
@@ -71,6 +74,7 @@ export const useInventoryStore = create<InventoryState>((set) => ({
   categorias: [],
   itemsCompra: [],
   minimosLugar: [],
+  proveedores: [],
   isReady: false,
   subscribe: () => {
     // Spec 015 (R4): fuentes crudas de la normalización de movimientos, que se
@@ -124,7 +128,12 @@ export const useInventoryStore = create<InventoryState>((set) => ({
     const minimosSub = liveQuery(() => delTenant('minimosLugar')).subscribe({
       next: (minimosLugar) => set({ minimosLugar }),
     })
+    const proveedoresSub = liveQuery(() => delTenant('proveedores')).subscribe({
+      next: (proveedores) =>
+        set({ proveedores: proveedores.filter((proveedor) => !proveedor.eliminadoEn) }),
+    })
     return () => {
+      proveedoresSub.unsubscribe()
       minimosSub.unsubscribe()
       cambiosSub.unsubscribe()
       cambiosLoteSub.unsubscribe()

@@ -8,6 +8,13 @@ export interface BottomSheetProps {
   children: ReactNode
 }
 
+/**
+ * Hojas abiertas, de abajo hacia arriba. Con una hoja encima de otra (spec
+ * 021: el selector de proveedor dentro de "Recibir"), Escape cierra solo la
+ * de arriba.
+ */
+const hojasAbiertas: symbol[] = []
+
 const FOCUSABLE =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
@@ -38,11 +45,15 @@ export function BottomSheet({ titulo, onClose, children }: BottomSheetProps) {
     const cerrar = panelRef.current?.querySelector<HTMLElement>(FOCUSABLE)
     ;(contenido ?? cerrar)?.focus()
 
+    const hoja = Symbol('hoja')
+    hojasAbiertas.push(hoja)
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onCloseRef.current()
+      if (event.key !== 'Escape' || hojasAbiertas[hojasAbiertas.length - 1] !== hoja) return
+      onCloseRef.current()
     }
     document.addEventListener('keydown', onKeyDown)
     return () => {
+      hojasAbiertas.splice(hojasAbiertas.indexOf(hoja), 1)
       document.removeEventListener('keydown', onKeyDown)
       previo?.focus?.()
     }

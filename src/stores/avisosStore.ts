@@ -18,6 +18,10 @@ export interface Aviso {
     | 'cambio-rechazado'
     | 'material-creado'
     | 'categoria-rechazada'
+    /** Spec 021 (research.md R7): el servidor rechazó eliminar un proveedor con lotes. */
+    | 'proveedor-no-eliminado'
+    /** Spec 021 (research.md R6): un cambio de nombre chocó con otro proveedor del servidor. */
+    | 'proveedor-repetido'
   /**
    * Consumo: el movimiento de consumo. Traslado (spec 014): la salida del par.
    * Tratamiento (spec 016): el tratamiento realizado.
@@ -34,7 +38,12 @@ export interface Aviso {
 
 /** Informativos (spec 008): nunca tienen "Deshacer" ni ceden su turno a uno de consumo. */
 function esInformativo(aviso: Pick<Aviso, 'tipo'>): boolean {
-  return aviso.tipo === 'material-creado' || aviso.tipo === 'categoria-rechazada'
+  return (
+    aviso.tipo === 'material-creado' ||
+    aviso.tipo === 'categoria-rechazada' ||
+    aviso.tipo === 'proveedor-no-eliminado' ||
+    aviso.tipo === 'proveedor-repetido'
+  )
 }
 
 export type NuevoAviso = Omit<Aviso, 'id' | 'estado' | 'expiraEn'>

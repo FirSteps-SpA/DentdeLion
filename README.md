@@ -163,6 +163,29 @@ primera sincronización con la versión nueva.
 migraciones `20261021000000_unidades_y_costo` y `20261022000000_tratamientos`, en ese orden.
 Respaldo → `db push` → merge a `main`.
 
+**Specs 018, 019 y 020 (detalles de alertas, Ajustes por secciones, paginación):** sin migración.
+Ajustes pasa a un índice de secciones (con URL propia, `#ajustes/<sección>`) y las listas largas se
+paginan con "Ver más" (páginas numeradas en la tabla de desktop).
+
+**Spec 021 (proveedores):** migración `20261023000000_proveedores` y Dexie v13. Crea un proveedor por
+cada nombre distinto de `lotes.proveedor` y asocia todos los lotes (la migración aborta si cambia la
+cantidad de lotes o alguno queda sin proveedor); elimina `configuracion_clinica`. Antes de publicar:
+`npm run proveedores -- listar` sobre la restauración del respaldo, enviar la lista a la clienta y,
+después del `db push`, aplicar sus fusiones con `npm run proveedores -- fusionar … --ensayo` y luego sin
+`--ensayo` (con `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` de producción; pide confirmar). Una 2.4.0
+en caché sigue registrando el proveedor como texto: el trigger `resolver_proveedor_lote` lo asocia por
+nombre. Cuando todos los dispositivos muestren 2.5.0, se puede retirar el texto (backlog).
+
+**Spec 022 (compras: selección, subtotal y WhatsApp):** migración `20261024000000_saludo_pedido`
+(una columna en `configuracion_alertas`), sin versión nueva de Dexie. Corrige además la subida de
+`items_compra`, que fallaba entera en cada ciclo en dispositivos con ítems de otra persona.
+
+**Release 2.5.0 (specs 018–022):** un solo `supabase db push --linked` aplica
+`20261023000000_proveedores` y `20261024000000_saludo_pedido`, en ese orden. Respaldo → `db push` →
+fusiones de proveedores → merge a `main`. Ensayado el 2026-10-24 sobre la restauración del respaldo
+del 2026-10-22 (con 015 y 016 encima): 77 lotes antes y después, ninguno sin proveedor, 12
+proveedores sin claves repetidas.
+
 ## ¿Quedó bien configurado mi entorno?
 
 Checklist manual (sin script) — cada punto debe poder confirmarse a simple vista en menos de 2

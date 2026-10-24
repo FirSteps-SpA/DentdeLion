@@ -14,6 +14,7 @@ export const lugar1: Lugar = {
   desactivadoEn: null,
   creadoEn: '2026-01-01T00:00:00.000Z',
   sincronizado: true,
+  proveedorPredeterminadoId: null,
 }
 
 export const lugar2: Lugar = {
@@ -23,6 +24,7 @@ export const lugar2: Lugar = {
   desactivadoEn: null,
   creadoEn: '2026-02-01T00:00:00.000Z',
   sincronizado: true,
+  proveedorPredeterminadoId: null,
 }
 
 export function usarLugar1(): void {

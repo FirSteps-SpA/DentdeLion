@@ -1,38 +1,25 @@
 import { useState } from 'react'
-import { useInventoryStore } from '../../../stores/inventoryStore'
 import { useAlertasStore } from '../../../stores/alertasStore'
 import {
-  actualizarStockMinimo,
   actualizarNivelesAviso,
   actualizarHorasAvisoPendientes,
 } from '../../alertas/lib/configuracion'
 import { Card } from '../../../components/ui/Card'
 import { IconField } from '../../../components/ui/IconField'
+import { NumeroInput } from '../../../components/ui/NumeroInput'
 
 /**
- * Configuración de alertas relocalizada desde `AlertasView` (spec 010
- * FR-006/007/008): mismo comportamiento exacto, solo cambia la pantalla que
- * la aloja. Visible únicamente para administradores — la sección "Alertas"
- * queda dedicada solo a mostrar alertas.
+ * Niveles de aviso de caducidad y aviso de cambios sin subir (spec 010
+ * FR-007/008, spec 012). Spec 019: antes "ConfiguracionAlertasSection"; el
+ * stock mínimo por insumo pasó a `MinimosPorInsumoSection` y las dos viven en
+ * "Notificaciones y avisos". Solo administradores.
  */
-export function ConfiguracionAlertasSection() {
-  const insumos = useInventoryStore((s) => s.insumos)
+export function AvisosSection() {
   const nivelesAvisoDias = useAlertasStore((s) => s.nivelesAvisoDias)
   const horasAvisoPendientes = useAlertasStore((s) => s.horasAvisoPendientes)
 
-  const [errorConfig, setErrorConfig] = useState<string | null>(null)
   const [errorNiveles, setErrorNiveles] = useState<string | null>(null)
   const [errorHoras, setErrorHoras] = useState<string | null>(null)
-
-  async function handleStockMinimoChange(insumoId: string, valor: string) {
-    setErrorConfig(null)
-    const numero = valor.trim() === '' ? null : Number(valor)
-    try {
-      await actualizarStockMinimo(insumoId, numero)
-    } catch (err) {
-      setErrorConfig(err instanceof Error ? err.message : 'No se pudo guardar.')
-    }
-  }
 
   async function handleNivelesAvisoChange(valor: string) {
     setErrorNiveles(null)
@@ -58,41 +45,6 @@ export function ConfiguracionAlertasSection() {
 
   return (
     <>
-      <section className="flex flex-col gap-2">
-        <h2 className="text-h3 text-text">
-          Configurar stock mínimo por insumo
-        </h2>
-        {errorConfig && (
-          <Card className="bg-danger-bg px-3.5 py-2.5">
-            <p role="alert" className="text-sm text-danger">
-              {errorConfig}
-            </p>
-          </Card>
-        )}
-        <Card className="flex flex-col divide-y divide-border px-3.5">
-          {insumos.map((insumo) => (
-            <div
-              key={insumo.id}
-              className="flex items-center justify-between gap-2 py-2.5 text-sm text-text"
-            >
-              <span>{insumo.nombre}</span>
-              <input
-                type="number"
-                step="any"
-                min={0}
-                placeholder="Sin mínimo"
-                defaultValue={insumo.stockMinimo ?? ''}
-                onBlur={(event) =>
-                  void handleStockMinimoChange(insumo.id, event.target.value)
-                }
-                aria-label={`Stock mínimo de ${insumo.nombre}`}
-                className="touch-target w-28 rounded-lg border border-border bg-surface px-3 text-right"
-              />
-            </div>
-          ))}
-        </Card>
-      </section>
-
       <section className="flex flex-col gap-2">
         <h2 className="text-h3 text-text">
           Configurar niveles de aviso de caducidad
@@ -134,9 +86,8 @@ export function ConfiguracionAlertasSection() {
           label="Avisar si un cambio lleva más de (horas)"
           htmlFor="horas-aviso-pendientes"
         >
-          <input
+          <NumeroInput
             id="horas-aviso-pendientes"
-            type="number"
             min={1}
             max={168}
             step={1}

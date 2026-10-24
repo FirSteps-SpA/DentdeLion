@@ -9,6 +9,15 @@ export interface RespuestaPaginada<T> {
   status?: number
 }
 
+export interface OpcionesPaginado {
+  /**
+   * Columnas de la clave por la que se pagina: `['id']` por defecto, o dos
+   * columnas para una clave compuesta (spec 019: `minimos_lugar`).
+   */
+  clave?: [string] | [string, string]
+  tamanoPagina?: number
+}
+
 /**
  * Spec 017 (research.md R9, FR-018a) — todas las filas visibles de una tabla.
  * PostgREST corta cada select en `max_rows`, así que un `select('*')` simple
@@ -16,23 +25,38 @@ export interface RespuestaPaginada<T> {
  * último`), no por desplazamiento: una fila insertada o borrada entre páginas
  * no corre las siguientes. Ante el error de cualquier página devuelve
  * `data: null`, para no aplicar la tabla a medias.
+ *
+ * Spec 019 (research.md R5): con una clave compuesta `[a, b]` el cursor es la
+ * tupla — `a > último.a`, o `a = último.a` y `b > último.b`. El tercer
+ * parámetro acepta todavía un número (`tamanoPagina`).
  */
-export async function seleccionarTodo<T extends { id: string }>(
+export async function seleccionarTodo<T extends Record<string, unknown> = { id: string }>(
   client: SupabaseClient,
   tabla: string,
-  tamanoPagina = TAMANO_PAGINA,
+  opciones: OpcionesPaginado | number = {},
 ): Promise<RespuestaPaginada<T>> {
+  const { clave = ['id'], tamanoPagina = TAMANO_PAGINA } =
+    typeof opciones === 'number' ? { tamanoPagina: opciones } : opciones
+  const [a, b] = clave
   const filas: T[] = []
-  let ultimoId: string | null = null
+  let ultima: T | null = null
   for (;;) {
-    const consulta = client.from(tabla).select('*').order('id').limit(tamanoPagina)
-    const respuesta = await (ultimoId === null ? consulta : consulta.gt('id', ultimoId))
+    let consulta = client.from(tabla).select('*').order(a)
+    if (b) consulta = consulta.order(b)
+    consulta = consulta.limit(tamanoPagina)
+    if (ultima !== null) {
+      const va = String(ultima[a])
+      consulta = b
+        ? consulta.or(`${a}.gt.${va},and(${a}.eq.${va},${b}.gt.${String(ultima[b])})`)
+        : consulta.gt(a, va)
+    }
+    const respuesta = await consulta
     if (respuesta.error || !respuesta.data) {
       return { data: null, error: respuesta.error, status: respuesta.status }
     }
     const pagina = respuesta.data as T[]
     filas.push(...pagina)
     if (pagina.length < tamanoPagina) return { data: filas, error: null, status: respuesta.status }
-    ultimoId = pagina[pagina.length - 1].id
+    ultima = pagina[pagina.length - 1]
   }
 }

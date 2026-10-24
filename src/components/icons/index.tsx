@@ -3,6 +3,7 @@
  * marcaba cada ícono. */
 import type { LucideIcon } from 'lucide-react'
 import {
+  Archive as LucideArchive,
   ArrowLeft as LucideArrowLeft,
   Bell as LucideBell,
   Boxes as LucideBoxes,
@@ -11,6 +12,7 @@ import {
   ChartColumn as LucideChartColumn,
   Check as LucideCheck,
   ChevronDown as LucideChevronDown,
+  ChevronLeft as LucideChevronLeft,
   ChevronRight as LucideChevronRight,
   CircleAlert as LucideCircleAlert,
   CircleCheck as LucideCircleCheck,
@@ -129,6 +131,7 @@ export const Undo = deLucide(Undo2)
 export const X = deLucide(LucideX)
 export const MoreVertical = deLucide(Ellipsis)
 export const ChevronDown = deLucide(LucideChevronDown)
+export const ChevronLeft = deLucide(LucideChevronLeft)
 export const ChevronRight = deLucide(LucideChevronRight)
 
 // Estados (DS §21)
@@ -157,3 +160,5 @@ export const Traslado = deLucide(ArrowRightLeft)
 export const Users = deLucide(LucideUsers)
 export const Link = deLucide(LucideLink)
 export const MessageCircle = deLucide(LucideMessageCircle)
+/** Spec 019 — sección "Insumos dados de baja" de Ajustes. */
+export const Archive = deLucide(LucideArchive)

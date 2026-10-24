@@ -45,6 +45,7 @@ export function lote(id: string, insumoId: string, precioCompra: number | null, 
     insumoId,
     numeroLote: id,
     proveedor: 'P',
+    proveedorId: null,
     fechaCaducidad: null,
     codigoFabricante: null,
     estado: 'activo',
@@ -131,6 +132,7 @@ export function lugar(id: string, nombre: string, extra: Partial<Lugar> = {}): L
     desactivadoEn: null,
     creadoEn: '2025-01-01T00:00:00.000Z',
     sincronizado: true,
+    proveedorPredeterminadoId: null,
     ...extra,
   }
 }

@@ -3,11 +3,18 @@ import { formatearEquivalente } from '../../../lib/unidades'
 import { AlertTriangle, PackageMinus, Check } from '../../../components/icons'
 import { Badge } from '../../../components/ui/Badge'
 import { Card } from '../../../components/ui/Card'
+import type { ValorItem } from '../lib/pedido'
+import { CasillaSeleccion, ValorDelItem } from './CasillaSeleccion'
 
 export interface ItemSugeridoCardProps {
   itemSugerido: ItemSugerido
   stockTotal: number
   onRecibir: (insumoId: string) => void
+  /** Spec 022: casilla de selección y, si está marcado, su monto. */
+  seleccionado: boolean
+  onAlternar: () => void
+  etiquetaSeleccion: string
+  valor: ValorItem | null
 }
 
 /**
@@ -19,12 +26,23 @@ export function ItemSugeridoCard({
   itemSugerido,
   stockTotal,
   onRecibir,
+  seleccionado,
+  onAlternar,
+  etiquetaSeleccion,
+  valor,
 }: ItemSugeridoCardProps) {
   const { insumo, stockBajo, caducado } = itemSugerido
 
   return (
-    <Card className="flex w-full items-center gap-2 py-1.5 pr-1.5 pl-0">
-      <div className="flex flex-1 flex-col gap-1 py-1 pl-3.5">
+    <Card
+      className={`flex w-full items-center gap-1 py-1.5 pr-1.5 pl-0 ${seleccionado ? 'border-primary!' : ''}`}
+    >
+      <CasillaSeleccion
+        seleccionado={seleccionado}
+        onAlternar={onAlternar}
+        etiqueta={etiquetaSeleccion}
+      />
+      <div className="flex flex-1 flex-col gap-1 py-1">
         <span className="flex flex-wrap items-center gap-1.5">
           <span className="text-xs text-text-muted">{insumo.categoria}</span>
           {stockBajo && (
@@ -51,6 +69,7 @@ export function ItemSugeridoCard({
           // Spec 015 FR-020 (UI §6).
           <span className="text-sm font-bold text-text">{textoPedido(itemSugerido)}</span>
         )}
+        {valor && <ValorDelItem valor={valor} />}
       </div>
 
       <button

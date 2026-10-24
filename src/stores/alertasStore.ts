@@ -2,6 +2,10 @@ import { create } from 'zustand'
 import { liveQuery } from 'dexie'
 import { db } from '../lib/db'
 import { HORAS_AVISO_PENDIENTES_POR_DEFECTO } from '../lib/sync/indicador'
+import {
+  SALUDO_PEDIDO_POR_DEFECTO,
+  saludoEfectivo,
+} from '../features/compras/lib/pedido'
 
 export { HORAS_AVISO_PENDIENTES_POR_DEFECTO }
 
@@ -22,6 +26,8 @@ interface AlertasState {
   nivelesAvisoDias: number[]
   /** Spec 012 FR-011 — umbral global de pendientes antiguos, en horas. */
   horasAvisoPendientes: number
+  /** Spec 022 — saludo del pedido por WhatsApp (el del tenant o el de la clienta). */
+  saludoPedido: string
   /** spec 010 FR-025 — `true` por defecto sin fila previa. */
   preferenciaStockBajo: boolean
   preferenciaCaducidad: boolean
@@ -32,6 +38,7 @@ interface AlertasState {
 export const useAlertasStore = create<AlertasState>((set) => ({
   nivelesAvisoDias: NIVELES_AVISO_POR_DEFECTO,
   horasAvisoPendientes: HORAS_AVISO_PENDIENTES_POR_DEFECTO,
+  saludoPedido: SALUDO_PEDIDO_POR_DEFECTO,
   preferenciaStockBajo: true,
   preferenciaCaducidad: true,
   isReady: false,
@@ -44,6 +51,7 @@ export const useAlertasStore = create<AlertasState>((set) => ({
           nivelesAvisoDias: config?.nivelesAvisoDias ?? NIVELES_AVISO_POR_DEFECTO,
           horasAvisoPendientes:
             config?.horasAvisoPendientes ?? HORAS_AVISO_PENDIENTES_POR_DEFECTO,
+          saludoPedido: saludoEfectivo(config),
           isReady: true,
         }),
     })

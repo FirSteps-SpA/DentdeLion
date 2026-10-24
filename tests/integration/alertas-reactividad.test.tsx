@@ -46,6 +46,7 @@ const lote: Lote = {
   insumoId: insumo.id,
   numeroLote: 'A-1',
   proveedor: 'Proveedor X',
+  proveedorId: null,
   fechaCaducidad: '2028-01-01',
   codigoFabricante: null,
   estado: 'activo',

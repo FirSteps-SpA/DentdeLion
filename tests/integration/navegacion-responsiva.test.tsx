@@ -13,6 +13,8 @@ vi.mock('../../src/lib/db', () => ({
       get: async () => undefined,
       put: async () => undefined,
     },
+    // Spec 022: la selección de Compras vive en borradores.
+    borradores: { get: async () => undefined, put: async () => undefined },
   },
 }))
 
@@ -23,6 +25,7 @@ vi.mock('../../src/stores/authStore', async (importOriginal) => {
 })
 
 import { AppShell } from '../../src/app/AppShell'
+import { useVista } from '../../src/app/useVista'
 import type { Vista } from '../../src/app/navegacion'
 import { InventarioView } from '../../src/features/insumos/components/InventarioView'
 import { ComprasView } from '../../src/features/compras/components/ComprasView'
@@ -64,6 +67,7 @@ const lote: Lote = {
   insumoId: 'i1',
   numeroLote: 'G1',
   proveedor: 'P',
+  proveedorId: null,
   fechaCaducidad: null,
   codigoFabricante: null,
   estado: 'activo',
@@ -256,5 +260,46 @@ describe('cambio de ancho en vivo (FR-015)', () => {
     expect(
       within(nav()).getByRole('button', { name: /Inventario/ }),
     ).toHaveAttribute('aria-current', 'page')
+  })
+})
+
+/** Spec 019 T009 (FR-006, research.md R1): la vista de `App` con la URL. */
+function HarnessConUrl() {
+  const [vista, setVista] = useVista()
+  return (
+    <AppShell vista={vista} onCambiarVista={setVista} alertasBadge={0}>
+      {vista === 'inicio' && <p>Inicio</p>}
+      {vista === 'inventario' && <InventarioView />}
+      {vista === 'mas' && <AjustesView />}
+    </AppShell>
+  )
+}
+
+describe('sección de Ajustes en la URL (spec 019)', () => {
+  afterEach(() => window.history.replaceState(null, '', '/'))
+
+  it('con #ajustes/<sección> al cargar, arranca en Ajustes con esa sección abierta', () => {
+    simularAncho(375)
+    window.history.replaceState(null, '', '/#ajustes/categorias')
+    render(<HarnessConUrl />)
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Categorías' })).toBeInTheDocument()
+  })
+
+  it('cambiar de vista quita la sección de la URL y Ajustes vuelve a abrir en el índice', () => {
+    simularAncho(375)
+    window.history.replaceState(null, '', '/#ajustes/categorias')
+    render(<HarnessConUrl />)
+
+    fireEvent.click(within(nav()).getByRole('button', { name: /Inventario/ }))
+    expect(window.location.hash).toBe('')
+    fireEvent.click(within(nav()).getByRole('button', { name: /Más/ }))
+    expect(screen.getByRole('list', { name: 'Secciones de Ajustes' })).toBeInTheDocument()
+  })
+
+  it('sin hash arranca en Inicio', () => {
+    simularAncho(375)
+    render(<HarnessConUrl />)
+    expect(screen.getByText('Inicio', { selector: 'p' })).toBeInTheDocument()
   })
 })

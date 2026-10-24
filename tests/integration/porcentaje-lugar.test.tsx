@@ -23,6 +23,7 @@ import { porcentajesPorLugar } from '../../src/features/tratamientos/lib/proyecc
 import { LugaresSection } from '../../src/features/ajustes/components/LugaresSection'
 import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
 import { lugar1, lugar2 } from '../helpers/lugarFalso'
+import { esperarQueLaRuedaNoCambie } from '../helpers/rueda'
 
 /**
  * Spec 016 US4 (T041, FR-012): % profesional por lugar en Ajustes → Lugares,
@@ -105,5 +106,13 @@ describe('% profesional del lugar (US4)', () => {
     fireEvent.click(within(panel).getByRole('button', { name: 'Guardar' }))
     expect(await within(panel).findByText(/entre 0 y 100/)).toBeInTheDocument()
     expect(cambiosT.all()).toEqual([])
+  })
+})
+
+describe('rueda del mouse (spec 018 FR-005)', () => {
+  it('no cambia el % profesional', async () => {
+    render(<LugaresSection />)
+    const panel = await fijar('40')
+    esperarQueLaRuedaNoCambie(within(panel).getByLabelText('% profesional (0–100)'), '40')
   })
 })

@@ -24,12 +24,12 @@ import { InicioView } from '../features/inicio/components/InicioView'
 import { TratamientosView } from '../features/tratamientos/components/TratamientosView'
 import { AppShell } from './AppShell'
 import { AvisosConsumo } from './AvisosConsumo'
-import type { Vista } from './navegacion'
+import { useVista } from './useVista'
 import { useVistasDeLugar } from '../features/insumos/lib/vistaLugar'
 
 function App() {
   useBackendConnection()
-  const [vista, setVista] = useState<Vista>('inicio')
+  const [vista, setVista] = useVista()
   // Spec 014 US5: `/?invitacion=<token>` abre la pantalla de invitación sin sesión.
   const [tokenInvitacion, setTokenInvitacion] = useState(() => tokenDeLaUrl())
   const lugares = useLugarStore((s) => s.lugares)

@@ -97,6 +97,52 @@ async function runCommand(line) {
       console.log('ok: reloaded')
       break
 
+    // Spec 019: "atrás" del navegador y la URL actual (sección de Ajustes en el hash).
+    case 'back':
+      await page.goBack({ waitUntil: 'commit' }).catch(() => null)
+      await page.waitForTimeout(200)
+      console.log(`ok: back → ${page.url()}`)
+      break
+
+    case 'url':
+      console.log(`url: ${page.url()}`)
+      break
+
+    // Spec 018: rueda real del mouse sobre un campo enfocado. Informa valor
+    // antes/después, si conserva el foco y cuánto se desplazó la página.
+    case 'wheel': {
+      const campo = page.locator(arg).first()
+      await campo.scrollIntoViewIfNeeded()
+      await campo.focus()
+      const antes = await campo.inputValue()
+      const box = await campo.boundingBox()
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+      // Desplazamiento del contenedor con scroll más cercano (o de la página).
+      const posicion = () =>
+        campo.evaluate((el) => {
+          for (let n = el.parentElement; n; n = n.parentElement) {
+            const { overflowY } = getComputedStyle(n)
+            if (/(auto|scroll)/.test(overflowY) && n.scrollHeight > n.clientHeight) return n.scrollTop
+          }
+          return window.scrollY
+        })
+      const scrollAntes = await posicion()
+      await page.mouse.wheel(0, 120)
+      await page.waitForTimeout(300)
+      const despues = await campo.inputValue()
+      const conFoco = await campo.evaluate((el) => document.activeElement === el)
+      const scroll = (await posicion()) - scrollAntes
+      console.log(
+        `${despues === antes ? 'ok' : 'FAIL'}: wheel ${arg} valor ${antes} -> ${despues}, foco ${conFoco ? 'sí' : 'no'}, scroll ${scroll}px`,
+      )
+      break
+    }
+
+    case 'press':
+      await page.keyboard.press(arg)
+      console.log(`ok: pressed ${arg}`)
+      break
+
     // --- inDENTory-specific: seed Dexie/IndexedDB directly, since there is
     // no real Supabase backend in this container (spec 003's offline-first
     // local session cache is exactly what makes this possible). ---
@@ -384,6 +430,72 @@ async function runCommand(line) {
         { id, unidadMedida, unidadCompra, contenido },
       )
       console.log(`ok: presentación de ${id}: ${unidadCompra} × ${contenido} ${unidadMedida} — seed-lote después`)
+      break
+    }
+
+    case 'seed-precio': {
+      // Spec 022: seed-precio <loteId> <precio> — precio por unidad de compra del lote.
+      const [loteId, precio] = rest
+      await page.evaluate(
+        ({ loteId, precio }) =>
+          new Promise((resolve, reject) => {
+            const req = indexedDB.open('inDENToryDB')
+            req.onsuccess = () => {
+              const tx = req.result.transaction('lotes', 'readwrite')
+              const lotes = tx.objectStore('lotes')
+              const get = lotes.get(loteId)
+              get.onsuccess = () => {
+                if (get.result) lotes.put({ ...get.result, precioCompra: Number(precio) })
+              }
+              tx.oncomplete = () => resolve(undefined)
+              tx.onerror = () => reject(tx.error)
+            }
+            req.onerror = () => reject(req.error)
+          }),
+        { loteId, precio },
+      )
+      console.log(`ok: lote ${loteId} a $${precio}`)
+      break
+    }
+
+    case 'seed-proveedor': {
+      // Spec 021/022: seed-proveedor <id> <whatsapp|none> <predeterminado si|no> <nombre...>
+      // — un proveedor del tenant 1; "si" lo deja predeterminado del lugar 1.
+      const [id, whatsapp, predeterminado, ...nombreParts] = rest
+      const nombre = nombreParts.join(' ') || 'Proveedor'
+      await page.evaluate(
+        ({ id, whatsapp, predeterminado, nombre }) =>
+          new Promise((resolve, reject) => {
+            const req = indexedDB.open('inDENToryDB')
+            req.onsuccess = () => {
+              const tx = req.result.transaction(['proveedores', 'lugares'], 'readwrite')
+              tx.objectStore('proveedores').put({
+                id,
+                tenantId: '00000000-0000-4000-8000-000000000001',
+                nombre,
+                whatsapp: whatsapp === 'none' ? null : whatsapp,
+                contacto: null,
+                creadoPor: 'driver-seed-user',
+                creadoEn: new Date().toISOString(),
+                desactivadoEn: null,
+                eliminadoEn: null,
+                sincronizado: true,
+              })
+              if (predeterminado === 'si') {
+                const lugares = tx.objectStore('lugares')
+                const get = lugares.get('00000000-0000-4000-8000-000000000011')
+                get.onsuccess = () => {
+                  if (get.result) lugares.put({ ...get.result, proveedorPredeterminadoId: id })
+                }
+              }
+              tx.oncomplete = () => resolve(undefined)
+              tx.onerror = () => reject(tx.error)
+            }
+            req.onerror = () => reject(req.error)
+          }),
+        { id, whatsapp, predeterminado, nombre },
+      )
+      console.log(`ok: seeded proveedor ${id} (${nombre}) — call 'reload' next`)
       break
     }
 

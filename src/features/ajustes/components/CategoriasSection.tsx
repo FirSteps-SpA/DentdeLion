@@ -13,16 +13,20 @@ import { Badge } from '../../../components/ui/Badge'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { BottomSheet } from '../../../components/ui/BottomSheet'
 import { IconField } from '../../../components/ui/IconField'
+import { VerMas } from '../../../components/ui/VerMas'
+import { useListaPaginada } from '../../../lib/paginacion'
 
 /**
  * Sección "Categorías" (spec 010 FR-013..019): listar, crear, renombrar/
  * fusionar y (des)activar categorías. Solo administradores (montada
  * condicionalmente por `AjustesView`).
  */
-export function CategoriasSection() {
+export function CategoriasSection({ sinTitulo = false }: { sinTitulo?: boolean } = {}) {
   const insumos = useInventoryStore((s) => s.insumos)
   const categorias = useInventoryStore((s) => s.categorias)
   const catalogo = catalogoCategoriasCompleto(categorias, insumos)
+  // Spec 020 FR-014: de a 25 con "Ver más".
+  const lista = useListaPaginada(catalogo, { clave: '', modo: 'ver-mas' })
 
   const [modo, setModo] = useState<'crear' | 'renombrar' | null>(null)
   const [categoriaIdEnEdicion, setCategoriaIdEnEdicion] = useState<string | null>(
@@ -82,11 +86,16 @@ export function CategoriasSection() {
 
   return (
     <section className="flex flex-col gap-2">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2 text-h3 text-text">
-          <Tag size={18} className="text-primary" />
-          Categorías
-        </h2>
+      {/* Spec 019: dentro de su subpantalla, el título lo pone la pantalla. */}
+      <div
+        className={`flex items-center gap-2 ${sinTitulo ? 'justify-end' : 'justify-between'}`}
+      >
+        {!sinTitulo && (
+          <h2 className="flex items-center gap-2 text-h3 text-text">
+            <Tag size={18} className="text-primary" />
+            Categorías
+          </h2>
+        )}
         <TouchButton
           type="button"
           variant="secondary"
@@ -107,7 +116,7 @@ export function CategoriasSection() {
       )}
 
       <Card className="flex flex-col divide-y divide-border px-3.5">
-        {catalogo.map((entrada) => (
+        {lista.visibles.map((entrada) => (
           <div
             key={entrada.clave}
             className="flex items-center justify-between gap-2 py-2.5 text-sm text-text"
@@ -148,6 +157,12 @@ export function CategoriasSection() {
           </div>
         ))}
       </Card>
+      <VerMas
+        quedan={lista.quedan}
+        mostrados={lista.visibles.length}
+        total={lista.total}
+        onVerMas={lista.verMas}
+      />
 
       {modo && (
         <BottomSheet

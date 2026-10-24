@@ -46,6 +46,7 @@ function makeLote(overrides: Partial<Lote>): Lote {
     insumoId: 'insumo-1',
     numeroLote: 'L1',
     proveedor: 'Proveedor X',
+    proveedorId: null,
     fechaCaducidad: fechaEnDias(60),
     codigoFabricante: null,
     estado: 'activo',

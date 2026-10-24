@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { etiquetaUnidad, formatearNumero } from '../../../lib/unidades'
 import { formatearCLP, precioPorUnidadCompra, type PrecioIngreso } from '../lib/precio'
+import { NumeroInput } from '../../../components/ui/NumeroInput'
 
 export interface PrecioIngresoFieldProps {
   id: string
@@ -79,9 +80,8 @@ export function PrecioIngresoField({
         <span aria-hidden className="text-text-muted">
           $
         </span>
-        <input
+        <NumeroInput
           id={id}
-          type="number"
           inputMode="numeric"
           min={0}
           step="any"

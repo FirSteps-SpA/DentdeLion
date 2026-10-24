@@ -7,7 +7,6 @@ import { useInventoryStore } from '../../../stores/inventoryStore'
 import { nombreLugar, useLugarStore } from '../../../stores/lugarStore'
 import { usePendientesStore } from '../../../stores/pendientesStore'
 import { useAuthStore } from '../../../stores/authStore'
-import { X } from '../../../components/icons'
 import { Card } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { formatearPresentacion } from '../lib/presentacion'
@@ -16,6 +15,7 @@ import { formatearCLP, precioVigenteLote } from '../lib/precio'
 import { useCostosUnitarios } from '../lib/useCostosUnitarios'
 import { EditarPrecioDialog } from './EditarPrecioDialog'
 import { useTratamientosStore } from '../../../stores/tratamientosStore'
+import { mapaPorId, nombreDelLote } from '../../proveedores/lib/proveedores'
 
 export interface InsumoDetalleProps {
   insumo: Insumo
@@ -75,6 +75,9 @@ export function InsumoDetalle({
     .sort(compararCambios)
     .reverse()
   const cambiosLote = useInventoryStore((s) => s.cambiosLote)
+  // Spec 021 (FR-014, R11): nombre actual del proveedor de cada lote.
+  const proveedores = useInventoryStore((s) => s.proveedores)
+  const proveedoresPorId = mapaPorId(proveedores)
   function textoPrecio(lote: Lote): string {
     const precio = precioVigenteLote(lote, cambiosLote)
     if (precio === null) return 'Sin precio'
@@ -159,14 +162,6 @@ export function InsumoDetalle({
             Presentación: {formatearPresentacion(insumo)}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Cerrar detalle"
-          className="touch-target flex items-center justify-center rounded-full text-text-muted"
-        >
-          <X size={20} />
-        </button>
       </div>
 
       <p className="text-sm font-bold text-text">
@@ -213,7 +208,10 @@ export function InsumoDetalle({
           <li key={lote.id} className="flex flex-col gap-1 py-2 text-sm">
             <span className="flex items-center justify-between gap-2">
               <span className="text-text">
-                Lote {lote.numeroLote} —{' '}
+                Lote {lote.numeroLote}
+                {nombreDelLote(lote, proveedoresPorId) &&
+                  ` · ${nombreDelLote(lote, proveedoresPorId)}`}{' '}
+                —{' '}
                 {lote.fechaCaducidad
                   ? `vence ${lote.fechaCaducidad}`
                   : 'No caduca'}

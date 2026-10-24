@@ -48,6 +48,7 @@ function makeLote(overrides: Partial<Lote>): Lote {
     insumoId: 'insumo-1',
     numeroLote: 'L1',
     proveedor: 'Proveedor X',
+    proveedorId: null,
     fechaCaducidad: fechaEnDias(90),
     codigoFabricante: null,
     estado: 'activo',
@@ -245,13 +246,15 @@ describe('InventarioView (User Story 1 — resumen y tap-to-filter)', () => {
     })
     fireEvent.click(screen.getByText('Insumo Multi Lote'))
 
-    const detalle = screen
-      .getByText(`Stock total: 10 ${insumoMultiLote.unidadMedida}`)
-      .closest('div')!
+    // Spec 020 R5: el detalle se abre en una hoja encima de la lista.
+    const detalle = screen.getByRole('dialog', { name: 'Detalle del insumo' })
+    expect(
+      within(detalle).getByText(`Stock total: 10 ${insumoMultiLote.unidadMedida}`),
+    ).toBeInTheDocument()
     expect(within(detalle).getByText(/Lote A-1/)).toBeInTheDocument()
     expect(within(detalle).getByText(/Lote B-2/)).toBeInTheDocument()
 
-    fireEvent.click(screen.getByLabelText('Cerrar detalle'))
+    fireEvent.click(within(detalle).getByRole('button', { name: 'Cerrar' }))
 
     expect(screen.queryByText(/Stock total: 10/)).not.toBeInTheDocument()
     expect(screen.getByPlaceholderText('Nombre del insumo')).toHaveValue('Multi')

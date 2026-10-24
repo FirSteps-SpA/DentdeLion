@@ -13,6 +13,7 @@ vi.mock('../../src/lib/db', async () => {
   const { createMemoryDb, MemoryTable } = await import('../helpers/memoryDb')
   return {
     db: createMemoryDb({
+      proveedores: new MemoryTable(),
       lugares: new MemoryTable(),
       minimosLugar: new MemoryTable(),
       lugarActivo: new MemoryTable(),
@@ -48,6 +49,7 @@ import {
 import { LUGAR_1, LUGAR_2, TENANT_1 } from '../helpers/tenancy'
 import { lugar1, lugar2 } from '../helpers/lugarFalso'
 import { useLugarStore } from '../../src/stores/lugarStore'
+import { esperarQueLaRuedaNoCambie } from '../helpers/rueda'
 
 /**
  * Spec 015 T063 (FR-007a, Q1, quickstart 10–12): conversión de la unidad de
@@ -93,6 +95,7 @@ const lote: Lote = {
   insumoId: 'g',
   numeroLote: 'G1',
   proveedor: 'P',
+  proveedorId: null,
   fechaCaducidad: null,
   codigoFabricante: null,
   estado: 'activo',
@@ -252,5 +255,21 @@ describe('stock tras convertir (R4)', () => {
       { ...ingreso, id: 'offline', tipo: 'consumo', cantidad: 1, unidad: 'caja', usuarioId: 'otra' },
     ])
     expect(computeStockLote(await movimientosNormalizadosDeLote('l1'))).toBe(200)
+  })
+})
+
+describe('rueda del mouse (spec 018 FR-005)', () => {
+  it('no cambia los mínimos de la edición ni la cantidad de la conversión', async () => {
+    render(<EditarInsumoForm insumo={insumosT.all()[0]} onGuardado={vi.fn()} onCancelar={() => {}} />)
+    esperarQueLaRuedaNoCambie(screen.getByLabelText(/Stock mínimo del catálogo/), '5')
+    esperarQueLaRuedaNoCambie(screen.getByLabelText(/Stock mínimo en/), '3')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Convertir unidad' }))
+    const dialogo = await screen.findByRole('dialog', { name: 'Cambiar unidad de consumo' })
+    fireEvent.change(within(dialogo).getByLabelText('A'), { target: { value: 'unidad' } })
+    esperarQueLaRuedaNoCambie(
+      within(dialogo).getByLabelText(/^1 caja = ¿cuántas unidades\?/),
+      '100',
+    )
   })
 })

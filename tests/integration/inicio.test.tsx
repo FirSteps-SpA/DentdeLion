@@ -12,6 +12,8 @@ vi.mock('../../src/lib/db', () => ({
       get: async () => undefined,
       put: async () => undefined,
     },
+    // Spec 022: la selección de Compras vive en borradores.
+    borradores: { get: async () => undefined, put: async () => undefined },
   },
 }))
 
@@ -76,6 +78,7 @@ const lote = (id: string, insumoId: string, fecha: string | null): Lote => ({
   insumoId,
   numeroLote: id.toUpperCase(),
   proveedor: 'P',
+  proveedorId: null,
   fechaCaducidad: fecha,
   codigoFabricante: null,
   estado: 'activo',
@@ -254,14 +257,48 @@ describe('Inicio (spec 013 US3)', () => {
     const vencimientos = screen.getByRole('region', {
       name: 'Próximos vencimientos',
     })
+    // Spec 018 FR-007: "caducado hace", como en Alertas.
     expect(
-      within(vencimientos).getByText(/venció hace 2 días/),
+      within(vencimientos).getByText(/caducado hace 2 días/),
     ).toBeInTheDocument()
     expect(
       within(vencimientos).getByText(/vence en 3 días/),
     ).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Ver lista de compra' }))
     expect(screen.getByRole('heading', { name: 'Compras' })).toBeInTheDocument()
+  })
+
+  it('spec 018: alertas y vencimientos sin lote; tocar uno abre el detalle y cerrarlo vuelve', () => {
+    sembrar()
+    render(<Harness />)
+
+    const alertas = screen.getByRole('region', { name: 'Alertas' })
+    const vencimientos = screen.getByRole('region', { name: 'Próximos vencimientos' })
+    for (const region of [alertas, vencimientos]) {
+      expect(region.textContent).not.toMatch(/Lote|LA|LX/)
+    }
+    expect(
+      within(vencimientos).getByText(new RegExp(`· vence en 3 días`)),
+    ).toBeInTheDocument()
+
+    fireEvent.click(
+      within(vencimientos).getByRole('button', { name: /Ver detalle de Anestesia articaína/ }),
+    )
+    const hoja = screen.getByRole('dialog', { name: 'Detalle del insumo' })
+    expect(within(hoja).getByText(/Lote LA/)).toBeInTheDocument()
+    fireEvent.click(within(hoja).getByRole('button', { name: 'Cerrar' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '¡Hola, Sofía!' })).toBeInTheDocument()
+  })
+
+  it('spec 018: un insumo sin stock dice "Sin stock", nunca "Stock crítico"', () => {
+    sembrar()
+    render(<Harness />)
+
+    const alertas = screen.getByRole('region', { name: 'Alertas' })
+    const extra = within(alertas).getByRole('button', { name: /Ver detalle de Extra 0/ })
+    expect(within(extra).getByText('Sin stock')).toBeInTheDocument()
+    expect(alertas.textContent).not.toMatch(/Stock crítico/)
   })
 
   it('sin datos: ceros, "Todo en orden" y sin tarjeta de compra', () => {

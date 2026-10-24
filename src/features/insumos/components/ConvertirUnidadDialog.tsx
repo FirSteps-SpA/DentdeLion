@@ -12,6 +12,7 @@ import {
 } from '../lib/conversion'
 import { formatearPresentacion } from '../lib/presentacion'
 import { computeStockLote } from '../lib/stock'
+import { NumeroInput } from '../../../components/ui/NumeroInput'
 
 const SELECT_CLASS =
   'touch-target rounded-md border border-border bg-surface px-3.5 text-[15px] font-normal text-text'
@@ -116,9 +117,8 @@ export function ConvertirUnidadDialog({ insumo, onConvertido, onClose }: Convert
         </label>
         <div className="flex items-stretch gap-2">
           <div className="touch-target flex flex-1 items-center rounded-md border border-border-input bg-surface px-3.5">
-            <input
+            <NumeroInput
               id="conversion-cantidad"
-              type="number"
               min={0}
               step="any"
               value={cantidad ?? ''}

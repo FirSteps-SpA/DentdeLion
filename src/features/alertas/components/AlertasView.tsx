@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useAuthStore } from '../../../stores/authStore'
 import { useAlertasStore } from '../../../stores/alertasStore'
 import { computeInsumosStockBajo } from '../lib/stockBajo'
@@ -10,6 +10,10 @@ import { Card } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { porLugar, useVistasDeLugar } from '../../insumos/lib/vistaLugar'
 import { ChipLugar } from '../../../app/ChipLugar'
+import { etiquetaStockBajo } from '../lib/etiquetaStock'
+import { formatearFechaCaducidad, textoTiempoCaducidad } from '../lib/textoCaducidad'
+import { RenglonAlerta } from './RenglonAlerta'
+import { DetalleDesdeAlerta, type DetalleAbierto } from './DetalleDesdeAlerta'
 
 function badgeVariantParaNivel(nivel: number | 'caducado'): BadgeVariant {
   if (nivel === 'caducado') return 'danger'
@@ -36,6 +40,11 @@ export function AlertasView() {
   const nivelesAvisoDias = useAlertasStore((s) => s.nivelesAvisoDias)
 
   const [errorRevision, setErrorRevision] = useState<string | null>(null)
+  // Spec 018 FR-009: el detalle del insumo se abre encima de Alertas.
+  const [detalle, setDetalle] = useState<DetalleAbierto | null>(null)
+  const cerrarDetalle = useCallback(() => setDetalle(null), [])
+  const abrir = (insumoId: string, lugar: { id: string } | null) => () =>
+    setDetalle({ insumoId, lugarId: lugar?.id ?? null })
 
   const alertasStockBajo = porLugar(vistas, (d) =>
     computeInsumosStockBajo(d.insumos, d.lotes, d.movimientos),
@@ -74,28 +83,36 @@ export function AlertasView() {
           </Card>
         ) : (
           <ul className="flex flex-col gap-2">
-            {alertasStockBajo.map(({ insumo, stockActual, lugar }) => (
-              <li key={`${lugar?.id ?? ''}-${insumo.id}`}>
-                <Card className="flex items-center justify-between gap-2 px-3.5 py-2.5">
-                  {stockActual === 0 ? (
-                    <CircleAlert size={18} className="shrink-0 text-danger" />
-                  ) : (
-                    <AlertTriangle size={18} className="shrink-0 text-warning-icon" />
-                  )}
-                  <span className="flex-1 text-sm text-text">
-                    <span className="font-bold">{insumo.nombre}</span> —{' '}
-                    {stockActual} {insumo.unidadMedida} disponibles (mínimo{' '}
-                    {insumo.stockMinimo} {insumo.unidadMedida}) {chip(lugar)}
-                  </span>
-                  <Badge
-                    variant={stockActual === 0 ? 'danger' : 'warning-30'}
-                    icono={stockActual === 0 ? CircleAlert : AlertTriangle}
-                  >
-                    Bajo mínimo
-                  </Badge>
-                </Card>
-              </li>
-            ))}
+            {alertasStockBajo.map(({ insumo, stockActual, lugar }) => {
+              // Spec 018 FR-011: "Sin stock" si no queda nada.
+              const etiqueta = etiquetaStockBajo(stockActual)
+              return (
+                <li key={`${lugar?.id ?? ''}-${insumo.id}`}>
+                  <RenglonAlerta
+                    variante="tarjeta"
+                    onAbrir={abrir(insumo.id, lugar)}
+                    icono={
+                      <etiqueta.icono
+                        size={18}
+                        className={`shrink-0 ${stockActual <= 0 ? 'text-danger' : 'text-warning-icon'}`}
+                      />
+                    }
+                    titulo={insumo.nombre}
+                    detalle={
+                      <>
+                        {stockActual} {insumo.unidadMedida} disponibles (mínimo{' '}
+                        {insumo.stockMinimo} {insumo.unidadMedida}) {chip(lugar)}
+                      </>
+                    }
+                    badge={
+                      <Badge variant={etiqueta.variante} icono={etiqueta.icono}>
+                        {etiqueta.texto}
+                      </Badge>
+                    }
+                  />
+                </li>
+              )
+            })}
           </ul>
         )}
       </section>
@@ -112,27 +129,35 @@ export function AlertasView() {
           <ul className="flex flex-col gap-2">
             {alertasCaducidad.map(({ lote, insumo, diasRestantes, nivel, lugar }) => (
               <li key={`${lugar?.id ?? ''}-${lote.id}`}>
-                <Card className="flex items-center justify-between gap-2 px-3.5 py-2.5">
-                  {nivel === 'caducado' ? (
-                    <CircleAlert size={18} className="shrink-0 text-danger" />
-                  ) : (
-                    <Clock size={18} className="shrink-0 text-warning-icon" />
-                  )}
-                  <span className="flex-1 text-sm text-text">
-                    <span className="font-bold">{insumo.nombre}</span> — lote{' '}
-                    {lote.numeroLote}, vence {lote.fechaCaducidad} (
-                    {nivel === 'caducado'
-                      ? `caducado hace ${Math.abs(diasRestantes)} día(s)`
-                      : `nivel ${nivel} días`}
-                    ) {chip(lugar)}
-                  </span>
-                  <Badge
-                    variant={badgeVariantParaNivel(nivel)}
-                    icono={nivel === 'caducado' ? CircleAlert : Clock}
-                  >
-                    {nivel === 'caducado' ? 'Caducado' : `${nivel} días`}
-                  </Badge>
-                </Card>
+                {/* Spec 018 FR-006–FR-008: nombre, fecha y tiempo; el lote, en el detalle. */}
+                <RenglonAlerta
+                  variante="tarjeta"
+                  onAbrir={abrir(insumo.id, lugar)}
+                  icono={
+                    nivel === 'caducado' ? (
+                      <CircleAlert size={18} className="shrink-0 text-danger" />
+                    ) : (
+                      <Clock size={18} className="shrink-0 text-warning-icon" />
+                    )
+                  }
+                  titulo={insumo.nombre}
+                  detalle={
+                    <>
+                      {formatearFechaCaducidad(lote.fechaCaducidad ?? '')} ·{' '}
+                      {textoTiempoCaducidad(diasRestantes)} {chip(lugar)}
+                    </>
+                  }
+                  badge={
+                    <Badge
+                      variant={badgeVariantParaNivel(nivel)}
+                      icono={nivel === 'caducado' ? CircleAlert : Clock}
+                    >
+                      {nivel === 'caducado'
+                        ? 'Caducado'
+                        : `${nivel} ${nivel === 1 ? 'día' : 'días'}`}
+                    </Badge>
+                  }
+                />
               </li>
             ))}
           </ul>
@@ -184,6 +209,10 @@ export function AlertasView() {
           </ul>
         )}
       </section>
+
+      {detalle && (
+        <DetalleDesdeAlerta abierto={detalle} vistas={vistas} onClose={cerrarDetalle} />
+      )}
     </div>
   )
 }

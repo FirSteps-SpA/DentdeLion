@@ -22,6 +22,7 @@ import { usePendientesStore } from '../../../stores/pendientesStore'
 import { useTratamientosStore } from '../../../stores/tratamientosStore'
 import { fijarPorcentajeLugar } from '../../tratamientos/lib/catalogo'
 import { compararCambios } from '../../insumos/lib/proyeccion'
+import { NumeroInput } from '../../../components/ui/NumeroInput'
 
 type Modo =
   | { tipo: 'crear' }
@@ -35,7 +36,7 @@ type Modo =
  * reemplaza "Clínica". Nombre del tenant, y crear, renombrar, desactivar y
  * reactivar lugares. Solo administradores (la monta `AjustesView`).
  */
-export function LugaresSection() {
+export function LugaresSection({ sinTitulo = false }: { sinTitulo?: boolean } = {}) {
   const lugares = useLugarStore((s) => s.lugares)
   const lotes = useInventoryStore((s) => s.lotes)
   const movimientos = useInventoryStore((s) => s.movimientos)
@@ -119,11 +120,17 @@ export function LugaresSection() {
   }
 
   return (
-    <section className="flex flex-col gap-2" aria-labelledby="ajustes-lugares">
-      <h2 id="ajustes-lugares" className="flex items-center gap-2 text-h3 text-text">
-        <Building size={18} className="text-primary" />
-        Lugares de trabajo
-      </h2>
+    <section
+      className="flex flex-col gap-2"
+      aria-labelledby={sinTitulo ? undefined : 'ajustes-lugares'}
+    >
+      {/* Spec 019: dentro de su subpantalla, el título lo pone la pantalla. */}
+      {!sinTitulo && (
+        <h2 id="ajustes-lugares" className="flex items-center gap-2 text-h3 text-text">
+          <Building size={18} className="text-primary" />
+          Lugares de trabajo
+        </h2>
+      )}
 
       <IconField
         label="Nombre del cliente (clínica o profesional)"
@@ -266,9 +273,8 @@ export function LugaresSection() {
                   : 'Vacío = sin porcentaje (no se calcula la ganancia estimada).'
               }
             >
-              <input
+              <NumeroInput
                 id="porcentaje-lugar"
-                type="number"
                 min={0}
                 max={100}
                 step="any"

@@ -26,6 +26,8 @@ import { PresentacionFields } from './PresentacionFields'
 import { CantidadIngresoField } from './CantidadIngresoField'
 import { PrecioIngresoField } from './PrecioIngresoField'
 import { convertirIngreso } from '../lib/ingreso'
+import { SelectorProveedor } from '../../proveedores/components/SelectorProveedor'
+import { usePredeterminado } from '../../proveedores/lib/usePredeterminado'
 
 export interface AltaMaterialViewProps {
   nombreInicial?: string
@@ -124,6 +126,9 @@ export function AltaMaterialView({
   const vidaUtil = datos.caduca ? mesesRestantes(datos.lote.fechaCaducidad) : null
   const sugerencias = sugerirMateriales(insumos, datos.nombre)
   const esAdmin = usuario?.rol === 'administrador'
+  // Spec 021 (FR-006): sin elección a mano, el predeterminado del lugar.
+  const proveedorPredeterminado = usePredeterminado(lugarId)
+  const proveedorEfectivo = datos.lote.proveedorId ?? proveedorPredeterminado
 
   if (isLoading) return null
 
@@ -175,7 +180,11 @@ export function AltaMaterialView({
     document.getElementById(ID_POR_CAMPO[campo])?.focus()
   }
 
-  async function intentarGuardar(datosParaGuardar: AltaMaterialInput) {
+  async function intentarGuardar(datosSinProveedor: AltaMaterialInput) {
+    const datosParaGuardar: AltaMaterialInput = {
+      ...datosSinProveedor,
+      lote: { ...datosSinProveedor.lote, proveedorId: proveedorEfectivo },
+    }
     const hoy = new Date().toISOString().slice(0, 10)
     const validacion = validarAltaMaterial(datosParaGuardar, insumos, catalogo, hoy)
     if (!validacion.valido) {
@@ -238,6 +247,22 @@ export function AltaMaterialView({
     await descartar()
     onCancel()
   }
+
+  // Spec 018 FR-013: "¿Caduca?" justo antes de la fecha de vencimiento, dentro
+  // del primer lote. Sin stock inicial no hay fecha y queda solo, más abajo:
+  // sigue siendo un dato del insumo.
+  const interruptorCaduca = (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={datos.caduca}
+      onClick={toggleCaduca}
+      className="touch-target flex w-full items-center justify-between rounded-md border border-border bg-surface px-3.5 text-left text-sm font-bold text-text"
+    >
+      ¿Caduca?
+      <span className="text-text-muted">{datos.caduca ? 'Sí' : 'No'}</span>
+    </button>
+  )
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-bg">
@@ -463,21 +488,19 @@ export function AltaMaterialView({
                   icon={<Truck size={18} />}
                   htmlFor="alta-lote-proveedor"
                 >
-                  <input
+                  <SelectorProveedor
                     id="alta-lote-proveedor"
-                    type="text"
-                    value={datos.lote.proveedor}
-                    onChange={(event) =>
-                      setDatos({
-                        lote: { ...datos.lote, proveedor: event.target.value },
-                      })
+                    valor={proveedorEfectivo}
+                    onCambio={(proveedorId) =>
+                      setDatos({ lote: { ...datos.lote, proveedorId } })
                     }
-                    className={INPUT_CLASS}
-                    {...errorProps('proveedor')}
+                    invalido={!!errores.proveedor}
+                    describedBy={errores.proveedor ? 'error-proveedor' : undefined}
                   />
                 </IconField>
                 <ErrorCampo id="error-proveedor" mensaje={errores.proveedor} />
               </div>
+              {interruptorCaduca}
               {datos.caduca && (
                 <div className="flex flex-col gap-1">
                   <IconField
@@ -545,16 +568,7 @@ export function AltaMaterialView({
             )}
           </div>
 
-          <button
-            type="button"
-            role="switch"
-            aria-checked={datos.caduca}
-            onClick={toggleCaduca}
-            className="touch-target flex w-full items-center justify-between rounded-md border border-border bg-surface px-3.5 text-left text-sm font-bold text-text"
-          >
-            Sujeto a caducidad
-            <span className="text-text-muted">{datos.caduca ? 'Sí' : 'No'}</span>
-          </button>
+          {datos.stockInicial <= 0 && interruptorCaduca}
 
           {errorGeneral && (
             <Card className="bg-danger-bg px-3.5 py-2.5">

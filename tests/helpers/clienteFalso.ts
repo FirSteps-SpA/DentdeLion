@@ -38,6 +38,11 @@ export interface EstadoClienteFalso {
   paginasPedidas: Record<string, number>
 }
 
+/** Spec 019: `minimos_lugar` no tiene `id`; su clave es (insumo, lugar). */
+export function claveFila(fila: Fila): string {
+  return fila.id ?? `${String(fila.insumo_id)}|${String(fila.lugar_id)}`
+}
+
 export function crearEstado(): EstadoClienteFalso {
   return {
     remoto: {},
@@ -94,18 +99,30 @@ export function crearClienteFalso(estado: EstadoClienteFalso) {
               if (error) return { error, status: status() }
             }
           }
-          for (const fila of lista) tabla(nombre).set(fila.id, structuredClone(fila))
+          for (const fila of lista) tabla(nombre).set(claveFila(fila), structuredClone(fila))
           return { error: null, status: 201 }
         },
         update(cambios: Record<string, unknown>) {
           return {
-            async eq(_columna: string, id: string): Promise<Respuesta> {
-              estado.updates.push({ tabla: nombre, id, cambios: structuredClone(cambios) })
-              const errorTabla = estado.errorUpsert[nombre]
-              if (errorTabla) return { error: errorTabla, status: status() }
-              const fila = tabla(nombre).get(id)
-              if (fila) tabla(nombre).set(id, { ...fila, ...structuredClone(cambios) })
-              return { error: null, status: 204 }
+            // Spec 022: `.eq(...)` se puede esperar directo o seguir con
+            // `.select(...)`, que devuelve las filas actualizadas (0 si no existe).
+            eq(_columna: string, id: string) {
+              const aplicar = (): Respuesta & { data: { id: string }[] | null } => {
+                estado.updates.push({ tabla: nombre, id, cambios: structuredClone(cambios) })
+                const errorTabla = estado.errorUpsert[nombre]
+                if (errorTabla) return { data: null, error: errorTabla, status: status() }
+                const fila = tabla(nombre).get(id)
+                if (fila) tabla(nombre).set(id, { ...fila, ...structuredClone(cambios) })
+                return { data: fila ? [{ id }] : [], error: null, status: 204 }
+              }
+              let resultado: ReturnType<typeof aplicar> | undefined
+              const una = () => (resultado ??= aplicar())
+              return {
+                then<T>(resolver: (r: ReturnType<typeof aplicar>) => T) {
+                  return Promise.resolve(una()).then(resolver)
+                },
+                select: async () => una(),
+              }
             },
           }
         },

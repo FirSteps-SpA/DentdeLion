@@ -1,69 +1,55 @@
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useAuthStore } from '../../../stores/authStore'
-import { PerfilSection } from './PerfilSection'
-import { ConfiguracionAlertasSection } from './ConfiguracionAlertasSection'
-import { LugaresSection } from './LugaresSection'
-import { EquipoSection } from './EquipoSection'
-import { CategoriasSection } from './CategoriasSection'
-import { InsumosBajaSection } from './InsumosBajaSection'
-import { NotificacionesSection } from './NotificacionesSection'
-import { ChartColumn, ShoppingCart } from '../../../components/icons'
-import { TouchButton } from '../../../components/ui/TouchButton'
 import type { Vista } from '../../../app/navegacion'
+import { seccionesVisibles, type IdSeccion } from '../lib/secciones'
+import { useSeccionAjustes } from '../lib/seccionUrl'
+import { AjustesIndice } from './AjustesIndice'
+import { SeccionAjustesPantalla } from './SeccionAjustesPantalla'
 
 /**
- * Vista "Ajustes" (spec 010 FR-001/002/003): reemplaza el puente temporal
- * "Consumir insumo" de la spec 006 en la pestaña "Más". Organiza secciones
- * abiertas a todo usuario autenticado (Perfil, Notificaciones) y secciones
- * solo para administradores (Configuración de Alertas, Lugares de trabajo —
- * spec 014, reemplaza "Clínica" —, Categorías,
- * Insumos dados de baja) — ocultas por completo para `personal`, no solo
- * deshabilitadas, mismo criterio que ya usa `AlertasView`.
+ * Vista "Ajustes" (spec 010; spec 019): abre en un índice de tarjetas y cada
+ * tarjeta abre su sección por separado, con "Volver". La sección abierta va
+ * en la URL (`#ajustes/<id>`, research.md R1) para conservarla al recargar y
+ * que el "atrás" del dispositivo vuelva al índice. Las secciones solo para
+ * administración quedan ocultas por completo para `personal`, también si se
+ * llega a ellas por la URL o tras un cambio de rol (FR-012/013, R7).
+ * Reemplaza la página larga con perfil y notificaciones en dos columnas
+ * (spec 013 FR-011).
  */
 export function AjustesView({ onNavegar }: { onNavegar?: (vista: Vista) => void } = {}) {
   const usuario = useAuthStore((s) => s.usuario)
-  const esAdministrador = usuario?.rol === 'administrador'
+  const [seccion, abrir, cerrar] = useSeccionAjustes()
+  const [enfocar, setEnfocar] = useState<IdSeccion | null>(null)
+  const scrollIndice = useRef(0)
 
-  return (
-    <div className="flex w-full flex-col gap-6 text-left">
-      {/* Spec 016 (R7): en móvil, Compras se abre desde "Más". */}
-      {onNavegar && (
-        <TouchButton
-          type="button"
-          variant="secondary"
-          onClick={() => onNavegar('compras')}
-          className="w-full md:hidden"
-        >
-          <ShoppingCart size={18} />
-          Compras
-        </TouchButton>
-      )}
-      {/* Spec 017 (R11): en móvil, Reportes también se abre desde "Más". */}
-      {onNavegar && (
-        <TouchButton
-          type="button"
-          variant="secondary"
-          onClick={() => onNavegar('reportes')}
-          className="w-full md:hidden"
-        >
-          <ChartColumn size={18} />
-          Reportes
-        </TouchButton>
-      )}
-      {/* Spec 013 FR-011: perfil y notificaciones en 2 columnas desde tablet. */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start">
-        <PerfilSection />
-        <NotificacionesSection />
-      </div>
+  const visible =
+    seccion !== null && !!usuario && seccionesVisibles(usuario.rol).some((s) => s.id === seccion)
 
-      {esAdministrador && (
-        <>
-          <ConfiguracionAlertasSection />
-          <LugaresSection />
-          <EquipoSection />
-          <CategoriasSection />
-          <InsumosBajaSection />
-        </>
-      )}
-    </div>
-  )
+  // Una sección que el rol no puede ver no se muestra ni un instante: se
+  // renderiza el índice y se quita de la URL sin sumar entrada.
+  useEffect(() => {
+    if (seccion !== null && usuario && !visible) cerrar({ reemplazar: true })
+  }, [seccion, usuario, visible, cerrar])
+
+  // Al volver al índice, misma posición de desplazamiento que al salir.
+  const seccionAnterior = useRef(seccion)
+  useLayoutEffect(() => {
+    if (seccionAnterior.current !== null && seccion === null) {
+      setEnfocar(seccionAnterior.current)
+      window.scrollTo(0, scrollIndice.current)
+    }
+    seccionAnterior.current = seccion
+  }, [seccion])
+
+  function abrirSeccion(id: IdSeccion) {
+    scrollIndice.current = window.scrollY
+    setEnfocar(null)
+    abrir(id)
+    window.scrollTo(0, 0)
+  }
+
+  if (visible && seccion) {
+    return <SeccionAjustesPantalla id={seccion} onVolver={() => cerrar()} />
+  }
+  return <AjustesIndice onAbrir={abrirSeccion} enfocar={enfocar} onNavegar={onNavegar} />
 }

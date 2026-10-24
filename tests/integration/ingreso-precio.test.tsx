@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import type { CambioLote, Insumo, Lote, Movimiento, UsuarioActual } from '../../src/lib/db'
+import type { CambioLote, Insumo, Lote, Movimiento, Proveedor, UsuarioActual } from '../../src/lib/db'
 import type { MemoryTable } from '../helpers/memoryDb'
 
 vi.mock('../../src/lib/db', async () => {
   const { createMemoryDb, MemoryTable } = await import('../helpers/memoryDb')
   return {
     db: createMemoryDb({
+      proveedores: new MemoryTable(),
       lugares: new MemoryTable(),
       minimosLugar: new MemoryTable(),
       lugarActivo: new MemoryTable(),
@@ -32,12 +33,15 @@ import { InventarioTabla } from '../../src/features/insumos/components/Inventari
 import type { EstadoInsumo } from '../../src/features/insumos/lib/estado'
 import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
 import { usarLugar1 } from '../helpers/lugarFalso'
+import { usarProveedorPredeterminado } from '../helpers/proveedor'
+import { esperarQueLaRuedaNoCambie } from '../helpers/rueda'
 
 /**
  * Spec 015 US3 (T043): precio opcional al recibir, por unidad de compra o
  * total, y costo unitario en la tabla. Todo con personal (Clarifications Q3).
  */
 const lotesT = db.lotes as unknown as MemoryTable<Lote>
+const proveedoresT = db.proveedores as unknown as MemoryTable<Proveedor>
 const movimientosT = db.movimientos as unknown as MemoryTable<Movimiento>
 const cambiosLoteT = db.cambiosLote as unknown as MemoryTable<CambioLote>
 
@@ -82,12 +86,14 @@ function renderRecepcion(insumo: Insumo) {
   return onRecibido
 }
 
-/** Las mismas interacciones de una recepción de la 2.3.0: cantidad, lote, proveedor, confirmar. */
+/**
+ * Las mismas interacciones de una recepción de la 2.3.0: cantidad, lote,
+ * confirmar. Desde la spec 021 el proveedor predeterminado viene elegido.
+ */
 function recepcionMinima(cantidad: string): number {
   const acciones = [
     () => fireEvent.change(screen.getByLabelText(/^Cantidad/), { target: { value: cantidad } }),
     () => fireEvent.change(screen.getByLabelText('Número de lote'), { target: { value: 'L1' } }),
-    () => fireEvent.change(screen.getByLabelText('Proveedor'), { target: { value: 'Prov' } }),
     () => fireEvent.click(screen.getByRole('button', { name: 'Confirmar recepción' })),
   ]
   for (const accion of acciones) accion()
@@ -96,6 +102,7 @@ function recepcionMinima(cantidad: string): number {
 
 beforeEach(() => {
   usarLugar1()
+  usarProveedorPredeterminado(proveedoresT)
   useAuthStore.setState({ usuario: personal, isReady: true })
   lotesT.seed([])
   movimientosT.seed([])
@@ -121,7 +128,6 @@ describe('precio al recibir (US3-1..3)', () => {
     expect(screen.getByText('2 × $32.500 = $65.000 · $650 por cartucho')).toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText('Número de lote'), { target: { value: 'L1' } })
-    fireEvent.change(screen.getByLabelText('Proveedor'), { target: { value: 'Septodont' } })
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar recepción' }))
 
     await waitFor(() => expect(onRecibido).toHaveBeenCalled())
@@ -138,7 +144,6 @@ describe('precio al recibir (US3-1..3)', () => {
     expect(screen.getByText('0,6 × $35.000 = $21.000 · $700 por cartucho')).toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText('Número de lote'), { target: { value: 'L2' } })
-    fireEvent.change(screen.getByLabelText('Proveedor'), { target: { value: 'Septodont' } })
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar recepción' }))
 
     await waitFor(() => expect(onRecibido).toHaveBeenCalled())
@@ -179,6 +184,7 @@ describe('costo unitario en la tabla (US3-4..6, FR-017)', () => {
     insumoId: 'art',
     numeroLote: 'A1',
     proveedor: 'Septodont',
+    proveedorId: null,
     fechaCaducidad: null,
     codigoFabricante: null,
     estado: 'activo',
@@ -240,6 +246,7 @@ describe('corregir el precio de un lote (US5, FR-015)', () => {
     insumoId: 'art',
     numeroLote: 'A1',
     proveedor: 'Septodont',
+    proveedorId: null,
     fechaCaducidad: null,
     codigoFabricante: null,
     estado: 'activo',
@@ -324,5 +331,13 @@ describe('corregir el precio de un lote (US5, FR-015)', () => {
       expect(screen.getByText('$700 por cartucho')).toBeInTheDocument()
       unmount()
     }
+  })
+})
+
+describe('rueda del mouse (spec 018 FR-005)', () => {
+  it('no cambia la cantidad ni el precio de la recepción', () => {
+    renderRecepcion(base)
+    esperarQueLaRuedaNoCambie(screen.getByLabelText(/^Cantidad/), '2')
+    esperarQueLaRuedaNoCambie(screen.getByLabelText('Precio por caja'), '32500')
   })
 })
