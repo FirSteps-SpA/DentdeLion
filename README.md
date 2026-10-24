@@ -186,6 +186,19 @@ fusiones de proveedores → merge a `main`. Ensayado el 2026-10-24 sobre la rest
 del 2026-10-22 (con 015 y 016 encima): 77 lotes antes y después, ninguno sin proveedor, 12
 proveedores sin claves repetidas.
 
+**Spec 023 (marcas):** migración `20261025000000_marcas` y Dexie v14, sin cambios de datos (los insumos
+existentes quedan sin marca). `insumos.marca_id` se fija en el alta y después solo lo cambia un
+`cambios_insumo` con `campo = 'marcaId'` (solo administración): `proteger_catalogo_insumo` lo conserva
+en todo UPDATE. Por eso una 2.5.0 en caché, que no manda la columna, o un dispositivo recién
+actualizado que sube sus insumos antes del primer pull, no borran la marca (casos de `test:rls`).
+
+**Release 2.6.0 (spec 023):** respaldo → `supabase db push --linked` (aplica
+`20261025000000_marcas`) → comprobar que la 2.5.0 publicada sigue sincronizando → merge a `main`. Si el
+front falla, se revierte solo el front: la 2.5.0 convive con el servidor nuevo. Ensayado el 2026-10-24
+sobre la restauración del respaldo del 2026-10-24 con 021, 022 y 023 encima: 73 insumos (todos sin
+marca), 77 lotes (ninguno sin proveedor), 12 proveedores y los 28 cambios del historial, igual que
+antes.
+
 ## ¿Quedó bien configurado mi entorno?
 
 Checklist manual (sin script) — cada punto debe poder confirmarse a simple vista en menos de 2
