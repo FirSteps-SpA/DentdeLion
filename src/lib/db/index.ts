@@ -108,7 +108,16 @@ export interface Lote {
   lugarId: string
   insumoId: string
   numeroLote: string
+  /**
+   * Spec 021 (research.md R3) — nombre del proveedor al registrar. Se conserva
+   * un release por los clientes 2.4.0 y como respaldo para mostrar (R11).
+   */
   proveedor: string
+  /**
+   * Spec 021 — proveedor del catálogo. Inmutable tras el alta; `null` solo en
+   * lotes viejos antes del primer pull tras actualizar a Dexie v13.
+   */
+  proveedorId: string | null
   /** `null` only when the parent Insumo has `caduca: false` (FR-002b) — never a sentinel date. */
   fechaCaducidad: string | null
   codigoFabricante: string | null
@@ -239,16 +248,14 @@ export interface ItemCompra {
 }
 
 /**
- * Feature 010 data-model.md — ConfiguracionClinica. Single global row (fixed
- * id `'global'`) holding the configurable clinic/gabinete name. `null`
- * (never configured, or the last save was rejected) means the header falls
- * back to the default label "Gabinete" — never a sentinel string.
+ * Feature 010 — fila de la tabla `configuracionClinica`, que la spec 021
+ * borra en Dexie v13 (la reemplazó la configuración por lugar, spec 014). Solo
+ * la leen las upgrades v9/v10.
  */
-export interface ConfiguracionClinica {
+interface ConfiguracionClinicaV10 {
   id: 'global'
   nombre: string | null
-  /** Spec 012 (research.md R5) — local: `false` = cambio de un administrador aún sin subir. */
-  sincronizado: boolean
+  sincronizado?: boolean
 }
 
 /**
@@ -296,6 +303,30 @@ export interface Lugar {
   nombre: string
   desactivadoEn: string | null
   creadoEn: string
+  sincronizado: boolean
+  /** Spec 021 (research.md R2) — proveedor activo que viene elegido al registrar aquí. */
+  proveedorPredeterminadoId: string | null
+}
+
+/**
+ * Spec 021 data-model.md — Proveedor del catálogo del tenant. Lo crea cualquier
+ * miembro (también desde el registro); lo editan, desactivan y eliminan solo
+ * administradores. `eliminadoEn` es una baja lógica (R7): la fila sigue para
+ * que la baja llegue a todos los dispositivos, pero no se muestra.
+ */
+export interface Proveedor {
+  id: string
+  tenantId: string
+  nombre: string
+  /** Solo dígitos, con código de país (R10). */
+  whatsapp: string | null
+  contacto: string | null
+  /** `null` en los creados por la migración sin autor conocido. */
+  creadoPor: string | null
+  creadoEn: string
+  desactivadoEn: string | null
+  eliminadoEn: string | null
+  /** Local: `false` = creado o cambiado aquí y aún sin subir. */
   sincronizado: boolean
 }
 
@@ -435,7 +466,6 @@ export const db = new Dexie('inDENToryDB') as Dexie & {
   categorias: EntityTable<Categoria, 'id'>
   borradores: EntityTable<Borrador, 'id'>
   itemsCompra: EntityTable<ItemCompra, 'id'>
-  configuracionClinica: EntityTable<ConfiguracionClinica, 'id'>
   preferenciasNotificaciones: EntityTable<PreferenciaNotificaciones, 'id'>
   usuariosConocidos: EntityTable<UsuarioConocido, 'id'>
   estadoSync: EntityTable<EstadoSync, 'id'>
@@ -446,6 +476,7 @@ export const db = new Dexie('inDENToryDB') as Dexie & {
   tratamientos: EntityTable<Tratamiento, 'id'>
   cambiosTratamiento: EntityTable<CambioTratamiento, 'id'>
   tratamientosRealizados: EntityTable<TratamientoRealizado, 'id'>
+  proveedores: EntityTable<Proveedor, 'id'>
 }
 
 db.version(1).stores({
@@ -562,7 +593,7 @@ db.version(9)
     await tx
       .table('configuracionClinica')
       .toCollection()
-      .modify((config: Partial<ConfiguracionClinica>) => {
+      .modify((config: Partial<ConfiguracionClinicaV10>) => {
         config.sincronizado ??= true
       })
   })
@@ -622,7 +653,7 @@ db.version(10)
         usuario.desactivadoEn ??= null
       })
     const clinica = (await tx.table('configuracionClinica').get('global')) as
-      | ConfiguracionClinica
+      | ConfiguracionClinicaV10
       | undefined
     await tx.table('lugares').put({
       id: LUGAR_1,
@@ -631,6 +662,7 @@ db.version(10)
       desactivadoEn: null,
       creadoEn: '2026-01-01T00:00:00.000Z',
       sincronizado: true,
+      proveedorPredeterminadoId: null,
     } satisfies Lugar)
   })
 
@@ -705,5 +737,32 @@ db.version(12)
         movimiento.tratamientoRealizadoId ??= null
       }),
   )
+
+// Version 13 (spec 021, data-model.md "Dexie v13"): catálogo de proveedores,
+// proveedor de cada lote (índice para saber si un proveedor tiene lotes, R7)
+// y predeterminado por lugar. Los lotes viejos reciben su `proveedorId` en el
+// primer pull; mientras tanto se muestra el texto (R11). Se borra
+// `configuracionClinica`, que nadie usa desde la spec 014 (R12).
+db.version(13)
+  .stores({
+    proveedores: 'id, tenantId, sincronizado',
+    lotes:
+      'id, insumoId, fechaCaducidad, codigoFabricante, estado, tenantId, lugarId, proveedorId',
+    configuracionClinica: null,
+  })
+  .upgrade(async (tx) => {
+    await tx
+      .table('lotes')
+      .toCollection()
+      .modify((lote: Partial<Lote>) => {
+        lote.proveedorId ??= null
+      })
+    await tx
+      .table('lugares')
+      .toCollection()
+      .modify((lugar: Partial<Lugar>) => {
+        lugar.proveedorPredeterminadoId ??= null
+      })
+  })
 
 export type { EntityTable }

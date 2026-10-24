@@ -19,6 +19,7 @@ function lote(overrides: Partial<Lote>): Lote {
     insumoId: 'art',
     numeroLote: 'A1',
     proveedor: 'Septodont',
+    proveedorId: null,
     fechaCaducidad: null,
     codigoFabricante: null,
     estado: 'activo',

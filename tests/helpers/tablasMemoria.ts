@@ -9,7 +9,6 @@ export const tablasMemoria = [
   'lotes',
   'movimientos',
   'configuracionAlertas',
-  'configuracionClinica',
   'cambiosInsumo',
   'categorias',
   'itemsCompra',
@@ -23,4 +22,5 @@ export const tablasMemoria = [
   'tratamientos',
   'cambiosTratamiento',
   'tratamientosRealizados',
+  'proveedores',
 ] as const

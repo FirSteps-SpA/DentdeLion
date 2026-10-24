@@ -246,6 +246,7 @@ describe('US2 — última sincronización exitosa', () => {
       insumoId: 'i1',
       numeroLote: 'A',
       proveedor: 'P',
+      proveedorId: null,
       fechaCaducidad: null,
       codigoFabricante: null,
       estado: 'activo',

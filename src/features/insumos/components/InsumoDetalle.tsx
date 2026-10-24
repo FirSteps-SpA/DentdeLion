@@ -15,6 +15,7 @@ import { formatearCLP, precioVigenteLote } from '../lib/precio'
 import { useCostosUnitarios } from '../lib/useCostosUnitarios'
 import { EditarPrecioDialog } from './EditarPrecioDialog'
 import { useTratamientosStore } from '../../../stores/tratamientosStore'
+import { mapaPorId, nombreDelLote } from '../../proveedores/lib/proveedores'
 
 export interface InsumoDetalleProps {
   insumo: Insumo
@@ -74,6 +75,9 @@ export function InsumoDetalle({
     .sort(compararCambios)
     .reverse()
   const cambiosLote = useInventoryStore((s) => s.cambiosLote)
+  // Spec 021 (FR-014, R11): nombre actual del proveedor de cada lote.
+  const proveedores = useInventoryStore((s) => s.proveedores)
+  const proveedoresPorId = mapaPorId(proveedores)
   function textoPrecio(lote: Lote): string {
     const precio = precioVigenteLote(lote, cambiosLote)
     if (precio === null) return 'Sin precio'
@@ -204,7 +208,10 @@ export function InsumoDetalle({
           <li key={lote.id} className="flex flex-col gap-1 py-2 text-sm">
             <span className="flex items-center justify-between gap-2">
               <span className="text-text">
-                Lote {lote.numeroLote} —{' '}
+                Lote {lote.numeroLote}
+                {nombreDelLote(lote, proveedoresPorId) &&
+                  ` · ${nombreDelLote(lote, proveedoresPorId)}`}{' '}
+                —{' '}
                 {lote.fechaCaducidad
                   ? `vence ${lote.fechaCaducidad}`
                   : 'No caduca'}

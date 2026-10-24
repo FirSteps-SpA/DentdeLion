@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { db } from '../../../lib/db'
+import { coincidencia } from '../../proveedores/lib/proveedores'
 import type { AltaMaterialInput } from './alta'
 
 const DEBOUNCE_MS = 400
@@ -15,8 +16,25 @@ export const ALTA_VACIA: AltaMaterialInput = {
   stockMinimo: null,
   caduca: true,
   stockInicial: 0,
-  lote: { numeroLote: '', proveedor: '', fechaCaducidad: '' },
+  lote: { numeroLote: '', proveedorId: null, fechaCaducidad: '' },
   confirmarCaducado: false,
+}
+
+/**
+ * Spec 021 — un borrador guardado antes de la 2.5.0 tiene el proveedor como
+ * texto: se resuelve por nombre contra el catálogo (activo → su id); si no
+ * coincide con ninguno, queda sin elegir y el formulario usa el predeterminado.
+ */
+async function migrarBorrador(datos: Partial<AltaMaterialInput>): Promise<Partial<AltaMaterialInput>> {
+  const lote = datos.lote as (AltaMaterialInput['lote'] & { proveedor?: string }) | undefined
+  if (!lote || lote.proveedorId !== undefined) return datos
+  const resultado = coincidencia(await db.proveedores.toArray(), lote.proveedor ?? '')
+  const { proveedor: _texto, ...resto } = lote
+  void _texto
+  return {
+    ...datos,
+    lote: { ...resto, proveedorId: resultado.tipo === 'activo' ? resultado.proveedor.id : null },
+  }
 }
 
 function mismoEstado(a: AltaMaterialInput, b: AltaMaterialInput): boolean {
@@ -63,10 +81,11 @@ export function useBorradorAlta(inicial: Partial<AltaMaterialInput>) {
 
   useEffect(() => {
     let cancelado = false
-    void db.borradores.get('alta-material').then((fila) => {
+    void db.borradores.get('alta-material').then(async (fila) => {
+      const datosGuardados = fila ? await migrarBorrador(fila.datos) : null
       if (cancelado) return
-      if (fila) {
-        setDatosState({ ...ALTA_VACIA, ...fila.datos })
+      if (datosGuardados) {
+        setDatosState({ ...ALTA_VACIA, ...datosGuardados })
         setRestaurado(true)
         escritoRef.current = true
       }

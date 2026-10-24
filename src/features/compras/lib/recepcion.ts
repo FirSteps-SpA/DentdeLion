@@ -8,6 +8,10 @@ import {
   type CantidadIngreso,
 } from '../../insumos/lib/ingreso'
 import {
+  MENSAJE_FALTA_PROVEEDOR,
+  proveedorParaLote,
+} from '../../proveedores/lib/proveedores'
+import {
   precioPorUnidadCompra,
   validarPrecio,
   type PrecioIngreso,
@@ -24,7 +28,8 @@ export interface RecepcionInput {
   /** Spec 015 (FR-013/FR-014) — opcional: por unidad de compra o total pagado. */
   precio?: PrecioIngreso
   numeroLote: string
-  proveedor: string
+  /** Spec 021 — proveedor del catálogo, elegido con `SelectorProveedor`. */
+  proveedorId: string | null
   /** Ignorada si `insumo.caduca === false`. */
   fechaCaducidad: string
   confirmarCaducado: boolean
@@ -67,8 +72,8 @@ export function validarRecepcion(
   if (!input.numeroLote.trim()) {
     errores.numeroLote = 'Ingresa el número de lote.'
   }
-  if (!input.proveedor.trim()) {
-    errores.proveedor = 'Ingresa el proveedor.'
+  if (!input.proveedorId) {
+    errores.proveedor = MENSAJE_FALTA_PROVEEDOR
   }
 
   let loteCaducado = false
@@ -131,14 +136,17 @@ export async function recibirEnInsumo(
     db.lotes,
     db.movimientos,
     db.itemsCompra,
+    db.proveedores,
     async () => {
+      const proveedor = await proveedorParaLote(input.proveedorId)
       const lote: Lote = {
         id: crypto.randomUUID(),
         tenantId,
         lugarId,
         insumoId: insumo.id,
         numeroLote: input.numeroLote.trim(),
-        proveedor: input.proveedor.trim(),
+        proveedor: proveedor.nombre,
+        proveedorId: proveedor.id,
         fechaCaducidad: insumo.caduca ? input.fechaCaducidad : null,
         codigoFabricante: insumo.codigoFabricante,
         estado: 'activo',

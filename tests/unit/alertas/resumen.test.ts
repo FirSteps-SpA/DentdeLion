@@ -37,6 +37,7 @@ function lote(overrides: Partial<Lote>): Lote {
     insumoId: 'i1',
     numeroLote: 'L1',
     proveedor: 'P',
+    proveedorId: null,
     fechaCaducidad: '2020-01-01',
     codigoFabricante: null,
     estado: 'activo',

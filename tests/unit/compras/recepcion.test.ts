@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Insumo, ItemCompra, Lote, Movimiento, UsuarioActual } from '../../../src/lib/db'
+import type { Insumo, ItemCompra, Lote, Movimiento, Proveedor, UsuarioActual } from '../../../src/lib/db'
 import type { MemoryTable } from '../../helpers/memoryDb'
 
 vi.mock('../../../src/lib/db', async () => {
@@ -20,7 +20,7 @@ vi.mock('../../../src/lib/db', async () => {
       cambiosTratamiento: new MemoryTable(),
       tratamientosRealizados: new MemoryTable(),
       configuracionAlertas: new MemoryTable(),
-      configuracionClinica: new MemoryTable(),
+      proveedores: new MemoryTable(),
       itemsCompra: new MemoryTable(),
       usuarioActual: new MemoryTable(),
     }),
@@ -45,6 +45,7 @@ import { usarLugar1 } from '../../helpers/lugarFalso'
 const lotesT = db.lotes as unknown as MemoryTable<Lote>
 const movimientosT = db.movimientos as unknown as MemoryTable<Movimiento>
 const itemsCompraT = db.itemsCompra as unknown as MemoryTable<ItemCompra>
+const proveedoresT = db.proveedores as unknown as MemoryTable<Proveedor>
 
 function insumo(overrides: Partial<Insumo>): Insumo {
   return {
@@ -89,7 +90,7 @@ function inputBase(overrides: Partial<RecepcionInput> = {}): RecepcionInput {
   return {
     cantidad: 10,
     numeroLote: 'A123',
-    proveedor: 'Proveedor X',
+    proveedorId: 'proveedor-x',
     fechaCaducidad: '2027-01-01',
     confirmarCaducado: false,
     ...overrides,
@@ -110,6 +111,21 @@ beforeEach(() => {
   lotesT.seed([])
   movimientosT.seed([])
   itemsCompraT.seed([])
+  // Spec 021: el lote se registra con un proveedor del catálogo.
+  proveedoresT.seed([
+    {
+      id: 'proveedor-x',
+      tenantId: TENANT_1,
+      nombre: 'Proveedor X',
+      whatsapp: null,
+      contacto: null,
+      creadoPor: 'user-1',
+      creadoEn: '2026-01-01T00:00:00.000Z',
+      desactivadoEn: null,
+      eliminadoEn: null,
+      sincronizado: true,
+    },
+  ])
   useAuthStore.setState({ usuario, isReady: true })
 })
 
@@ -127,7 +143,7 @@ describe('validarRecepcion', () => {
 
   it('requires numeroLote and proveedor', () => {
     const v = validarRecepcion(
-      inputBase({ numeroLote: '  ', proveedor: '  ' }),
+      inputBase({ numeroLote: '  ', proveedorId: null }),
       insumo({}),
       hoy,
     )
@@ -178,6 +194,7 @@ describe('recibirEnInsumo', () => {
 
     expect(lotesT.all()).toHaveLength(1)
     expect(lotesT.all()[0].id).toBe(lote.id)
+    expect(lotesT.all()[0]).toMatchObject({ proveedorId: 'proveedor-x', proveedor: 'Proveedor X' })
     const movimientos = movimientosT.all()
     expect(movimientos).toHaveLength(1)
     expect(movimientos[0]).toMatchObject({

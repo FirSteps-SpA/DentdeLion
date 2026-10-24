@@ -68,7 +68,7 @@ describe('Dexie v10 (spec 014 FR-016/FR-018)', () => {
     const { db } = await import('../../src/lib/db')
     await db.open()
 
-    expect(db.verno).toBe(12) // la v10 corre dentro de la cadena hasta la última versión
+    expect(db.verno).toBe(13) // la v10 corre dentro de la cadena hasta la última versión
     const [movimientoSubido, consumoPendiente] = await db.movimientos.bulkGet(['m1', 'm2'])
     expect(movimientoSubido).toMatchObject({
       tenantId: TENANT_1,
@@ -106,6 +106,7 @@ describe('Dexie v10 (spec 014 FR-016/FR-018)', () => {
       desactivadoEn: null,
       creadoEn: '2026-01-01T00:00:00.000Z',
       sincronizado: true,
+      proveedorPredeterminadoId: null,
     })
     // Los índices nuevos responden.
     expect(await db.movimientos.where('lugarId').equals(LUGAR_1).count()).toBe(2)

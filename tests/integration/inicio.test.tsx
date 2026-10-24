@@ -76,6 +76,7 @@ const lote = (id: string, insumoId: string, fecha: string | null): Lote => ({
   insumoId,
   numeroLote: id.toUpperCase(),
   proveedor: 'P',
+  proveedorId: null,
   fechaCaducidad: fecha,
   codigoFabricante: null,
   estado: 'activo',

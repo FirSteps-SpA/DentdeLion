@@ -91,13 +91,6 @@ async function crearUsuario(alias, rol, tenant_id = TENANT_1) {
   return { id: r.data.id, email, token: t.data.access_token }
 }
 
-// Fila singleton de configuración (la base local no tiene seed).
-await http('POST', '/rest/v1/configuracion_clinica?on_conflict=id', {
-  key: SVC,
-  body: { id: 'global', nombre: 'Clínica de prueba', tenant_id: TENANT_1 },
-  prefer: 'resolution=merge-duplicates',
-})
-
 const adm = await crearUsuario('admin', 'administrador')
 const per = await crearUsuario('personal', 'personal')
 const insumo = randomUUID()
@@ -250,17 +243,6 @@ check(
   `${r.data.length} filas`,
 )
 
-await http('PATCH', '/rest/v1/configuracion_clinica?id=eq.global', {
-  token: per.token,
-  body: { nombre: 'x' },
-})
-const [config] = await leer('configuracion_clinica?select=nombre&id=eq.global')
-check(
-  'personal no modifica la configuración de la clínica',
-  config.nombre !== 'x',
-  config.nombre,
-)
-
 // Spec 012 FR-011: umbral de pendientes antiguos en configuracion_alertas.
 // Sin `on_conflict`, como el cliente: PostgREST usa la PK (tenant_id desde la
 // spec 014), que completa el default tenant_actual().
@@ -368,6 +350,7 @@ for (const tabla of [
   'lugares',
   'configuracion_alertas',
   'minimos_lugar',
+  'proveedores',
 ]) {
   r = await http('GET', `/rest/v1/${tabla}?select=tenant_id`, { token: perB.token })
   const ajenas = Array.isArray(r.data) ? r.data.filter((f) => f.tenant_id !== TENANT_B) : null
@@ -1044,6 +1027,296 @@ r = await http('PATCH', `/rest/v1/tratamientos_realizados?id=eq.${otroRegistro.i
   body: { anulado_en: new Date().toISOString(), anulado_por: adm.id },
 })
 check('nadie anula a nombre de otra persona', r.status >= 400, `HTTP ${r.status}`)
+
+// ---------------------------------------------------------------------------
+// Spec 021 — proveedores (contracts/supabase-schema.md §7)
+// ---------------------------------------------------------------------------
+
+const prov = (creado_por, nombre, extra = {}) => ({
+  id: randomUUID(),
+  nombre,
+  creado_por,
+  creado_en: new Date().toISOString(),
+  ...extra,
+})
+const claveDe = async (texto) =>
+  (await http('POST', '/rest/v1/rpc/clave_nombre', { key: SVC, body: { texto } })).data
+
+const paridad = [
+  [' Dental  Sur ', 'dental sur'],
+  ['DENTAL SÚR', 'dental sur'],
+  ['Peña', 'pena'],
+  ['Ñandú Dental', 'nandu dental'],
+  ['Crème Brûlée', 'creme brulee'],
+]
+for (const [texto, esperada] of paridad) {
+  const clave = await claveDe(texto)
+  check(`clave_nombre(${JSON.stringify(texto)}) = ${esperada}`, clave === esperada, clave)
+}
+
+const nombreSur = `Dental Sur ${run}`
+const provPer = prov(per.id, nombreSur)
+r = await http('POST', '/rest/v1/proveedores', { token: per.token, body: provPer })
+check('personal crea un proveedor en su tenant', r.status === 201, `HTTP ${r.status}`)
+const [filaProvPer] = await leer(`proveedores?id=eq.${provPer.id}&select=tenant_id,clave`)
+check(
+  'el proveedor cae en el tenant de quien lo crea, con su clave',
+  filaProvPer?.tenant_id === TENANT_1 && filaProvPer?.clave === `dental sur ${run}`,
+  JSON.stringify(filaProvPer),
+)
+
+r = await http('POST', '/rest/v1/proveedores', {
+  token: per.token,
+  body: prov(adm.id, `Otro ${run}`),
+})
+check('nadie crea un proveedor a nombre de otra persona', r.status >= 400, `HTTP ${r.status}`)
+
+r = await http('POST', '/rest/v1/proveedores', {
+  token: adm.token,
+  body: prov(adm.id, ` dental   súr ${run.toUpperCase()} `),
+})
+check(
+  'un nombre con la misma clave (mayúsculas, tildes, espacios) se rechaza',
+  r.status === 409 && r.data?.code === '23505',
+  `HTTP ${r.status} ${r.data?.code}`,
+)
+
+await http('PATCH', `/rest/v1/proveedores?id=eq.${provPer.id}`, {
+  token: per.token,
+  body: { nombre: 'Cambiado por personal', desactivado_en: new Date().toISOString() },
+})
+let [provLeido] = await leer(`proveedores?id=eq.${provPer.id}&select=nombre,desactivado_en`)
+check(
+  'personal no renombra ni desactiva proveedores',
+  provLeido?.nombre === nombreSur && provLeido?.desactivado_en === null,
+  JSON.stringify(provLeido),
+)
+
+r = await http('PATCH', `/rest/v1/proveedores?id=eq.${provPer.id}`, {
+  token: adm.token,
+  body: { whatsapp: '56912345678', contacto: 'Paula', creado_por: adm.id },
+})
+;[provLeido] = await leer(`proveedores?id=eq.${provPer.id}&select=whatsapp,contacto,creado_por`)
+check(
+  'administración edita contacto y WhatsApp; creado_por no cambia',
+  provLeido?.whatsapp === '56912345678' &&
+    provLeido?.contacto === 'Paula' &&
+    provLeido?.creado_por === per.id,
+  JSON.stringify(provLeido),
+)
+
+r = await http('PATCH', `/rest/v1/proveedores?id=eq.${provPer.id}`, {
+  token: adm.token,
+  body: { whatsapp: '+56 9 1234' },
+})
+check('un WhatsApp con símbolos o corto se rechaza', r.status >= 400, `HTTP ${r.status}`)
+
+// Predeterminado por lugar
+r = await http('PATCH', `/rest/v1/lugares?id=eq.${LUGAR_1}`, {
+  token: adm.token,
+  body: { proveedor_predeterminado_id: provPer.id },
+})
+let [lugarLeido] = await leer(`lugares?id=eq.${LUGAR_1}&select=proveedor_predeterminado_id`)
+check(
+  'administración fija el predeterminado de un lugar',
+  lugarLeido?.proveedor_predeterminado_id === provPer.id,
+  JSON.stringify(lugarLeido),
+)
+
+// Aislamiento entre tenants
+r = await http('GET', `/rest/v1/proveedores?select=id,whatsapp,contacto&id=eq.${provPer.id}`, {
+  token: admB.token,
+})
+check(
+  'B no lee proveedores de A (ni su WhatsApp ni su contacto)',
+  Array.isArray(r.data) && r.data.length === 0,
+  `HTTP ${r.status}`,
+)
+r = await http('POST', '/rest/v1/proveedores', {
+  token: admB.token,
+  body: { ...prov(admB.id, `Intruso ${run}`), tenant_id: TENANT_1 },
+})
+check('B no crea un proveedor en el tenant de A', r.status >= 400, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/proveedores', {
+  token: admB.token,
+  body: prov(admB.id, nombreSur),
+})
+check('el mismo nombre en otro tenant se acepta', r.status === 201, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/lotes', {
+  token: perB.token,
+  body: {
+    id: randomUUID(),
+    insumo_id: insumoB,
+    numero_lote: 'LB-P',
+    proveedor: nombreSur,
+    proveedor_id: provPer.id,
+  },
+})
+check('B no usa un proveedor de A en un lote propio', r.status >= 400, `HTTP ${r.status}`)
+r = await http('PATCH', `/rest/v1/lugares?id=eq.${LUGAR_B1}`, {
+  token: admB.token,
+  body: { proveedor_predeterminado_id: provPer.id },
+})
+check('B no pone un proveedor de A como predeterminado', r.status >= 400, `HTTP ${r.status}`)
+
+// Lote con proveedor_id (cliente nuevo) y su protección en los upserts
+const lote021 = randomUUID()
+r = await http('POST', '/rest/v1/lotes', {
+  token: per.token,
+  body: {
+    id: lote021,
+    insumo_id: insumo,
+    numero_lote: 'L021',
+    proveedor: nombreSur,
+    proveedor_id: provPer.id,
+  },
+})
+check('personal crea un lote con proveedor_id', r.status === 201, `HTTP ${r.status}`)
+const provOtro = prov(adm.id, `Casa Norte ${run}`)
+await http('POST', '/rest/v1/proveedores', { token: adm.token, body: provOtro })
+for (const [caso, body] of [
+  ['proveedor_id: null', { proveedor_id: null, proveedor: 'Texto viejo' }],
+  ['otro proveedor', { proveedor_id: provOtro.id, proveedor: provOtro.nombre }],
+]) {
+  await http('POST', '/rest/v1/lotes', {
+    token: per.token,
+    body: { id: lote021, insumo_id: insumo, numero_lote: 'L021', ...body },
+    prefer: 'resolution=merge-duplicates,return=representation',
+  })
+  const [loteLeido] = await leer(`lotes?id=eq.${lote021}&select=proveedor_id,proveedor`)
+  check(
+    `un upsert del lote con ${caso} no cambia su proveedor`,
+    loteLeido?.proveedor_id === provPer.id && loteLeido?.proveedor === nombreSur,
+    JSON.stringify(loteLeido),
+  )
+}
+
+// Eliminar (baja lógica) y desactivar
+r = await http('PATCH', `/rest/v1/proveedores?id=eq.${provPer.id}`, {
+  token: adm.token,
+  body: { eliminado_en: new Date().toISOString() },
+})
+;[provLeido] = await leer(`proveedores?id=eq.${provPer.id}&select=eliminado_en`)
+check(
+  'no se elimina un proveedor con lotes',
+  r.status >= 400 && provLeido?.eliminado_en === null && /proveedor_con_lotes/.test(JSON.stringify(r.data)),
+  `HTTP ${r.status}`,
+)
+
+const provSinLotes = prov(adm.id, `Sin lotes ${run}`)
+await http('POST', '/rest/v1/proveedores', { token: adm.token, body: provSinLotes })
+r = await http('PATCH', `/rest/v1/proveedores?id=eq.${provSinLotes.id}`, {
+  token: adm.token,
+  body: { eliminado_en: new Date().toISOString() },
+})
+check('administración elimina un proveedor sin lotes', r.status === 200, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/proveedores', {
+  token: adm.token,
+  body: prov(adm.id, `Sin lotes ${run}`),
+})
+check('el nombre de un eliminado queda libre', r.status === 201, `HTTP ${r.status}`)
+
+r = await http('PATCH', `/rest/v1/proveedores?id=eq.${provPer.id}`, {
+  token: adm.token,
+  body: { desactivado_en: new Date().toISOString() },
+})
+;[lugarLeido] = await leer(`lugares?id=eq.${LUGAR_1}&select=proveedor_predeterminado_id`)
+check(
+  'desactivar el predeterminado lo quita del lugar',
+  r.status === 200 && lugarLeido?.proveedor_predeterminado_id === null,
+  JSON.stringify(lugarLeido),
+)
+await http('PATCH', `/rest/v1/lugares?id=eq.${LUGAR_1}`, {
+  token: adm.token,
+  body: { proveedor_predeterminado_id: provPer.id },
+})
+;[lugarLeido] = await leer(`lugares?id=eq.${LUGAR_1}&select=proveedor_predeterminado_id`)
+check(
+  'un desactivado no se puede poner como predeterminado',
+  lugarLeido?.proveedor_predeterminado_id === null,
+  JSON.stringify(lugarLeido),
+)
+
+// Clientes 2.4.0: el lote llega solo con el texto (US5)
+const lote24 = (proveedor) => ({
+  id: randomUUID(),
+  insumo_id: insumo,
+  numero_lote: `L24-${randomUUID().slice(0, 4)}`,
+  proveedor,
+})
+const proveedorDe = async (loteId) =>
+  (await leer(`lotes?id=eq.${loteId}&select=proveedor_id,proveedor`))[0]
+
+let fila24 = lote24(`CASA   NORTE ${run.toUpperCase()}`)
+r = await http('POST', '/rest/v1/lotes', { token: per.token, body: fila24 })
+let leido24 = await proveedorDe(fila24.id)
+check(
+  '2.4.0: un texto conocido con otras mayúsculas usa el proveedor existente',
+  r.status === 201 && leido24?.proveedor_id === provOtro.id,
+  JSON.stringify(leido24),
+)
+
+const nombreNuevo = `Proveedor Nuevo ${run}`
+fila24 = lote24(`  ${nombreNuevo} `)
+r = await http('POST', '/rest/v1/lotes', { token: per.token, body: fila24 })
+leido24 = await proveedorDe(fila24.id)
+const [creado24] = await leer(
+  `proveedores?id=eq.${leido24?.proveedor_id}&select=nombre,creado_por,tenant_id`,
+)
+check(
+  '2.4.0: un texto nuevo crea el proveedor, a nombre de quien registra',
+  r.status === 201 &&
+    creado24?.nombre === nombreNuevo &&
+    creado24?.creado_por === per.id &&
+    creado24?.tenant_id === TENANT_1,
+  JSON.stringify(creado24),
+)
+
+fila24 = lote24(nombreSur)
+r = await http('POST', '/rest/v1/lotes', { token: per.token, body: fila24 })
+leido24 = await proveedorDe(fila24.id)
+;[provLeido] = await leer(`proveedores?id=eq.${provPer.id}&select=desactivado_en`)
+check(
+  '2.4.0: el nombre de un desactivado lo usa sin reactivarlo',
+  leido24?.proveedor_id === provPer.id && provLeido?.desactivado_en !== null,
+  JSON.stringify(leido24),
+)
+
+const nombreSimultaneo = `Simultáneo ${run}`
+const simultaneos = [lote24(nombreSimultaneo), lote24(nombreSimultaneo.toLowerCase())]
+await Promise.all(
+  simultaneos.map((body) => http('POST', '/rest/v1/lotes', { token: per.token, body })),
+)
+const idsSimultaneos = new Set(
+  (await Promise.all(simultaneos.map((f) => proveedorDe(f.id)))).map((f) => f?.proveedor_id),
+)
+const conClave = await leer(
+  `proveedores?tenant_id=eq.${TENANT_1}&clave=eq.${encodeURIComponent(`simultaneo ${run}`)}&eliminado_en=is.null&select=id`,
+)
+check(
+  '2.4.0: dos lotes a la vez con el mismo texto nuevo dejan un solo proveedor',
+  idsSimultaneos.size === 1 && !idsSimultaneos.has(undefined) && conClave.length === 1,
+  `${idsSimultaneos.size} ids, ${conClave.length} proveedores`,
+)
+
+fila24 = lote24(nombreNuevo)
+await http('POST', '/rest/v1/lotes', { token: per.token, body: fila24 })
+await http('PATCH', `/rest/v1/proveedores?id=eq.${leido24?.proveedor_id ?? provPer.id}`, {
+  token: adm.token,
+  body: { nombre: `Renombrado ${run}` },
+})
+const antesReenvio = (await leer(`proveedores?tenant_id=eq.${TENANT_1}&select=id`)).length
+await http('POST', '/rest/v1/lotes', {
+  token: per.token,
+  body: { ...lote24(nombreSur), id: fila24.id, proveedor: `Texto viejo ${run}` },
+  prefer: 'resolution=merge-duplicates,return=minimal',
+})
+const despuesReenvio = (await leer(`proveedores?tenant_id=eq.${TENANT_1}&select=id`)).length
+check(
+  '2.4.0: reenviar un lote existente con otro texto no crea proveedores',
+  antesReenvio === despuesReenvio,
+  `${antesReenvio} → ${despuesReenvio}`,
+)
 
 r = await http('GET', '/rest/v1/insumos?select=id')
 check(

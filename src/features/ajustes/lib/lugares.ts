@@ -53,6 +53,7 @@ export async function crearLugar(nombre: string): Promise<Lugar> {
     desactivadoEn: null,
     creadoEn: new Date().toISOString(),
     sincronizado: false,
+    proveedorPredeterminadoId: null,
   }
   await db.lugares.add(lugar)
   return lugar

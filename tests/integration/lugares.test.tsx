@@ -46,6 +46,7 @@ const lote = (id: string, lugarId: string): Lote => ({
   insumoId: insumo.id,
   numeroLote: id,
   proveedor: 'P',
+  proveedorId: null,
   fechaCaducidad: null,
   codigoFabricante: null,
   estado: 'activo',

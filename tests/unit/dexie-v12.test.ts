@@ -54,7 +54,7 @@ describe('Dexie v12 (spec 016)', () => {
     const { db } = await import('../../src/lib/db')
     await db.open()
 
-    expect(db.verno).toBe(12)
+    expect(db.verno).toBe(13) // la v12 corre dentro de la cadena hasta la última versión
     expect(await db.movimientos.get('m1')).toMatchObject({
       tratamientoRealizadoId: null,
       unidad: 'cartucho',

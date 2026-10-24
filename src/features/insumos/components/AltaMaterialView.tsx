@@ -26,6 +26,8 @@ import { PresentacionFields } from './PresentacionFields'
 import { CantidadIngresoField } from './CantidadIngresoField'
 import { PrecioIngresoField } from './PrecioIngresoField'
 import { convertirIngreso } from '../lib/ingreso'
+import { SelectorProveedor } from '../../proveedores/components/SelectorProveedor'
+import { usePredeterminado } from '../../proveedores/lib/usePredeterminado'
 
 export interface AltaMaterialViewProps {
   nombreInicial?: string
@@ -124,6 +126,9 @@ export function AltaMaterialView({
   const vidaUtil = datos.caduca ? mesesRestantes(datos.lote.fechaCaducidad) : null
   const sugerencias = sugerirMateriales(insumos, datos.nombre)
   const esAdmin = usuario?.rol === 'administrador'
+  // Spec 021 (FR-006): sin elección a mano, el predeterminado del lugar.
+  const proveedorPredeterminado = usePredeterminado(lugarId)
+  const proveedorEfectivo = datos.lote.proveedorId ?? proveedorPredeterminado
 
   if (isLoading) return null
 
@@ -175,7 +180,11 @@ export function AltaMaterialView({
     document.getElementById(ID_POR_CAMPO[campo])?.focus()
   }
 
-  async function intentarGuardar(datosParaGuardar: AltaMaterialInput) {
+  async function intentarGuardar(datosSinProveedor: AltaMaterialInput) {
+    const datosParaGuardar: AltaMaterialInput = {
+      ...datosSinProveedor,
+      lote: { ...datosSinProveedor.lote, proveedorId: proveedorEfectivo },
+    }
     const hoy = new Date().toISOString().slice(0, 10)
     const validacion = validarAltaMaterial(datosParaGuardar, insumos, catalogo, hoy)
     if (!validacion.valido) {
@@ -479,17 +488,14 @@ export function AltaMaterialView({
                   icon={<Truck size={18} />}
                   htmlFor="alta-lote-proveedor"
                 >
-                  <input
+                  <SelectorProveedor
                     id="alta-lote-proveedor"
-                    type="text"
-                    value={datos.lote.proveedor}
-                    onChange={(event) =>
-                      setDatos({
-                        lote: { ...datos.lote, proveedor: event.target.value },
-                      })
+                    valor={proveedorEfectivo}
+                    onCambio={(proveedorId) =>
+                      setDatos({ lote: { ...datos.lote, proveedorId } })
                     }
-                    className={INPUT_CLASS}
-                    {...errorProps('proveedor')}
+                    invalido={!!errores.proveedor}
+                    describedBy={errores.proveedor ? 'error-proveedor' : undefined}
                   />
                 </IconField>
                 <ErrorCampo id="error-proveedor" mensaje={errores.proveedor} />

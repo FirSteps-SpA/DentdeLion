@@ -15,6 +15,7 @@ import type {
   Lote,
   Movimiento,
   UsuarioActual,
+  Proveedor,
 } from '../../src/lib/db'
 import type { MemoryTable } from '../helpers/memoryDb'
 
@@ -22,6 +23,7 @@ vi.mock('../../src/lib/db', async () => {
   const { createMemoryDb, MemoryTable } = await import('../helpers/memoryDb')
   return {
     db: createMemoryDb({
+      proveedores: new MemoryTable(),
       lugares: new MemoryTable(),
       minimosLugar: new MemoryTable(),
       lugarActivo: new MemoryTable(),
@@ -62,11 +64,13 @@ import { SearchPicker } from '../../src/features/insumos/components/SearchPicker
 import { AvisosConsumo } from '../../src/app/AvisosConsumo'
 import { TENANT_1 } from '../helpers/tenancy'
 import { usarLugar1 } from '../helpers/lugarFalso'
+import { usarProveedorPredeterminado } from '../helpers/proveedor'
 import { esperarQueLaRuedaNoCambie } from '../helpers/rueda'
 
 const insumosT = db.insumos as unknown as MemoryTable<Insumo>
 const categoriasT = db.categorias as unknown as MemoryTable<Categoria>
 const lotesT = db.lotes as unknown as MemoryTable<Lote>
+const proveedoresT = db.proveedores as unknown as MemoryTable<Proveedor>
 const movimientosT = db.movimientos as unknown as MemoryTable<Movimiento>
 const borradoresT = db.borradores as unknown as MemoryTable<Borrador>
 
@@ -175,6 +179,10 @@ afterEach(() => {
 
 // Spec 014: un tenant de un solo lugar, como la clínica original.
 beforeEach(usarLugar1)
+// Spec 021: el lugar 1 tiene un proveedor predeterminado, que viene elegido.
+beforeEach(() => {
+  usarProveedorPredeterminado(proveedoresT)
+})
 
 describe('AltaMaterialView — US1 (alta sin stock)', () => {
   it('"+ Material" focuses the name input and never requests the camera (FR-003/FR-020)', async () => {
@@ -418,9 +426,6 @@ describe('AltaMaterialView — US2 (stock inicial + primer lote)', () => {
     fireEvent.change(screen.getByLabelText('Número de lote'), {
       target: { value: 'A123' },
     })
-    fireEvent.change(screen.getByLabelText('Proveedor'), {
-      target: { value: 'Proveedor X' },
-    })
     fireEvent.change(screen.getByLabelText('Fecha de vencimiento'), {
       target: { value: '2027-01-01' },
     })
@@ -455,7 +460,6 @@ describe('AltaMaterialView — US2 (stock inicial + primer lote)', () => {
     expect(screen.getByText('2 cajas = 100 cartuchos')).toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText('Número de lote'), { target: { value: 'A1' } })
-    fireEvent.change(screen.getByLabelText('Proveedor'), { target: { value: 'Septodont' } })
     fireEvent.change(screen.getByLabelText('Fecha de vencimiento'), {
       target: { value: '2027-01-01' },
     })
@@ -479,9 +483,6 @@ describe('AltaMaterialView — US2 (stock inicial + primer lote)', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Sumar uno' })[1])
     fireEvent.change(screen.getByLabelText('Número de lote'), {
       target: { value: 'V1' },
-    })
-    fireEvent.change(screen.getByLabelText('Proveedor'), {
-      target: { value: 'Prov' },
     })
     fireEvent.change(screen.getByLabelText('Fecha de vencimiento'), {
       target: { value: '2020-01-01' },
@@ -513,9 +514,6 @@ describe('AltaMaterialView — US2 (stock inicial + primer lote)', () => {
     fireEvent.change(screen.getByLabelText('Número de lote'), {
       target: { value: 'H1' },
     })
-    fireEvent.change(screen.getByLabelText('Proveedor'), {
-      target: { value: 'Prov' },
-    })
     fireEvent.change(screen.getByLabelText('Fecha de vencimiento'), {
       target: { value: hoy },
     })
@@ -543,9 +541,6 @@ describe('AltaMaterialView — US2 (stock inicial + primer lote)', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Sumar uno' })[1])
     fireEvent.change(screen.getByLabelText('Número de lote'), {
       target: { value: 'L-1' },
-    })
-    fireEvent.change(screen.getByLabelText('Proveedor'), {
-      target: { value: 'Prov' },
     })
     fireEvent.change(screen.getByLabelText('Fecha de vencimiento'), {
       target: { value: '2027-01-01' },

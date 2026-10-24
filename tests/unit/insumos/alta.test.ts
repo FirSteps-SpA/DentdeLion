@@ -4,6 +4,7 @@ import type {
   Insumo,
   Lote,
   Movimiento,
+  Proveedor,
   UsuarioActual,
 } from '../../../src/lib/db'
 import type { MemoryTable } from '../../helpers/memoryDb'
@@ -26,7 +27,7 @@ vi.mock('../../../src/lib/db', async () => {
       cambiosTratamiento: new MemoryTable(),
       tratamientosRealizados: new MemoryTable(),
       configuracionAlertas: new MemoryTable(),
-      configuracionClinica: new MemoryTable(),
+      proveedores: new MemoryTable(),
       itemsCompra: new MemoryTable(),
       usuarioActual: new MemoryTable(),
     }),
@@ -55,6 +56,7 @@ const insumosT = db.insumos as unknown as MemoryTable<Insumo>
 const categoriasT = db.categorias as unknown as MemoryTable<Categoria>
 const lotesT = db.lotes as unknown as MemoryTable<Lote>
 const movimientosT = db.movimientos as unknown as MemoryTable<Movimiento>
+const proveedoresT = db.proveedores as unknown as MemoryTable<Proveedor>
 const borradoresT = db.borradores as unknown as MemoryTable<{
   id: string
   datos: unknown
@@ -95,6 +97,20 @@ const personal: UsuarioActual = { ...admin, id: 'personal-1', rol: 'personal' }
 
 const HOY = '2026-09-23'
 
+// Spec 021: el lote se registra con un proveedor del catálogo.
+const PROVEEDOR_X: Proveedor = {
+  id: 'proveedor-x',
+  tenantId: TENANT_1,
+  nombre: 'Proveedor X',
+  whatsapp: null,
+  contacto: null,
+  creadoPor: 'admin-1',
+  creadoEn: '2026-01-01T00:00:00.000Z',
+  desactivadoEn: null,
+  eliminadoEn: null,
+  sincronizado: true,
+}
+
 function inputBase(overrides: Partial<AltaMaterialInput> = {}): AltaMaterialInput {
   return {
     nombre: 'Fresa Diamante 856',
@@ -105,7 +121,7 @@ function inputBase(overrides: Partial<AltaMaterialInput> = {}): AltaMaterialInpu
     stockMinimo: null,
     caduca: true,
     stockInicial: 0,
-    lote: { numeroLote: '', proveedor: '', fechaCaducidad: '' },
+    lote: { numeroLote: '', proveedorId: null, fechaCaducidad: '' },
     confirmarCaducado: false,
     ...overrides,
   }
@@ -117,6 +133,7 @@ beforeEach(() => {
   lotesT.seed([])
   movimientosT.seed([])
   borradoresT.seed([])
+  proveedoresT.seed([PROVEEDOR_X])
   useAuthStore.setState({ usuario: admin, isReady: true })
 })
 
@@ -234,7 +251,7 @@ describe('validarAltaMaterial — US2 (FR-013..FR-018)', () => {
       inputBase({
         stockInicial: 5,
         caduca: false,
-        lote: { numeroLote: 'L1', proveedor: 'P', fechaCaducidad: '2020-01-01' },
+        lote: { numeroLote: 'L1', proveedorId: PROVEEDOR_X.id, fechaCaducidad: '2020-01-01' },
       }),
       [],
       catalogoVacio,
@@ -248,7 +265,7 @@ describe('validarAltaMaterial — US2 (FR-013..FR-018)', () => {
     const ayer = validarAltaMaterial(
       inputBase({
         stockInicial: 5,
-        lote: { numeroLote: 'L1', proveedor: 'P', fechaCaducidad: '2026-09-22' },
+        lote: { numeroLote: 'L1', proveedorId: PROVEEDOR_X.id, fechaCaducidad: '2026-09-22' },
       }),
       [],
       catalogoVacio,
@@ -257,7 +274,7 @@ describe('validarAltaMaterial — US2 (FR-013..FR-018)', () => {
     const hoyMismo = validarAltaMaterial(
       inputBase({
         stockInicial: 5,
-        lote: { numeroLote: 'L1', proveedor: 'P', fechaCaducidad: HOY },
+        lote: { numeroLote: 'L1', proveedorId: PROVEEDOR_X.id, fechaCaducidad: HOY },
       }),
       [],
       catalogoVacio,
@@ -307,10 +324,34 @@ describe('darDeAltaMaterial — US1 (FR-006, atomicidad)', () => {
 })
 
 describe('darDeAltaMaterial — US2 (FR-013..FR-021, SC-003)', () => {
+  it('spec 021: rechaza un proveedor eliminado o inexistente sin escribir nada', async () => {
+    proveedoresT.seed([{ ...PROVEEDOR_X, eliminadoEn: '2026-09-01T00:00:00.000Z' }])
+    await expect(
+      darDeAltaMaterial(
+        inputBase({
+          stockInicial: 1,
+          lote: { numeroLote: 'L', proveedorId: PROVEEDOR_X.id, fechaCaducidad: '2027-01-01' },
+        }),
+      ),
+    ).rejects.toThrow('Ingresa el proveedor.')
+    expect(insumosT.all()).toHaveLength(0)
+  })
+
+  it('spec 021: acepta un proveedor desactivado mientras el formulario estaba abierto', async () => {
+    proveedoresT.seed([{ ...PROVEEDOR_X, desactivadoEn: '2026-09-01T00:00:00.000Z' }])
+    await darDeAltaMaterial(
+      inputBase({
+        stockInicial: 1,
+        lote: { numeroLote: 'L', proveedorId: PROVEEDOR_X.id, fechaCaducidad: '2027-01-01' },
+      }),
+    )
+    expect(lotesT.all()[0].proveedorId).toBe(PROVEEDOR_X.id)
+  })
+
   function inputConLote(overrides: Partial<AltaMaterialInput> = {}) {
     return inputBase({
       stockInicial: 10,
-      lote: { numeroLote: 'A123', proveedor: 'Proveedor X', fechaCaducidad: '2027-01-01' },
+      lote: { numeroLote: 'A123', proveedorId: PROVEEDOR_X.id, fechaCaducidad: '2027-01-01' },
       ...overrides,
     })
   }
@@ -321,6 +362,8 @@ describe('darDeAltaMaterial — US2 (FR-013..FR-021, SC-003)', () => {
     expect(conLoteInicial).toBe(true)
     expect(insumosT.all()).toHaveLength(1)
     expect(lotesT.all()).toHaveLength(1)
+    // Spec 021: proveedor del catálogo y su nombre (texto que conserva la 2.4.0).
+    expect(lotesT.all()[0]).toMatchObject({ proveedorId: 'proveedor-x', proveedor: 'Proveedor X' })
     const movimientos = movimientosT.all()
     expect(movimientos).toHaveLength(1)
     expect(movimientos[0]).toMatchObject({
@@ -370,7 +413,7 @@ describe('darDeAltaMaterial — US2 (FR-013..FR-021, SC-003)', () => {
   it('throws without confirmarCaducado and writes nothing', async () => {
     await expect(
       darDeAltaMaterial(
-        inputConLote({ lote: { numeroLote: 'A1', proveedor: 'P', fechaCaducidad: '2020-01-01' } }),
+        inputConLote({ lote: { numeroLote: 'A1', proveedorId: PROVEEDOR_X.id, fechaCaducidad: '2020-01-01' } }),
       ),
     ).rejects.toThrow(/caducado/i)
     expect(insumosT.all()).toHaveLength(0)
@@ -462,7 +505,7 @@ describe('darDeAltaMaterial — US3 (FR-011/FR-012, permisos)', () => {
           categoria: 'Ortodoncia',
           categoriaNueva: true,
           stockInicial: 5,
-          lote: { numeroLote: 'L1', proveedor: 'P', fechaCaducidad: '2027-01-01' },
+          lote: { numeroLote: 'L1', proveedorId: PROVEEDOR_X.id, fechaCaducidad: '2027-01-01' },
         }),
       ),
     ).rejects.toThrow('boom')

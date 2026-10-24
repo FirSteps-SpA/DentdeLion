@@ -20,6 +20,10 @@ import { convertirIngreso, snapshotIngreso, type CantidadIngreso } from './ingre
 import { precioPorUnidadCompra, validarPrecio, type PrecioIngreso } from './precio'
 import { normalizarPresentacion, validarPresentacion, type Presentacion } from './presentacion'
 import { permiteDecimales } from './quantity'
+import {
+  MENSAJE_FALTA_PROVEEDOR,
+  proveedorParaLote,
+} from '../../proveedores/lib/proveedores'
 
 /**
  * Spec 015 — presentación elegida en el alta, con "igual que la de consumo"
@@ -81,7 +85,8 @@ export interface AltaMaterialInput {
   /** Spec 015 (FR-013) — precio opcional del lote inicial. */
   precio?: PrecioIngreso
   /** Ignorado si `stockInicial === 0`. */
-  lote: { numeroLote: string; proveedor: string; fechaCaducidad: string }
+  /** Spec 021 — `proveedorId` del catálogo, elegido con `SelectorProveedor`. */
+  lote: { numeroLote: string; proveedorId: string | null; fechaCaducidad: string }
   confirmarCaducado: boolean
 }
 
@@ -170,8 +175,8 @@ export function validarAltaMaterial(
     if (!input.lote.numeroLote.trim()) {
       errores.numeroLote = 'Ingresa el número de lote.'
     }
-    if (!input.lote.proveedor.trim()) {
-      errores.proveedor = 'Ingresa el proveedor.'
+    if (!input.lote.proveedorId) {
+      errores.proveedor = MENSAJE_FALTA_PROVEEDOR
     }
     if (input.caduca) {
       if (!input.lote.fechaCaducidad) {
@@ -224,11 +229,7 @@ export async function darDeAltaMaterial(
 
   return db.transaction(
     'rw',
-    db.insumos,
-    db.categorias,
-    db.lotes,
-    db.movimientos,
-    db.borradores,
+    [db.insumos, db.categorias, db.lotes, db.movimientos, db.borradores, db.proveedores],
     async () => {
       const insumosActivos = (await db.insumos.toArray()).filter(
         (i) => !i.dadoDeBajaEn,
@@ -292,13 +293,15 @@ export async function darDeAltaMaterial(
 
       let conLoteInicial = false
       if (input.stockInicial > 0 && lugarId) {
+        const proveedor = await proveedorParaLote(input.lote.proveedorId)
         const lote: Lote = {
           id: crypto.randomUUID(),
           tenantId,
           lugarId,
           insumoId: insumo.id,
           numeroLote: input.lote.numeroLote.trim(),
-          proveedor: input.lote.proveedor.trim(),
+          proveedor: proveedor.nombre,
+          proveedorId: proveedor.id,
           fechaCaducidad: input.caduca ? input.lote.fechaCaducidad : null,
           codigoFabricante: insumo.codigoFabricante,
           estado: 'activo',

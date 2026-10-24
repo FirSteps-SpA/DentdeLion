@@ -80,6 +80,7 @@ function lote(id: string, insumoId: string, precioCompra: number | null): Lote {
     insumoId,
     numeroLote: id,
     proveedor: 'P',
+    proveedorId: null,
     fechaCaducidad: null,
     codigoFabricante: null,
     estado: 'activo',

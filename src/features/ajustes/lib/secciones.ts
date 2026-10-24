@@ -1,12 +1,12 @@
 import type { ComponentType } from 'react'
-import { Archive, Bell, MapPin, Tag, User, type IconProps } from '../../../components/icons'
+import { Archive, Bell, MapPin, Tag, Truck, User, type IconProps } from '../../../components/icons'
 import type { UsuarioActual } from '../../../lib/db'
 
 /**
  * Spec 019 (research.md R2): secciones de Ajustes, en el orden del índice.
- * La spec 021 agrega `'proveedores'` entre `categorias` y `baja`.
+ * Spec 021 (research.md R9): `'proveedores'` entre `categorias` y `baja`.
  */
-export type IdSeccion = 'perfil' | 'lugares' | 'avisos' | 'categorias' | 'baja'
+export type IdSeccion = 'perfil' | 'lugares' | 'avisos' | 'categorias' | 'proveedores' | 'baja'
 
 export interface SeccionAjustes {
   id: IdSeccion
@@ -43,6 +43,12 @@ export const SECCIONES_AJUSTES: readonly SeccionAjustes[] = [
     soloAdministracion: true,
   },
   {
+    id: 'proveedores',
+    titulo: () => 'Proveedores',
+    Icon: Truck,
+    soloAdministracion: true,
+  },
+  {
     id: 'baja',
     titulo: () => 'Insumos dados de baja',
     Icon: Archive,
@@ -68,6 +74,8 @@ export interface DatosResumen {
   lugaresActivos: number | null
   categoriasActivas: number | null
   insumosDadosDeBaja: number | null
+  /** Spec 021 — proveedores activos. */
+  proveedoresActivos: number | null
   notificaciones: { stockBajo: boolean; caducidad: boolean } | null
   nivelesAvisoDias: number[] | null
 }
@@ -110,6 +118,9 @@ export function resumenSeccion(id: IdSeccion, datos: DatosResumen): string | nul
     case 'categorias':
       if (datos.categoriasActivas === null) return null
       return contar(datos.categoriasActivas, 'categoría', 'categorías', 'Sin categorías')
+    case 'proveedores':
+      if (datos.proveedoresActivos === null) return null
+      return contar(datos.proveedoresActivos, 'proveedor', 'proveedores', 'Sin proveedores')
     case 'baja':
       if (datos.insumosDadosDeBaja === null) return null
       return contar(
