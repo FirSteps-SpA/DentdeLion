@@ -35,6 +35,16 @@ vi.mock('../../src/lib/db', async () => {
 type RemoteRow = { id: string } & Record<string, unknown>
 const remoto: Record<string, Map<string, RemoteRow>> = {}
 let redCaida = false
+/**
+ * Spec 022 R6: emula la política "items_compra: insertar como uno mismo", que
+ * Postgres aplica a todas las filas de un upsert (también a las que terminan
+ * en UPDATE): uno con cualquier fila de otra persona falla entero (42501). El
+ * UPDATE pasa la política del tenant y no crea filas.
+ */
+let conRls = false
+let fallaEnPropios = false
+const llamadasUpsert: string[][] = []
+const llamadasUpdate: string[] = []
 
 function tabla(nombre: string) {
   remoto[nombre] ??= new Map()
@@ -48,8 +58,36 @@ const client = {
       async upsert(rows: RemoteRow | RemoteRow[]) {
         if (redCaida) return { error: { code: 'NETWORK', message: 'fetch failed' } }
         const lista = Array.isArray(rows) ? rows : [rows]
+        if (nombre === 'items_compra') {
+          llamadasUpsert.push(lista.map((row) => row.id))
+          if (fallaEnPropios && lista.some((row) => row.creado_por === 'user-1')) {
+            return { error: { code: '500', message: 'error del servidor' } }
+          }
+          if (conRls && lista.some((row) => row.creado_por !== 'user-1')) {
+            return {
+              error: {
+                code: '42501',
+                message: 'new row violates row-level security policy for table "items_compra"',
+              },
+            }
+          }
+        }
         for (const row of lista) tabla(nombre).set(row.id, structuredClone(row))
         return { error: null }
+      },
+      update(cambios: Record<string, unknown>) {
+        return {
+          eq: (_columna: string, id: string) => ({
+            select: async () => {
+              llamadasUpdate.push(id)
+              if (redCaida) return { data: null, error: { code: 'NETWORK', message: 'fetch failed' } }
+              const fila = tabla(nombre).get(id)
+              if (!fila) return { data: [], error: null }
+              tabla(nombre).set(id, { ...fila, ...structuredClone(cambios) })
+              return { data: [{ id }], error: null }
+            },
+          }),
+        }
       },
       select() {
         const resultado = consultaFalsa({
@@ -114,6 +152,10 @@ const usuario: UsuarioActual = {
 beforeEach(() => {
   for (const key of Object.keys(remoto)) delete remoto[key]
   redCaida = false
+  conRls = false
+  fallaEnPropios = false
+  llamadasUpsert.length = 0
+  llamadasUpdate.length = 0
   itemsCompraT.seed([])
   categoriasT.seed([])
   useAuthStore.setState({ usuario, isReady: true })
@@ -179,5 +221,129 @@ describe('pushItemsCompra / pullItemsCompra (research.md R2)', () => {
     await expect(runSyncBatch()).resolves.toMatchObject({ estado: 'sin-red' })
 
     expect(itemsCompraT.all()[0]).toMatchObject({ estado: 'pendiente' })
+  })
+})
+
+describe('pushItemsCompra con ítems de otra persona (spec 022 R6, FR-020)', () => {
+  beforeEach(() => {
+    conRls = true
+  })
+
+  it('los propios suben por upsert; los ajenos sin cambios locales no suben', async () => {
+    tabla('items_compra').set('ajeno', { id: 'ajeno', creado_por: 'user-2', estado: 'pendiente' })
+    itemsCompraT.seed([
+      itemCompra({ id: 'propio' }),
+      itemCompra({ id: 'ajeno', creadoPor: 'user-2' }),
+    ])
+
+    const resultado = await runSyncBatch()
+
+    expect(llamadasUpsert).toEqual([['propio']])
+    expect(llamadasUpdate).toEqual([])
+    expect(resultado.estado).toBe('ok')
+  })
+
+  it('un ajeno que marqué comprado sube por UPDATE y deja de estar pendiente de subir', async () => {
+    tabla('items_compra').set('ajeno', { id: 'ajeno', creado_por: 'user-2', estado: 'pendiente' })
+    itemsCompraT.seed([
+      itemCompra({ id: 'propio' }),
+      itemCompra({
+        id: 'ajeno',
+        creadoPor: 'user-2',
+        estado: 'comprado',
+        compradoPor: 'user-1',
+        compradoEn: '2026-01-02T00:00:00.000Z',
+        cambioLocal: true,
+      }),
+    ])
+
+    const resultado = await runSyncBatch()
+
+    expect(resultado.estado).toBe('ok')
+    expect(tabla('items_compra').get('propio')).toBeTruthy()
+    expect(tabla('items_compra').get('ajeno')).toMatchObject({
+      estado: 'comprado',
+      comprado_por: 'user-1',
+      creado_por: 'user-2',
+    })
+    expect(itemsCompraT.all().find((item) => item.id === 'ajeno')?.cambioLocal).toBeFalsy()
+  })
+
+  it('un ajeno que aún no está en el servidor espera, sin error ni pisarse en el pull', async () => {
+    itemsCompraT.seed([
+      itemCompra({ id: 'propio' }),
+      itemCompra({ id: 'ajeno-nuevo', creadoPor: 'user-2', estado: 'eliminado', cambioLocal: true }),
+    ])
+
+    const resultado = await runSyncBatch()
+
+    expect(resultado.estado).toBe('ok')
+    expect(resultado.etapasConError).toEqual([])
+    expect(tabla('items_compra').has('propio')).toBe(true)
+    expect(tabla('items_compra').has('ajeno-nuevo')).toBe(false)
+    expect(itemsCompraT.all().find((item) => item.id === 'ajeno-nuevo')).toMatchObject({
+      estado: 'eliminado',
+      cambioLocal: true,
+    })
+  })
+
+  it('el pull no pisa un cambio local sin subir', async () => {
+    tabla('items_compra').set('ajeno', {
+      id: 'ajeno',
+      tenant_id: TENANT_1,
+      lugar_id: LUGAR_1,
+      nombre: 'Guantes M',
+      cantidad: null,
+      nota: null,
+      insumo_id: null,
+      estado: 'pendiente',
+      creado_por: 'user-2',
+      creado_en: '2026-01-01T00:00:00.000Z',
+      comprado_por: null,
+      comprado_en: null,
+    })
+    itemsCompraT.seed([
+      itemCompra({ id: 'ajeno', creadoPor: 'user-2', estado: 'eliminado', cambioLocal: true }),
+    ])
+    redCaida = false
+    // El UPDATE falla por red a mitad del ciclo: el pull no debe revertirlo.
+    const original = client.from
+    client.from = (nombre: string) => {
+      const tablaFalsa = original(nombre)
+      return {
+        ...tablaFalsa,
+        update: () => ({
+          eq: () => ({
+            select: async () => ({ data: null, error: { code: '500', message: 'error' } }),
+          }),
+        }),
+      }
+    }
+    try {
+      await runSyncBatch()
+    } finally {
+      client.from = original
+    }
+
+    expect(itemsCompraT.all()[0]).toMatchObject({ estado: 'eliminado', cambioLocal: true })
+  })
+
+  it('un error que no es de permisos en los propios sí queda en el ciclo', async () => {
+    fallaEnPropios = true
+    itemsCompraT.seed([itemCompra({ id: 'propio' })])
+
+    const resultado = await runSyncBatch()
+
+    expect(resultado.estado).toBe('error')
+    expect(resultado.etapasConError).toContain('push items_compra')
+  })
+
+  it('sin usuario con sesión no sube nada', async () => {
+    useAuthStore.setState({ usuario: null, isReady: true })
+    itemsCompraT.seed([itemCompra({ id: 'propio' })])
+
+    await runSyncBatch()
+
+    expect(llamadasUpsert).toEqual([])
   })
 })

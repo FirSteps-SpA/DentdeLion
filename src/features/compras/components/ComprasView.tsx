@@ -1,24 +1,36 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { computeItemsSugeridos } from '../lib/sugeridos'
 import { insumoVinculado, eliminarItemManual } from '../lib/itemsManuales'
+import { copiarAlPortapapeles, puedeCompartir } from '../lib/compartir'
 import {
-  construirTextoCompartir,
-  copiarAlPortapapeles,
-  puedeCompartir,
-} from '../lib/compartir'
+  claveManual,
+  claveSugerido,
+  construirMensajePedido,
+  itemsDelPedido,
+  resumirSeleccion,
+  valorItem,
+  type ItemPedido,
+} from '../lib/pedido'
+import { useSeleccionCompras } from '../lib/useSeleccionCompras'
+import { costosUnitariosPorInsumo } from '../../insumos/lib/precio'
 import { computeStockLote } from '../../insumos/lib/stock'
 import { ItemSugeridoCard } from './ItemSugeridoCard'
 import { ItemManualCard } from './ItemManualCard'
+import { ResumenSeleccion } from './ResumenSeleccion'
+import { EnviarPedidoSheet } from './EnviarPedidoSheet'
 import { RecibirItemForm } from './RecibirItemForm'
 import { AgregarItemManualForm } from './AgregarItemManualForm'
 import { VincularOCrearDialog } from './VincularOCrearDialog'
 import { Card } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
-import { Plus, Share, Copy } from '../../../components/icons'
-import { porLugar, useVistasDeLugar } from '../../insumos/lib/vistaLugar'
+import { Plus } from '../../../components/icons'
+import { porLugar, useVistasDeLugar, vistasDeLugar } from '../../insumos/lib/vistaLugar'
 import { ChipLugar } from '../../../app/ChipLugar'
 import { ElegirLugarSheet } from '../../../app/ElegirLugarSheet'
 import { nombreLugar, useLugarStore } from '../../../stores/lugarStore'
+import { useInventoryStore } from '../../../stores/inventoryStore'
+import { useAlertasStore } from '../../../stores/alertasStore'
+import { usePredeterminado } from '../../proveedores/lib/usePredeterminado'
 
 // Spec 014: cada acción lleva el lugar donde se registra (el de la fila, o el
 // elegido en "¿En qué lugar?" desde "Todos").
@@ -28,6 +40,7 @@ type Overlay =
   | { tipo: 'vincularOCrear'; itemId: string }
   | { tipo: 'elegirLugarManual' }
   | { tipo: 'agregarManual'; lugarId?: string }
+  | { tipo: 'enviarWhatsApp' }
   | null
 
 /**
@@ -38,6 +51,9 @@ type Overlay =
  * sugerido, o un manual ya vinculado, como recibido abre `RecibirItemForm`
  * (spec 009 US2); un manual sin vincular abre `VincularOCrearDialog`
  * (FR-012).
+ *
+ * Spec 022: cada ítem se puede marcar; la barra del pie suma lo marcado y
+ * arma el pedido (WhatsApp, Copiar, Compartir) solo con eso.
  */
 export function ComprasView() {
   // Spec 014: la lista del lugar activo; en "Todos", la de cada lugar con su chip.
@@ -54,7 +70,104 @@ export function ComprasView() {
   const manuales = vistas.flatMap(({ datos }) =>
     datos.itemsCompra.filter((item) => item.estado === 'pendiente'),
   )
-  const hayPendientes = sugeridos.length > 0 || manuales.length > 0
+
+  // Spec 022 (research.md R2, R3): renglones con su clave, la selección
+  // guardada en el dispositivo y el precio de la última compra de cada insumo.
+  const todosLosInsumos = useInventoryStore((s) => s.insumos)
+  const lotesTenant = useInventoryStore((s) => s.lotes)
+  const movimientosTenant = useInventoryStore((s) => s.movimientos)
+  const itemsCompraTenant = useInventoryStore((s) => s.itemsCompra)
+  const minimosLugar = useInventoryStore((s) => s.minimosLugar)
+  const cambiosLote = useInventoryStore((s) => s.cambiosLote)
+  const cambiosInsumo = useInventoryStore((s) => s.cambiosInsumo)
+  const inventarioListo = useInventoryStore((s) => s.isReady)
+  const proveedores = useInventoryStore((s) => s.proveedores)
+  const lugarActivoId = useLugarStore((s) => s.lugarActivoId)
+  const saludo = useAlertasStore((s) => s.saludoPedido)
+
+  const costos = useMemo(
+    () => costosUnitariosPorInsumo(todosLosInsumos, lotesTenant, cambiosLote, cambiosInsumo),
+    [todosLosInsumos, lotesTenant, cambiosLote, cambiosInsumo],
+  )
+
+  const items: ItemPedido[] = itemsDelPedido(
+    sugeridos.map((item) => ({ item, lugarId: item.lugar?.id ?? '' })),
+    manuales,
+    insumos,
+  )
+  const itemPorClave = new Map(items.map((item) => [item.clave, item]))
+
+  // Lo pendiente en **todos** los lugares, para podar la selección sin perder
+  // lo marcado en otro lugar al cambiar de vista. `null` mientras carga.
+  const clavesPendientes = useMemo(() => {
+    if (!inventarioListo || !lugarActivoId) return null
+    const todas = vistasDeLugar(
+      {
+        insumos: todosLosInsumos,
+        lotes: lotesTenant,
+        movimientos: movimientosTenant,
+        itemsCompra: itemsCompraTenant,
+      },
+      minimosLugar,
+      lugares,
+      'todos',
+    ).vistas
+    const pendientes = itemsDelPedido(
+      porLugar(todas, (d) => computeItemsSugeridos(d.insumos, d.lotes, d.movimientos)).map(
+        (item) => ({ item, lugarId: item.lugar?.id ?? '' }),
+      ),
+      itemsCompraTenant.filter((item) => item.estado === 'pendiente'),
+      todosLosInsumos,
+    )
+    return new Set(pendientes.map((item) => item.clave))
+  }, [
+    inventarioListo,
+    lugarActivoId,
+    todosLosInsumos,
+    lotesTenant,
+    movimientosTenant,
+    itemsCompraTenant,
+    minimosLugar,
+    lugares,
+  ])
+
+  const { seleccion, alternar, marcarTodos } = useSeleccionCompras(clavesPendientes)
+  const seleccionados = items.filter((item) => seleccion.has(item.clave))
+  const resumen = resumirSeleccion(items, seleccion, costos)
+  const clavesVisibles = items.map((item) => item.clave)
+  const todosMarcados = items.length > 0 && seleccionados.length === items.length
+  const algunosMarcados = seleccionados.length > 0 && !todosMarcados
+
+  const seleccionarTodoRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (seleccionarTodoRef.current) seleccionarTodoRef.current.indeterminate = algunosMarcados
+  }, [algunosMarcados])
+
+  const mensajePedido = construirMensajePedido(
+    saludo,
+    seleccionados,
+    esTodos ? new Map(lugares.map((lugar) => [lugar.id, lugar.nombre])) : undefined,
+  )
+
+  // FR-013: el predeterminado del lugar del pedido. En "Todos", solo si todo
+  // lo marcado es de un mismo lugar.
+  const lugaresDelPedido = new Set(seleccionados.map((item) => item.lugarId))
+  const predeterminadoId = usePredeterminado(
+    lugaresDelPedido.size === 1 ? [...lugaresDelPedido][0] || undefined : undefined,
+  )
+
+  function claveDe(item: (typeof sugeridos)[number]): string {
+    return claveSugerido(item.lugar?.id ?? '', item.insumo.id)
+  }
+
+  function etiquetaSeleccion(nombre: string, lugarId: string): string {
+    return esTodos ? `Seleccionar ${nombre} en ${nombreLugar(lugares, lugarId)}` : `Seleccionar ${nombre}`
+  }
+
+  function valorDe(clave: string) {
+    const item = itemPorClave.get(clave)
+    return item && seleccion.has(clave) ? valorItem(item, costos) : null
+  }
 
   // Derivado, no un efecto (mismo patrón que InventarioView): si el insumo
   // deja de existir/activo mientras el overlay está abierto, simplemente
@@ -102,11 +215,11 @@ export function ComprasView() {
     )
   }
 
+  // Spec 022 FR-012/FR-018/FR-019: el mismo mensaje que va por WhatsApp.
   async function handleCompartir() {
     setMensajeCompartir(null)
-    const texto = construirTextoCompartir(sugeridos, manuales)
     if (puedeCompartir()) {
-      await navigator.share({ text: texto })
+      await navigator.share({ text: mensajePedido })
       return
     }
     setMensajeCompartir(
@@ -115,8 +228,7 @@ export function ComprasView() {
   }
 
   async function handleCopiar() {
-    const texto = construirTextoCompartir(sugeridos, manuales)
-    const copiado = await copiarAlPortapapeles(texto)
+    const copiado = await copiarAlPortapapeles(mensajePedido)
     setMensajeCompartir(
       copiado ? 'Lista copiada al portapapeles.' : 'No se pudo copiar la lista.',
     )
@@ -126,16 +238,19 @@ export function ComprasView() {
     <div className="flex w-full flex-col gap-4 text-left">
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-h2 text-text">Compras</h1>
-        <TouchButton
-          type="button"
-          variant="secondary"
-          disabled={!hayPendientes}
-          onClick={() => void handleCompartir()}
-          className="px-3 text-xs"
-        >
-          <Share size={16} />
-          Compartir Lista
-        </TouchButton>
+        {items.length > 0 && (
+          // FR-002: sobre los ítems visibles; "mixed" con algunos marcados.
+          <label className="touch-target flex cursor-pointer items-center gap-2 px-2 text-sm font-bold text-text">
+            <input
+              ref={seleccionarTodoRef}
+              type="checkbox"
+              checked={todosMarcados}
+              onChange={() => marcarTodos(clavesVisibles)}
+              className="h-5 w-5 cursor-pointer accent-primary"
+            />
+            Seleccionar todo
+          </label>
+        )}
       </div>
 
       {mensajeCompartir && (
@@ -143,15 +258,6 @@ export function ComprasView() {
           <p role="status" className="text-sm text-text">
             {mensajeCompartir}
           </p>
-          <TouchButton
-            type="button"
-            variant="ghost"
-            onClick={() => void handleCopiar()}
-            className="self-start px-3 text-xs"
-          >
-            <Copy size={16} />
-            Copiar
-          </TouchButton>
         </Card>
       )}
 
@@ -174,6 +280,10 @@ export function ComprasView() {
                 {esTodos && item.lugar && <ChipLugar nombre={item.lugar.nombre} />}
                 <ItemSugeridoCard
                   itemSugerido={item}
+                  seleccionado={seleccion.has(claveDe(item))}
+                  onAlternar={() => alternar(claveDe(item))}
+                  etiquetaSeleccion={etiquetaSeleccion(item.insumo.nombre, item.lugar?.id ?? '')}
+                  valor={valorDe(claveDe(item))}
                   stockTotal={stockTotalDe(item.insumo.id, item.lugar?.id ?? null)}
                   onRecibir={(insumoId) =>
                     setOverlay({
@@ -216,6 +326,10 @@ export function ComprasView() {
                 {esTodos && <ChipLugar nombre={nombreLugar(lugares, item.lugarId)} />}
                 <ItemManualCard
                   item={item}
+                  seleccionado={seleccion.has(claveManual(item.id))}
+                  onAlternar={() => alternar(claveManual(item.id))}
+                  etiquetaSeleccion={etiquetaSeleccion(item.nombre, item.lugarId)}
+                  valor={valorDe(claveManual(item.id))}
                   insumoVinculado={insumoVinculado(item, insumos)}
                   onRecibir={() => handleRecibirManual(item)}
                   onEliminar={() => void eliminarItemManual(item.id)}
@@ -226,6 +340,27 @@ export function ComprasView() {
         )}
       </section>
       </div>
+
+      <ResumenSeleccion
+        resumen={resumen}
+        onEnviarWhatsApp={() => setOverlay({ tipo: 'enviarWhatsApp' })}
+        onCopiar={() => void handleCopiar()}
+        onCompartir={() => void handleCompartir()}
+        puedeCompartir={puedeCompartir()}
+      />
+
+      {overlay?.tipo === 'enviarWhatsApp' && (
+        <EnviarPedidoSheet
+          mensaje={mensajePedido}
+          proveedores={proveedores}
+          predeterminadoId={predeterminadoId}
+          onCopiar={() => {
+            setOverlay(null)
+            void handleCopiar()
+          }}
+          onClose={() => setOverlay(null)}
+        />
+      )}
 
       {overlay?.tipo === 'recibir' && insumoOverlay && (
         <RecibirItemForm

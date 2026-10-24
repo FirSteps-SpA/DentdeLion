@@ -566,16 +566,19 @@ describe('ComprasView — Compartir la lista de compras (User Story 4)', () => {
     reflejarStore()
     render(<ComprasView />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Compartir Lista' }))
+    // Spec 022 FR-012: solo lo seleccionado, con el mensaje del pedido.
+    fireEvent.click(screen.getByLabelText('Seleccionar todo'))
+    fireEvent.click(screen.getByRole('button', { name: 'Compartir' }))
 
     await waitFor(() => expect(share).toHaveBeenCalledTimes(1))
     const texto = share.mock.calls[0][0].text as string
     // Spec 015 FR-020: con las presentaciones sugeridas (mínimo 20, stock 5).
-    expect(texto).toContain('Guantes M — pedir 15 unidades (Sugerido)')
-    expect(texto).toContain('Torundas x3 (Manual)')
+    expect(texto).toContain('- Guantes M — 15 unidades')
+    expect(texto).toContain('- Torundas — 3')
+    expect(texto).not.toMatch(/Sugerido|Manual/)
   })
 
-  it('offers a copy fallback when navigator.share is unavailable (FR-023)', async () => {
+  it('sin navigator.share, solo ofrece Copiar (FR-023)', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     vi.stubGlobal('navigator', { clipboard: { writeText } })
     insumosT.seed([makeInsumo({ id: 'i1', nombre: 'Guantes M', stockMinimo: 20 })])
@@ -584,20 +587,23 @@ describe('ComprasView — Compartir la lista de compras (User Story 4)', () => {
     reflejarStore()
     render(<ComprasView />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Compartir Lista' }))
-
-    await screen.findByText(/no ofrece un mecanismo de compartir/)
+    expect(screen.queryByRole('button', { name: 'Compartir' })).not.toBeInTheDocument()
+    fireEvent.click(await screen.findByLabelText('Seleccionar Guantes M'))
     fireEvent.click(screen.getByRole('button', { name: 'Copiar' }))
 
     await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1))
     await screen.findByText('Lista copiada al portapapeles.')
   })
 
-  it('disables "Compartir Lista" with no pending items (FR-022)', () => {
+  it('sin selección, las acciones del pedido están deshabilitadas (spec 022 FR-012)', () => {
+    vi.stubGlobal('navigator', { share: vi.fn(), clipboard: { writeText: vi.fn() } })
     reflejarStore()
     render(<ComprasView />)
 
-    expect(screen.getByRole('button', { name: 'Compartir Lista' })).toBeDisabled()
+    expect(screen.getByText('Selecciona lo que vas a pedir')).toBeInTheDocument()
+    for (const nombre of ['Enviar por WhatsApp', 'Copiar', 'Compartir']) {
+      expect(screen.getByRole('button', { name: nombre })).toBeDisabled()
+    }
   })
 })
 

@@ -306,7 +306,8 @@ describe('sincronización de proveedores', () => {
       proveedor: 'Proveedor X',
     })
     expect(lugaresT.all()[0].proveedorPredeterminadoId).toBe('srv-p')
-    expect(borradoresT.all()[0].datos.lote?.proveedorId).toBe('srv-p')
+    const borrador = borradoresT.all()[0]
+    expect(borrador.id === 'alta-material' && borrador.datos.lote?.proveedorId).toBe('srv-p')
     expect(tabla('lotes').get('l1')?.proveedor_id).toBe('srv-p')
     expect(tabla('lugares').get(LUGAR_1)?.proveedor_predeterminado_id).toBe(
       'srv-p',

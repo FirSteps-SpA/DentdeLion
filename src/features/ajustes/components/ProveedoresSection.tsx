@@ -22,6 +22,7 @@ import { Switch } from '../../../components/ui/Switch'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { VerMas } from '../../../components/ui/VerMas'
 import { useListaPaginada } from '../../../lib/paginacion'
+import { MensajePedidoCard } from './MensajePedidoCard'
 
 const INPUT_CLASS =
   'h-full w-full border-none bg-transparent text-sm text-text outline-none'
@@ -159,6 +160,9 @@ export function ProveedoresSection() {
 
   return (
     <section className="flex flex-col gap-2">
+      {/* Spec 022 (research.md R9): el saludo del pedido va a estos contactos. */}
+      <MensajePedidoCard />
+
       <div className="flex items-center justify-end gap-2">
         <TouchButton
           type="button"

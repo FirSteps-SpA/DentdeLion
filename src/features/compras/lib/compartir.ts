@@ -1,26 +1,4 @@
-import type { ItemCompra } from '../../../lib/db'
-import { textoPedido, type ItemSugerido } from './sugeridos'
-
-/**
- * Un renglón por ítem pendiente (sugeridos primero, luego manuales), con su
- * cantidad si se indicó y su origen (spec 009 FR-021).
- */
-export function construirTextoCompartir(
-  sugeridos: ItemSugerido[],
-  manuales: ItemCompra[],
-): string {
-  const lineas: string[] = []
-  for (const item of sugeridos) {
-    // Spec 015 FR-020: con la cantidad sugerida en unidades de compra.
-    const pedido = textoPedido(item)
-    lineas.push(`- ${item.insumo.nombre}${pedido ? ` — ${pedido.toLocaleLowerCase('es')}` : ''} (Sugerido)`)
-  }
-  for (const item of manuales) {
-    const cantidad = item.cantidad !== null ? ` x${item.cantidad}` : ''
-    lineas.push(`- ${item.nombre}${cantidad} (Manual)`)
-  }
-  return lineas.join('\n')
-}
+// Spec 022: el texto del pedido lo arma `construirMensajePedido` (pedido.ts).
 
 /** true si `navigator.share` existe en este runtime (FR-021). */
 export function puedeCompartir(): boolean {
