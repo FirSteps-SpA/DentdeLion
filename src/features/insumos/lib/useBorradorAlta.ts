@@ -82,7 +82,8 @@ export function useBorradorAlta(inicial: Partial<AltaMaterialInput>) {
   useEffect(() => {
     let cancelado = false
     void db.borradores.get('alta-material').then(async (fila) => {
-      const datosGuardados = fila ? await migrarBorrador(fila.datos) : null
+      const datosGuardados =
+        fila?.id === 'alta-material' ? await migrarBorrador(fila.datos) : null
       if (cancelado) return
       if (datosGuardados) {
         setDatosState({ ...ALTA_VACIA, ...datosGuardados })

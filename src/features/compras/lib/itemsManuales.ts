@@ -59,7 +59,7 @@ export async function agregarItemManual(
     compradoPor: null,
     compradoEn: null,
   }
-  await db.itemsCompra.add(item)
+  await db.itemsCompra.add({ ...item, cambioLocal: true })
   return item
 }
 
@@ -69,7 +69,7 @@ export async function agregarItemManual(
  * (research.md R1) — solo cambia su `estado`.
  */
 export async function eliminarItemManual(itemId: string): Promise<void> {
-  await db.itemsCompra.update(itemId, { estado: 'eliminado' })
+  await db.itemsCompra.update(itemId, { estado: 'eliminado', cambioLocal: true })
 }
 
 /**
@@ -87,6 +87,7 @@ export async function marcarCompradoSinInventario(itemId: string): Promise<void>
     estado: 'comprado',
     compradoPor: usuarioId,
     compradoEn: new Date().toISOString(),
+    cambioLocal: true,
   })
 }
 

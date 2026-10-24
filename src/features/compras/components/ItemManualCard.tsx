@@ -4,12 +4,19 @@ import { Check, MoreVertical, Trash } from '../../../components/icons'
 import { Badge } from '../../../components/ui/Badge'
 import { BottomSheet } from '../../../components/ui/BottomSheet'
 import { Card } from '../../../components/ui/Card'
+import type { ValorItem } from '../lib/pedido'
+import { CasillaSeleccion, ValorDelItem } from './CasillaSeleccion'
 
 export interface ItemManualCardProps {
   item: ItemCompra
   insumoVinculado: Insumo | null
   onRecibir: () => void
   onEliminar: () => void
+  /** Spec 022: casilla de selección y, si está marcado, su monto. */
+  seleccionado: boolean
+  onAlternar: () => void
+  etiquetaSeleccion: string
+  valor: ValorItem | null
 }
 
 /**
@@ -23,12 +30,23 @@ export function ItemManualCard({
   insumoVinculado,
   onRecibir,
   onEliminar,
+  seleccionado,
+  onAlternar,
+  etiquetaSeleccion,
+  valor,
 }: ItemManualCardProps) {
   const [menuAbierto, setMenuAbierto] = useState(false)
 
   return (
-    <Card className="flex w-full items-center gap-2 py-1.5 pr-1.5 pl-0">
-      <div className="flex flex-1 flex-col gap-1 py-1 pl-3.5">
+    <Card
+      className={`flex w-full items-center gap-1 py-1.5 pr-1.5 pl-0 ${seleccionado ? 'border-primary!' : ''}`}
+    >
+      <CasillaSeleccion
+        seleccionado={seleccionado}
+        onAlternar={onAlternar}
+        etiqueta={etiquetaSeleccion}
+      />
+      <div className="flex flex-1 flex-col gap-1 py-1">
         <Badge variant="neutral">Manual</Badge>
         <span className="text-sm font-bold text-text">{item.nombre}</span>
         {(item.cantidad !== null || item.nota) && (
@@ -43,6 +61,7 @@ export function ItemManualCard({
             Vinculado a «{insumoVinculado.nombre}»
           </span>
         )}
+        {valor && <ValorDelItem valor={valor} />}
       </div>
 
       <button

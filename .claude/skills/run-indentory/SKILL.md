@@ -86,6 +86,8 @@ Driver commands:
 | `viewport <ancho> [alto]` | Resize the page (375 = móvil, 768 = tablet, 1440 = desktop) |
 | `seed-reportes` | Spec 017: 5 insumos con precio (categorías distintas), 6 meses de consumos y tratamientos realizados en el lugar 1 y en `…0012` (créalo antes con `seed-lugar`), para ver Reportes e Inicio con datos. **Call `reload` right after.** |
 | `seed-lugar <id> <nombre...>` | Spec 014: writes another lugar de trabajo of tenant 1, so the selector, "Todos" and "Trasladar" show up. **Call `reload` right after.** |
+| `seed-precio <loteId> <precio>` | Spec 022: sets `precioCompra` (per purchase unit) on a seeded lote, so Compras shows amounts and the subtotal |
+| `seed-proveedor <id> <whatsapp\|none> <si\|no> <nombre...>` | Spec 021/022: writes a proveedor of tenant 1 (`whatsapp` as digits, e.g. `56912345678`); `si` makes it the lugar 1 default. **Call `reload` right after.** |
 | `reload` | Reload the page (picks up seeded IndexedDB data on boot) |
 | `back` | Spec 019: browser "back" (history), then prints the URL |
 | `url` | Spec 019: prints the current URL (e.g. to check `#ajustes/<sección>`) |

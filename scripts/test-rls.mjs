@@ -1318,6 +1318,128 @@ check(
   `${antesReenvio} → ${despuesReenvio}`,
 )
 
+// ---------------------------------------------------------------------------
+// Spec 022 — saludo del pedido e ítems de compra ajenos
+// (contracts/supabase-schema.md, "test:rls").
+// ---------------------------------------------------------------------------
+
+const saludoDe = async (tenant) =>
+  (await leer(`configuracion_alertas?select=saludo_pedido&tenant_id=eq.${tenant}`))[0]
+    ?.saludo_pedido
+const saludoA = `Hola Paula ${run}`
+
+r = await upsertAlertas(adm.token, { niveles_aviso_dias: [30, 7, 1], saludo_pedido: saludoA })
+check(
+  'administrador guarda el saludo del pedido',
+  r.status < 300 && (await saludoDe(TENANT_1)) === saludoA,
+  `HTTP ${r.status}`,
+)
+r = await http('GET', '/rest/v1/configuracion_alertas?select=saludo_pedido', { token: per.token })
+check(
+  'personal lee el saludo de su tenant',
+  r.status === 200 && r.data?.[0]?.saludo_pedido === saludoA,
+  `HTTP ${r.status}`,
+)
+r = await upsertAlertas(per.token, { niveles_aviso_dias: [30, 7, 1], saludo_pedido: 'Otro' })
+check(
+  'personal no cambia el saludo',
+  r.status === 403 && (await saludoDe(TENANT_1)) === saludoA,
+  `HTTP ${r.status}`,
+)
+r = await http('GET', '/rest/v1/configuracion_alertas?select=saludo_pedido', { token: perB.token })
+check(
+  'otro tenant no lee el saludo',
+  r.status === 200 && !(r.data ?? []).some((f) => f.saludo_pedido === saludoA),
+  `HTTP ${r.status}`,
+)
+r = await http('PATCH', `/rest/v1/configuracion_alertas?tenant_id=eq.${TENANT_1}`, {
+  token: admB.token,
+  body: { saludo_pedido: 'De B' },
+})
+check(
+  'otro tenant no cambia el saludo',
+  (await saludoDe(TENANT_1)) === saludoA,
+  `HTTP ${r.status}`,
+)
+for (const [caso, saludo] of [
+  ['501 caracteres', 'x'.repeat(501)],
+  ['solo espacios', '   '],
+]) {
+  r = await upsertAlertas(adm.token, { niveles_aviso_dias: [30, 7, 1], saludo_pedido: saludo })
+  check(
+    `un saludo de ${caso} viola el check`,
+    r.status === 400 && r.data?.code === '23514' && (await saludoDe(TENANT_1)) === saludoA,
+    `HTTP ${r.status} ${r.data?.code ?? ''}`,
+  )
+}
+r = await upsertAlertas(adm.token, { niveles_aviso_dias: [30] })
+check(
+  'un upsert sin la columna (cliente anterior) conserva el saludo',
+  r.status < 300 && (await saludoDe(TENANT_1)) === saludoA,
+  `HTTP ${r.status}`,
+)
+r = await upsertAlertas(adm.token, { niveles_aviso_dias: [30, 7, 1], saludo_pedido: null })
+check(
+  'restablecer deja el saludo en null',
+  r.status < 300 && (await saludoDe(TENANT_1)) === null,
+  `HTTP ${r.status}`,
+)
+
+// Spec 022 R6: Postgres aplica el check de INSERT a todas las filas de un
+// upsert, también a las que terminan en UPDATE. Por eso el cliente sube los
+// ítems ajenos con UPDATE, que pasa la política del tenant y no crea filas.
+const itemCompraDe = (creado_por) => ({
+  id: randomUUID(),
+  lugar_id: LUGAR_1,
+  nombre: `Ítem ${run}`,
+  estado: 'pendiente',
+  creado_por,
+  creado_en: ahora,
+})
+const itemDeAdm = itemCompraDe(adm.id)
+r = await http('POST', '/rest/v1/items_compra', { token: adm.token, body: itemDeAdm })
+check('administrador crea un ítem de compra', r.status === 201, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/items_compra', {
+  token: per.token,
+  body: [{ ...itemDeAdm, estado: 'comprado' }],
+  prefer: 'resolution=merge-duplicates,return=minimal',
+})
+check(
+  'upsert de un ítem ajeno que ya existe: rechazado (check de INSERT)',
+  r.status === 403 && (await leer(`items_compra?select=estado&id=eq.${itemDeAdm.id}`))[0]?.estado === 'pendiente',
+  `HTTP ${r.status} ${r.data?.code ?? ''}`,
+)
+r = await http('PATCH', `/rest/v1/items_compra?id=eq.${itemDeAdm.id}`, {
+  token: per.token,
+  body: { estado: 'comprado', comprado_por: per.id, comprado_en: ahora },
+})
+check(
+  'UPDATE de un ítem ajeno del tenant: se aplica',
+  r.status === 200 &&
+    r.data?.length === 1 &&
+    (await leer(`items_compra?select=estado&id=eq.${itemDeAdm.id}`))[0]?.estado === 'comprado',
+  `HTTP ${r.status}`,
+)
+const noSubido = randomUUID()
+r = await http('PATCH', `/rest/v1/items_compra?id=eq.${noSubido}`, {
+  token: per.token,
+  body: { estado: 'eliminado' },
+})
+check(
+  'UPDATE de un ítem que aún no está en el servidor: 0 filas, sin crearlo',
+  r.status === 200 && r.data?.length === 0 && (await leer(`items_compra?select=id&id=eq.${noSubido}`)).length === 0,
+  `HTTP ${r.status}`,
+)
+r = await http('PATCH', `/rest/v1/items_compra?id=eq.${itemDeAdm.id}`, {
+  token: perB.token,
+  body: { estado: 'eliminado' },
+})
+check(
+  'otro tenant no actualiza el ítem',
+  (await leer(`items_compra?select=estado&id=eq.${itemDeAdm.id}`))[0]?.estado === 'comprado',
+  `HTTP ${r.status}`,
+)
+
 r = await http('GET', '/rest/v1/insumos?select=id')
 check(
   'sin sesión no se lee el inventario',

@@ -433,6 +433,72 @@ async function runCommand(line) {
       break
     }
 
+    case 'seed-precio': {
+      // Spec 022: seed-precio <loteId> <precio> — precio por unidad de compra del lote.
+      const [loteId, precio] = rest
+      await page.evaluate(
+        ({ loteId, precio }) =>
+          new Promise((resolve, reject) => {
+            const req = indexedDB.open('inDENToryDB')
+            req.onsuccess = () => {
+              const tx = req.result.transaction('lotes', 'readwrite')
+              const lotes = tx.objectStore('lotes')
+              const get = lotes.get(loteId)
+              get.onsuccess = () => {
+                if (get.result) lotes.put({ ...get.result, precioCompra: Number(precio) })
+              }
+              tx.oncomplete = () => resolve(undefined)
+              tx.onerror = () => reject(tx.error)
+            }
+            req.onerror = () => reject(req.error)
+          }),
+        { loteId, precio },
+      )
+      console.log(`ok: lote ${loteId} a $${precio}`)
+      break
+    }
+
+    case 'seed-proveedor': {
+      // Spec 021/022: seed-proveedor <id> <whatsapp|none> <predeterminado si|no> <nombre...>
+      // — un proveedor del tenant 1; "si" lo deja predeterminado del lugar 1.
+      const [id, whatsapp, predeterminado, ...nombreParts] = rest
+      const nombre = nombreParts.join(' ') || 'Proveedor'
+      await page.evaluate(
+        ({ id, whatsapp, predeterminado, nombre }) =>
+          new Promise((resolve, reject) => {
+            const req = indexedDB.open('inDENToryDB')
+            req.onsuccess = () => {
+              const tx = req.result.transaction(['proveedores', 'lugares'], 'readwrite')
+              tx.objectStore('proveedores').put({
+                id,
+                tenantId: '00000000-0000-4000-8000-000000000001',
+                nombre,
+                whatsapp: whatsapp === 'none' ? null : whatsapp,
+                contacto: null,
+                creadoPor: 'driver-seed-user',
+                creadoEn: new Date().toISOString(),
+                desactivadoEn: null,
+                eliminadoEn: null,
+                sincronizado: true,
+              })
+              if (predeterminado === 'si') {
+                const lugares = tx.objectStore('lugares')
+                const get = lugares.get('00000000-0000-4000-8000-000000000011')
+                get.onsuccess = () => {
+                  if (get.result) lugares.put({ ...get.result, proveedorPredeterminadoId: id })
+                }
+              }
+              tx.oncomplete = () => resolve(undefined)
+              tx.onerror = () => reject(tx.error)
+            }
+            req.onerror = () => reject(req.error)
+          }),
+        { id, whatsapp, predeterminado, nombre },
+      )
+      console.log(`ok: seeded proveedor ${id} (${nombre}) — call 'reload' next`)
+      break
+    }
+
     case 'seed-lugar': {
       // Spec 014: seed-lugar <id> <nombre...> — un lugar más del tenant 1.
       const [id, ...nombreParts] = rest

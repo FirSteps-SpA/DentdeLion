@@ -88,7 +88,9 @@ export async function actualizarHorasAvisoPendientes(horas: number): Promise<voi
     throw new Error('Ingresa un número de horas entre 1 y 168.')
   }
   const actual = await db.configuracionAlertas.get('global')
+  // Spec 022: conserva el saludo del pedido (misma fila).
   await db.configuracionAlertas.put({
+    ...actual,
     id: 'global',
     tenantId: tenantActualOFallar(),
     nivelesAvisoDias: actual?.nivelesAvisoDias ?? NIVELES_AVISO_POR_DEFECTO,

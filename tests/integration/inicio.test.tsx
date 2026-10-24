@@ -12,6 +12,8 @@ vi.mock('../../src/lib/db', () => ({
       get: async () => undefined,
       put: async () => undefined,
     },
+    // Spec 022: la selección de Compras vive en borradores.
+    borradores: { get: async () => undefined, put: async () => undefined },
   },
 }))
 

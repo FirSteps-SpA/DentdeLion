@@ -62,6 +62,8 @@ interface ConfiguracionAlertasRow {
   niveles_aviso_dias: number[]
   /** Spec 012 FR-011 — se omite si el valor local es `undefined` (research.md R6). */
   horas_aviso_pendientes?: number
+  /** Spec 022 R1 — se omite si el valor local es `undefined`; `null` = el de la clienta. */
+  saludo_pedido?: string | null
 }
 
 interface LoteRow {
@@ -478,6 +480,20 @@ function toItemCompraRow(item: ItemCompra): ItemCompraRow {
   }
 }
 
+/** Spec 022 R6: lo que un UPDATE de otra persona puede cambiar (sin autor ni tenant). */
+function cambiosDeItemCompra(item: ItemCompra): Partial<ItemCompraRow> {
+  return {
+    lugar_id: item.lugarId,
+    nombre: item.nombre,
+    cantidad: item.cantidad,
+    nota: item.nota,
+    insumo_id: item.insumoId,
+    estado: item.estado,
+    comprado_por: item.compradoPor,
+    comprado_en: item.compradoEn,
+  }
+}
+
 function fromItemCompraRow(row: ItemCompraRow): ItemCompra {
   return {
     id: row.id,
@@ -561,6 +577,10 @@ function toConfiguracionAlertasRow(
   if (config.horasAvisoPendientes !== undefined) {
     row.horas_aviso_pendientes = config.horasAvisoPendientes
   }
+  // Spec 022 R1: sin tocar aquí, no viaja (no pisa el saludo del servidor).
+  if (config.saludoPedido !== undefined) {
+    row.saludo_pedido = config.saludoPedido
+  }
   return row
 }
 
@@ -575,6 +595,11 @@ function fromConfiguracionAlertasRow(
   }
   if (row.horas_aviso_pendientes != null) {
     config.horasAvisoPendientes = row.horas_aviso_pendientes
+  }
+  // Spec 022 R1: `null` también se guarda, para que un "Restablecer" de otro
+  // dispositivo llegue aquí. Sin la columna (servidor sin migrar), no se define.
+  if ('saludo_pedido' in row) {
+    config.saludoPedido = row.saludo_pedido ?? null
   }
   return config
 }
@@ -1224,16 +1249,61 @@ async function pullCambiosLote(
  * que no hace falta una bandera `sincronizado` ni reintento por fila — mismo
  * patrón simple que `pushLotes`.
  */
+/**
+ * Spec 022 (research.md R6; deuda de la spec 012 R4). La política de INSERT
+ * exige `creado_por = auth.uid()` y Postgres la aplica a **todas** las filas
+ * de un upsert, también a las que terminan en UPDATE: un upsert con un ítem de
+ * otra persona falla entero (y con él los propios), y en este dispositivo hay
+ * ítems ajenos apenas llega el primer pull. Por eso:
+ *
+ * - los propios suben en un upsert, como antes;
+ * - los ajenos solo si se cambiaron aquí (`cambioLocal`: lo marqué comprado o
+ *   lo eliminé), uno por uno con UPDATE, que pasa la política "actualizar en
+ *   el tenant". Si todavía no está en el servidor (su autora no sincronizó),
+ *   actualiza 0 filas y queda pendiente para el próximo ciclo, sin error.
+ *
+ * `cambioLocal` se limpia solo si la fila no cambió mientras subía.
+ */
 async function pushItemsCompra(
   client: SupabaseClient,
   ciclo: CicloSync,
 ): Promise<void> {
+  const usuarioId = usuarioActualId()
   const items = delTenantActual(await db.itemsCompra.toArray())
-  if (items.length === 0) return
-  const respuesta = await client
-    .from('items_compra')
-    .upsert(items.map(toItemCompraRow))
-  ciclo.registrar('push items_compra', errorDe(respuesta))
+  if (!usuarioId || items.length === 0) return
+  const propios = items.filter((item) => item.creadoPor === usuarioId)
+  const ajenos = items.filter((item) => item.creadoPor !== usuarioId && item.cambioLocal)
+  const subidos: ItemCompra[] = []
+
+  if (propios.length > 0) {
+    const respuesta = await client.from('items_compra').upsert(propios.map(toItemCompraRow))
+    ciclo.registrar('push items_compra', errorDe(respuesta))
+    if (!respuesta.error) subidos.push(...propios.filter((item) => item.cambioLocal))
+  }
+
+  for (const item of ajenos) {
+    const respuesta = await client
+      .from('items_compra')
+      .update(cambiosDeItemCompra(item))
+      .eq('id', item.id)
+      .select('id')
+    if (esRechazoDePermisos(respuesta.error)) {
+      reportarErrorSync('push items_compra ajeno', respuesta.error)
+      continue
+    }
+    if (respuesta.error) {
+      ciclo.registrar('push items_compra', errorDe(respuesta))
+      return
+    }
+    if ((respuesta.data ?? []).length > 0) subidos.push(item)
+  }
+
+  for (const item of subidos) {
+    const actual = await db.itemsCompra.get(item.id)
+    if (actual && mismaFila(actual, item)) {
+      await db.itemsCompra.update(item.id, { cambioLocal: false })
+    }
+  }
 }
 
 /**
@@ -1502,6 +1572,7 @@ export async function remapearProveedor(localId: string, delServidor: Proveedor)
       .filter((lugar) => lugar.proveedorPredeterminadoId === localId)
       .modify({ proveedorPredeterminadoId: delServidor.id })
     await db.borradores.toCollection().modify((borrador) => {
+      if (borrador.id !== 'alta-material') return
       const lote = borrador.datos.lote as { proveedorId?: string | null } | undefined
       if (lote?.proveedorId === localId) lote.proveedorId = delServidor.id
     })
@@ -1668,8 +1739,14 @@ async function pullItemsCompra(
   const respuesta = await seleccionarTodo(client, 'items_compra')
   ciclo.registrar('pull items_compra', errorDe(respuesta))
   if (respuesta.error || !respuesta.data) return
+  // Spec 022 R6: no pisa un cambio de este dispositivo que aún no sube.
+  const conCambio = new Set(
+    (await db.itemsCompra.toArray()).filter((item) => item.cambioLocal).map((item) => item.id),
+  )
   await db.itemsCompra.bulkPut(
-    (respuesta.data as ItemCompraRow[]).map(fromItemCompraRow),
+    (respuesta.data as ItemCompraRow[])
+      .filter((row) => !conCambio.has(row.id))
+      .map(fromItemCompraRow),
   )
 }
 

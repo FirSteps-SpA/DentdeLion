@@ -38,10 +38,13 @@ import { AjustesView } from '../../src/features/ajustes/components/AjustesView'
 import { lugar1, lugar2 } from '../helpers/lugarFalso'
 import { proveedorFalso } from '../helpers/proveedor'
 import { TENANT_1 } from '../helpers/tenancy'
+import { SALUDO_PEDIDO_POR_DEFECTO } from '../../src/features/compras/lib/pedido'
+import type { ConfiguracionAlertas } from '../../src/lib/db'
 
 const proveedoresT = db.proveedores as unknown as MemoryTable<Proveedor>
 const lugaresT = db.lugares as unknown as MemoryTable<Lugar>
 const lotesT = db.lotes as unknown as MemoryTable<Lote>
+const configT = db.configuracionAlertas as unknown as MemoryTable<ConfiguracionAlertas>
 
 const admin: UsuarioActual = {
   id: 'admin-1',
@@ -91,7 +94,12 @@ const hoja = () => screen.getByRole('dialog')
 beforeEach(() => {
   window.history.replaceState(null, '', '/')
   onMemoryDbChange(reflejarStore)
-  useAlertasStore.setState({ nivelesAvisoDias: [30, 7, 1], isReady: true })
+  useAlertasStore.setState({
+    nivelesAvisoDias: [30, 7, 1],
+    saludoPedido: SALUDO_PEDIDO_POR_DEFECTO,
+    isReady: true,
+  })
+  configT.seed([])
   useAuthStore.setState({ usuario: admin, isReady: true })
   proveedoresT.seed([sur, norte])
   lugaresT.seed([{ ...lugar1, proveedorPredeterminadoId: 'sur' }])
@@ -299,5 +307,51 @@ describe('Ajustes → Proveedores', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'Ajustes' }),
     ).toBeInTheDocument()
+  })
+})
+
+/** Spec 022 T025 (US5, FR-021..FR-023). */
+describe('Ajustes → Proveedores → Mensaje del pedido', () => {
+  const campo = () => screen.getByLabelText('Mensaje del pedido') as HTMLTextAreaElement
+
+  it('muestra el saludo de la clienta con su contador; Guardar y Restablecer deshabilitados', () => {
+    abrirSeccion()
+    expect(campo().value).toBe(SALUDO_PEDIDO_POR_DEFECTO)
+    expect(screen.getByText(`${SALUDO_PEDIDO_POR_DEFECTO.length}/500`)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Restablecer' })).toBeDisabled()
+  })
+
+  it('editar y guardar lo deja para subir y lo confirma', async () => {
+    abrirSeccion()
+    fireEvent.change(campo(), { target: { value: 'Hola Paula, ¿tienen esto?' } })
+    expect(screen.getByText('25/500')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    await screen.findByText('Saludo guardado.')
+    expect(configT.all()[0]).toMatchObject({
+      saludoPedido: 'Hola Paula, ¿tienen esto?',
+      sincronizado: false,
+    })
+  })
+
+  it('con un saludo propio, Restablecer vuelve al de la clienta', async () => {
+    useAlertasStore.setState({ saludoPedido: 'Hola Paula' })
+    abrirSeccion()
+    expect(campo().value).toBe('Hola Paula')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restablecer' }))
+    await screen.findByText('Saludo restablecido.')
+    expect(configT.all()[0]).toMatchObject({ saludoPedido: null, sincronizado: false })
+
+    // La liveQuery trae el valor efectivo y el campo se reinicia.
+    useAlertasStore.setState({ saludoPedido: SALUDO_PEDIDO_POR_DEFECTO })
+    await waitFor(() => expect(campo().value).toBe(SALUDO_PEDIDO_POR_DEFECTO))
+    expect(screen.getByRole('button', { name: 'Restablecer' })).toBeDisabled()
+  })
+
+  it('el campo no admite más de 500 caracteres', () => {
+    abrirSeccion()
+    expect(campo()).toHaveAttribute('maxLength', '500')
   })
 })

@@ -191,6 +191,11 @@ export interface ConfiguracionAlertas {
    * rellena al subir, para no pisar el valor del servidor (research.md R6).
    */
   horasAvisoPendientes?: number
+  /**
+   * Spec 022 (research.md R1) — saludo del pedido por WhatsApp. `undefined` =
+   * nunca se tocó aquí (no se sube); `null` = el de la clienta.
+   */
+  saludoPedido?: string | null
   /** Spec 012 (research.md R5) — local: `false` = cambio de un administrador aún sin subir. */
   sincronizado: boolean
 }
@@ -217,11 +222,24 @@ export interface Categoria {
  * Feature 008 data-model.md — Borrador. Fila única (`id` fija) del
  * formulario "Nuevo Material" en curso, nunca sincronizada (R6).
  */
-export interface Borrador {
+export interface BorradorAlta {
   id: 'alta-material'
   datos: Partial<AltaMaterialInput>
   actualizadoEn: string
 }
+
+/**
+ * Spec 022 (research.md R2) — los ítems marcados en Compras, solo en este
+ * dispositivo. Claves `s:<lugarId>:<insumoId>` (sugerido) o `m:<itemId>`
+ * (manual). Se ignora si es de otro tenant.
+ */
+export interface BorradorSeleccionCompras {
+  id: 'seleccion-compras'
+  datos: { tenantId: string; claves: string[] }
+  actualizadoEn: string
+}
+
+export type Borrador = BorradorAlta | BorradorSeleccionCompras
 
 /**
  * Feature 009 data-model.md — ItemCompra. Un pedido puntual agregado a mano
@@ -245,6 +263,12 @@ export interface ItemCompra {
   creadoEn: string
   compradoPor: string | null
   compradoEn: string | null
+  /**
+   * Spec 022 (research.md R6) — local: cambiado en este dispositivo y aún sin
+   * subir. Un ítem de otra persona solo se sube (por UPDATE) si lo tiene, y el
+   * pull no pisa uno que lo tenga. Ausente en las filas que vienen del servidor.
+   */
+  cambioLocal?: boolean
 }
 
 /**

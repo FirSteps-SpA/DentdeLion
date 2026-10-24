@@ -18,6 +18,8 @@ vi.mock('../../src/lib/db', () => ({
     lotes: { add: vi.fn() },
     movimientos: { add: vi.fn() },
     configuracionAlertas: { get: async () => undefined, put: async () => undefined },
+    // Spec 022: la selección de Compras vive en borradores.
+    borradores: { get: async () => undefined, put: async () => undefined },
   },
 }))
 

@@ -168,6 +168,8 @@ export async function recibirEnInsumo(
           estado: 'comprado',
           compradoPor: usuarioId,
           compradoEn: new Date().toISOString(),
+          // Spec 022 R6: puede ser de otra persona; se sube por UPDATE.
+          cambioLocal: true,
         })
       }
 
