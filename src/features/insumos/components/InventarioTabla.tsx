@@ -8,7 +8,7 @@ import { Badge } from '../../../components/ui/Badge'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { MOTIVO_DESHABILITADO } from './InsumoCard'
 import { formatearPresentacion } from '../lib/presentacion'
-import { etiquetaUnidad, formatearEquivalente } from '../../../lib/unidades'
+import { etiquetaUnidad, formatearEquivalente, formatearCantidad } from '../../../lib/unidades'
 import { formatearCLP } from '../lib/precio'
 import { useCostosUnitarios } from '../lib/useCostosUnitarios'
 import { NombreConMarca } from '../../marcas/components/NombreConMarca'
@@ -114,7 +114,7 @@ export function InventarioTabla({
                   {formatearPresentacion(insumo)}
                 </td>
                 <td className="px-4 py-2 text-sm font-medium whitespace-nowrap text-text">
-                  {stockTotal} {insumo.unidadMedida}
+                  {formatearCantidad(stockTotal, insumo.unidadMedida)}
                   {formatearEquivalente(stockTotal, insumo) && (
                     // Spec 015 FR-021: equivalente en unidades de compra.
                     <span className="block text-xs font-normal text-text-muted">

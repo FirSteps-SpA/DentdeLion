@@ -191,7 +191,7 @@ export function InsumoDetalle({
       </div>
 
       <p className="text-sm font-bold text-text">
-        Stock total: {stockTotal} {insumo.unidadMedida}
+        Stock total: {formatearCantidad(stockTotal, insumo.unidadMedida)}
         {formatearEquivalente(stockTotal, insumo) && (
           <span className="font-normal text-text-muted">
             {' '}
@@ -243,7 +243,7 @@ export function InsumoDetalle({
                   : 'No caduca'}
               </span>
               <span className="font-bold text-text-muted">
-                {stock} {insumo.unidadMedida}
+                {formatearCantidad(stock, insumo.unidadMedida)}
               </span>
             </span>
             <span className="flex items-center justify-between gap-2">

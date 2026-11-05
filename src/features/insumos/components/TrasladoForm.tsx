@@ -10,6 +10,7 @@ import { compararFefo } from '../lib/fefo'
 import { permiteDecimales } from '../lib/quantity'
 import { stockLoteEnLugar } from '../lib/stock'
 import { trasladar } from '../lib/traslado'
+import { formatearCantidad } from '../../../lib/unidades'
 
 export interface TrasladoFormProps {
   insumo: Insumo
@@ -65,7 +66,7 @@ export function TrasladoForm({ insumo, origenId, onClose }: TrasladoFormProps) {
         loteId,
         insumoNombre: insumo.nombre,
         unidadMedida: insumo.unidadMedida,
-        detalle: `Trasladado ${cantidad} ${insumo.unidadMedida} a ${nombreLugar(lugares, destinoId)}`,
+        detalle: `Trasladado ${formatearCantidad(cantidad, insumo.unidadMedida)} a ${nombreLugar(lugares, destinoId)}`,
       })
       onClose()
     } catch (err) {
@@ -116,7 +117,7 @@ export function TrasladoForm({ insumo, origenId, onClose }: TrasladoFormProps) {
           </label>
           <Stepper
             id="traslado-cantidad"
-            label={`Cantidad (máximo ${seleccionado?.stock ?? 0} ${insumo.unidadMedida})`}
+            label={`Cantidad (máximo ${formatearCantidad(seleccionado?.stock ?? 0, insumo.unidadMedida)})`}
             value={cantidad}
             onChange={(valor) =>
               setCantidad(valor === null ? null : Math.min(valor, seleccionado?.stock ?? valor))

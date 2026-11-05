@@ -145,7 +145,7 @@ describe('vista "Todos" (spec 014 US3)', () => {
   it('Inventario muestra el stock por lugar', () => {
     render(<InventarioView />)
 
-    expect(screen.getByText('5 cartucho')).toBeInTheDocument()
+    expect(screen.getByText('5 cartuchos')).toBeInTheDocument()
     expect(screen.getByText('Clínica 2 · Box Las Condes 3')).toBeInTheDocument()
   })
 

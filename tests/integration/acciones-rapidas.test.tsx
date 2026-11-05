@@ -253,7 +253,7 @@ describe('Consumir 1 (User Story 1)', () => {
     expect(
       movimientosT.all().find((m) => m.tipo === 'consumo')?.usuarioId,
     ).toBe('personal-1')
-    expect(within(tarjeta('Anestesia')).getByText('7 caja')).toBeInTheDocument()
+    expect(within(tarjeta('Anestesia')).getByText('7 cajas')).toBeInTheDocument()
     expect(vibrate).toHaveBeenCalled()
   })
 
@@ -504,7 +504,7 @@ describe('Baja (User Story 4)', () => {
     fireEvent.click(screen.getByText('Eliminar'))
     let dialogo = screen.getByRole('dialog', { name: 'Eliminar insumo' })
     expect(
-      within(dialogo).getByText('Aún quedan 6 caja en stock.'),
+      within(dialogo).getByText('Aún quedan 6 cajas en stock.'),
     ).toBeInTheDocument()
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Cancelar' }))
     expect(
@@ -663,7 +663,7 @@ describe('Edición — eliminar desde Editar (spec 024)', () => {
 
     fireEvent.click(within(form).getByRole('button', { name: 'Eliminar insumo' }))
     let dialogo = screen.getByRole('dialog', { name: 'Eliminar insumo' })
-    expect(within(dialogo).getByText('Aún quedan 6 caja en stock.')).toBeInTheDocument()
+    expect(within(dialogo).getByText('Aún quedan 6 cajas en stock.')).toBeInTheDocument()
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Cancelar' }))
     expect(screen.queryByRole('dialog', { name: 'Eliminar insumo' })).toBeNull()
     expect(within(form).getByLabelText('Nombre comercial')).toHaveValue('Bisturí 15')

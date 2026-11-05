@@ -151,7 +151,7 @@ describe('traslados (spec 014 US6)', () => {
     fireEvent.change(within(form).getByLabelText(/Cantidad/), { target: { value: '4' } })
     fireEvent.click(within(form).getByRole('button', { name: 'Trasladar' }))
 
-    expect(await screen.findByText('Trasladado 4 cartucho a Box Las Condes')).toBeInTheDocument()
+    expect(await screen.findByText('Trasladado 4 cartuchos a Box Las Condes')).toBeInTheDocument()
     expect(stockEn(LUGAR_1)).toBe(6)
     expect(stockEn(LUGAR_2)).toBe(4)
 
