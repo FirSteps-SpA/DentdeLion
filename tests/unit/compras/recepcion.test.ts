@@ -1,5 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Insumo, ItemCompra, Lote, Movimiento, Proveedor, UsuarioActual } from '../../../src/lib/db'
+import type {
+  CambioInsumo,
+  Insumo,
+  ItemCompra,
+  Lote,
+  Movimiento,
+  Proveedor,
+  UsuarioActual,
+} from '../../../src/lib/db'
 import type { MemoryTable } from '../../helpers/memoryDb'
 
 vi.mock('../../../src/lib/db', async () => {
@@ -40,13 +48,16 @@ import {
   validarRecepcion,
   type RecepcionInput,
 } from '../../../src/features/compras/lib/recepcion'
-import { LUGAR_1, TENANT_1 } from '../../helpers/tenancy'
-import { usarLugar1 } from '../../helpers/lugarFalso'
+import { LUGAR_1, LUGAR_2, TENANT_1 } from '../../helpers/tenancy'
+import { usarDosLugares, usarLugar1 } from '../../helpers/lugarFalso'
+import { ingresoCompra, loteCompra } from '../../helpers/compras'
 
 const lotesT = db.lotes as unknown as MemoryTable<Lote>
 const movimientosT = db.movimientos as unknown as MemoryTable<Movimiento>
 const itemsCompraT = db.itemsCompra as unknown as MemoryTable<ItemCompra>
 const proveedoresT = db.proveedores as unknown as MemoryTable<Proveedor>
+const insumosT = db.insumos as unknown as MemoryTable<Insumo>
+const cambiosInsumoT = db.cambiosInsumo as unknown as MemoryTable<CambioInsumo>
 
 function insumo(overrides: Partial<Insumo>): Insumo {
   return {
@@ -113,6 +124,8 @@ beforeEach(() => {
   lotesT.seed([])
   movimientosT.seed([])
   itemsCompraT.seed([])
+  insumosT.seed([])
+  cambiosInsumoT.seed([])
   // Spec 021: el lote se registra con un proveedor del catálogo.
   proveedoresT.seed([
     {
@@ -312,5 +325,116 @@ describe('recepción en unidad de compra (spec 015 US2, FR-009/FR-010)', () => {
     await recibirEnInsumo(articaina(), inputBase({ cantidad: 2 }), null)
     await expect(runSyncBatch()).resolves.toMatchObject({ estado: 'sin-red' })
     expect(movimientosT.all()[0]).toMatchObject({ cantidad: 100, sincronizado: false })
+  })
+})
+
+describe('descarte de vencidos al recibir (spec 024 US1, R2)', () => {
+  // Fechas relativas: la recepción compara contra el día real.
+  const VENCIDO = '2020-01-01'
+  const guantes = () => insumo({ unidadMedida: 'caja', unidadCompra: 'caja' })
+  const loteVencido = (overrides: Partial<Lote> = {}) =>
+    loteCompra({ id: 'l-old', insumoId: 'i1', fechaCaducidad: VENCIDO, ...overrides })
+
+  function ajustes(): Movimiento[] {
+    return movimientosT.all().filter((m) => m.tipo === 'ajuste')
+  }
+
+  beforeEach(() => {
+    insumosT.seed([guantes()])
+    lotesT.seed([loteVencido()])
+    movimientosT.seed([ingresoCompra('l-old', 4)])
+  })
+
+  it('con descartarVencidos deja el lote vencido en 0 con un ajuste sin origen', async () => {
+    await recibirEnInsumo(guantes(), inputBase({ cantidad: 1, descartarVencidos: true }), null)
+
+    expect(ajustes()).toEqual([
+      expect.objectContaining({
+        loteId: 'l-old',
+        cantidad: -4,
+        lugarId: LUGAR_1,
+        unidad: 'caja',
+        movimientoOrigenId: null,
+        usuarioId: 'user-1',
+        sincronizado: false,
+      }),
+    ])
+    expect(lotesT.all()).toHaveLength(2)
+  })
+
+  it('sin descartarVencidos (o en false) no escribe ajustes', async () => {
+    await recibirEnInsumo(guantes(), inputBase({ cantidad: 1 }), null)
+    await recibirEnInsumo(
+      guantes(),
+      inputBase({ cantidad: 1, numeroLote: 'B', descartarVencidos: false }),
+      null,
+    )
+
+    expect(ajustes()).toEqual([])
+  })
+
+  it('no toca el stock vencido de otro lugar', async () => {
+    usarDosLugares(LUGAR_1)
+    movimientosT.seed([ingresoCompra('l-old', 4, LUGAR_2)])
+
+    await recibirEnInsumo(guantes(), inputBase({ cantidad: 1, descartarVencidos: true }), null)
+
+    expect(ajustes()).toEqual([])
+  })
+
+  it('el lote que llega ya vencido no se descarta en la misma recepción', async () => {
+    movimientosT.seed([])
+
+    await recibirEnInsumo(
+      guantes(),
+      inputBase({
+        cantidad: 1,
+        fechaCaducidad: VENCIDO,
+        confirmarCaducado: true,
+        descartarVencidos: true,
+      }),
+      null,
+    )
+
+    expect(ajustes()).toEqual([])
+  })
+
+  it('si la recepción falla no queda ni el lote nuevo ni el descarte', async () => {
+    itemsCompraT.seed([itemCompra({})])
+    vi.spyOn(db.itemsCompra, 'update').mockRejectedValueOnce(new Error('boom'))
+
+    await expect(
+      recibirEnInsumo(guantes(), inputBase({ cantidad: 1, descartarVencidos: true }), 'item-1'),
+    ).rejects.toThrow('boom')
+
+    expect(lotesT.all().map((l) => l.id)).toEqual(['l-old'])
+    expect(ajustes()).toEqual([])
+  })
+
+  it('descarta la cantidad normalizada si el insumo cambió de unidad', async () => {
+    // Ingresado en cajas; después se pasó a contar en guantes (100 por caja).
+    const convertido = insumo({ unidadMedida: 'guante', unidadCompra: 'caja', contenido: 100 })
+    insumosT.seed([convertido])
+    cambiosInsumoT.seed([
+      {
+        id: 'c1',
+        tenantId: TENANT_1,
+        insumoId: 'i1',
+        campo: 'unidadMedida',
+        valorAnterior: 'caja',
+        valorNuevo: 'guante',
+        factor: 100,
+        usuarioId: 'user-1',
+        creadoEn: '2026-02-01T00:00:00.000Z',
+        sincronizado: true,
+        rechazadoEn: null,
+      },
+    ])
+
+    await recibirEnInsumo(convertido, inputBase({ cantidad: 1, descartarVencidos: true }), null)
+
+    expect(ajustes()).toEqual([
+      expect.objectContaining({ loteId: 'l-old', cantidad: -400, unidad: 'guante' }),
+    ])
   })
 })

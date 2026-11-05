@@ -144,3 +144,25 @@ describe('computeItemsSugeridos', () => {
     expect(computeItemsSugeridos([insumo], [lote], movimientos)).toEqual([])
   })
 })
+
+describe('reponer un insumo vencido (spec 024 US1, caso reportado)', () => {
+  const insumo = makeInsumo({ id: 'i1', stockMinimo: 2 })
+  const vencido = makeLote({ id: 'l-old', insumoId: 'i1', fechaCaducidad: AYER })
+  const nuevo = makeLote({ id: 'l-new', insumoId: 'i1', fechaCaducidad: EN_10_DIAS })
+  const base = [
+    makeMovimiento({ loteId: 'l-old', cantidad: 4 }),
+    makeMovimiento({ loteId: 'l-new', cantidad: 1 }),
+  ]
+
+  it('sin descarte sigue sugerido por vencido con 5 en stock', () => {
+    const items = computeItemsSugeridos([insumo], [vencido, nuevo], base)
+    expect(items[0]).toMatchObject({ caducado: true, stockBajo: false })
+  })
+
+  it('con el descarte deja de ser vencido; con 1 y mínimo 2 queda por stock bajo', () => {
+    const descarte = makeMovimiento({ loteId: 'l-old', tipo: 'ajuste', cantidad: -4 })
+    const items = computeItemsSugeridos([insumo], [vencido, nuevo], [...base, descarte])
+    expect(items).toHaveLength(1)
+    expect(items[0]).toMatchObject({ caducado: false, stockBajo: true })
+  })
+})

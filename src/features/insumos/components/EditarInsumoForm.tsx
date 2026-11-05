@@ -3,19 +3,31 @@ import type { CampoEditableInsumo, Insumo } from '../../../lib/db'
 import { useBarcodeScanner } from '../../../lib/scanner/useBarcodeScanner'
 import { lotesDeInsumo, useInventoryStore } from '../../../stores/inventoryStore'
 import {
-  editarInsumo,
   validarEdicionInsumo,
   validarStockMinimo,
   type CambiosInsumoInput,
 } from '../lib/catalogo'
 import { catalogoCategorias, resolverCategoria } from '../lib/categorias'
-import { Factory, Minus, Plus, Scan } from '../../../components/icons'
+import { Factory, Minus, Plus, Scan, Trash } from '../../../components/icons'
+import { Badge } from '../../../components/ui/Badge'
+import { useAuthStore } from '../../../stores/authStore'
+import { formatearCantidad } from '../../../lib/unidades'
+import {
+  filasStockPorLote,
+  guardarEdicionInsumo,
+  validarCantidadLote,
+  type CorreccionStock,
+  type FilaStockLote,
+} from '../lib/ajusteStock'
+import { darDeBajaInsumo } from '../lib/catalogo'
+import { ICONO_ESTADO } from '../lib/estadoIconos'
+import { computeStockLote } from '../lib/stock'
+import { ConfirmarBajaDialog } from './ConfirmarBajaDialog'
 import { SelectorMarca } from '../../marcas/components/SelectorMarca'
 import { Card } from '../../../components/ui/Card'
 import { IconField } from '../../../components/ui/IconField'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { hayVariosLugares, nombreLugar, useLugarStore } from '../../../stores/lugarStore'
-import { guardarMinimoLugar } from '../lib/minimos'
 import { PresentacionFields } from './PresentacionFields'
 import { ConvertirUnidadDialog } from './ConvertirUnidadDialog'
 import { NumeroInput } from '../../../components/ui/NumeroInput'
@@ -24,6 +36,8 @@ export interface EditarInsumoFormProps {
   insumo: Insumo
   onGuardado: () => void
   onCancelar: () => void
+  /** Spec 024 (US3) — sin él no se ofrece "Eliminar insumo". */
+  onEliminado?: () => void
 }
 
 const INPUT_CLASS =
@@ -102,6 +116,16 @@ export function EscanearCodigo({ onCodigo }: { onCodigo: (codigo: string) => voi
   )
 }
 
+/** Clave de un renglón de "Stock por lote": un lote puede estar en varios lugares. */
+function claveFila(loteId: string, lugarId: string): string {
+  return `${loteId}|${lugarId}`
+}
+
+/** El stock como texto editable, sin restos de coma flotante (0,30000000004). */
+function textoStock(stock: number): string {
+  return String(Math.round(stock * 1e6) / 1e6)
+}
+
 function ErrorCampo({ id, mensaje }: { id: string; mensaje?: string }) {
   if (!mensaje) return null
   return (
@@ -121,6 +145,7 @@ export function EditarInsumoForm({
   insumo: insumoMostrado,
   onGuardado,
   onCancelar,
+  onEliminado,
 }: EditarInsumoFormProps) {
   const insumos = useInventoryStore((s) => s.insumos)
   const lotes = useInventoryStore((s) => s.lotes)
@@ -172,6 +197,36 @@ export function EditarInsumoForm({
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
 
+  // Spec 024 (US2, R4): stock por lote, solo administración.
+  const esAdministrador = useAuthStore((s) => s.usuario?.rol) === 'administrador'
+  const movimientos = useInventoryStore((s) => s.movimientos)
+  const filasStock = esAdministrador
+    ? filasStockPorLote(insumo, lotes, movimientos, lugarActivoId ?? 'todos', lugares)
+    : []
+  const [cantidades, setCantidades] = useState<Record<string, string>>({})
+  const [erroresStock, setErroresStock] = useState<Record<string, string>>({})
+  const valorFila = (fila: FilaStockLote) =>
+    cantidades[claveFila(fila.lote.id, fila.lugarId)] ?? textoStock(fila.stock)
+  const correcciones: CorreccionStock[] = filasStock
+    .filter((fila) => valorFila(fila) !== textoStock(fila.stock))
+    .map((fila) => ({
+      loteId: fila.lote.id,
+      lugarId: fila.lugarId,
+      // Vacío = NaN: lo rechaza la validación en vez de guardarse como 0.
+      cantidad: valorFila(fila).trim() === '' ? Number.NaN : Number(valorFila(fila)),
+    }))
+
+  // Spec 024 (US3, R5): la baja se confirma aquí mismo, para que cancelar no
+  // pierda lo editado.
+  const [confirmandoBaja, setConfirmandoBaja] = useState(false)
+  const [bajaPendiente, setBajaPendiente] = useState(false)
+  const [errorBaja, setErrorBaja] = useState<string | null>(null)
+  const stockTotal = lotesDeInsumo(lotes, insumo.id).reduce(
+    (total, lote) =>
+      total + computeStockLote(movimientos.filter((m) => m.loteId === lote.id)),
+    0,
+  )
+
   const stockMinimoValor =
     stockMinimo.trim() === '' ? null : Number(stockMinimo)
   const unidadCompraFinal = unidadCompra ?? unidadMedida
@@ -213,17 +268,28 @@ export function EditarInsumoForm({
       ? validarStockMinimo(minimoLugarValor, unidadMedida)
       : null
     setErrorMinimoLugar(errorLugar)
-    if (!validacion.valido || errorLugar) {
+    const nuevosErroresStock: Record<string, string> = {}
+    for (const correccion of correcciones) {
+      const error = validarCantidadLote(correccion.cantidad, insumo)
+      if (error) nuevosErroresStock[claveFila(correccion.loteId, correccion.lugarId)] = error
+    }
+    setErroresStock(nuevosErroresStock)
+    if (!validacion.valido || errorLugar || Object.keys(nuevosErroresStock).length > 0) {
       setErrores(validacion.valido ? {} : validacion.errores)
       return
     }
     setErrores({})
     setIsPending(true)
     try {
-      if (hayCambios) await editarInsumo(insumo.id, cambios)
-      if (cambiaMinimoLugar && lugarMinimo) {
-        await guardarMinimoLugar(insumo, lugarMinimo, minimoLugarValor)
-      }
+      await guardarEdicionInsumo({
+        insumo,
+        cambios: hayCambios ? cambios : {},
+        correcciones,
+        minimoLugar:
+          cambiaMinimoLugar && lugarMinimo
+            ? { lugarId: lugarMinimo, valor: minimoLugarValor }
+            : null,
+      })
       onGuardado()
     } catch (error) {
       setErrorGeneral(
@@ -231,6 +297,20 @@ export function EditarInsumoForm({
       )
     } finally {
       setIsPending(false)
+    }
+  }
+
+  async function confirmarBaja() {
+    setBajaPendiente(true)
+    setErrorBaja(null)
+    try {
+      await darDeBajaInsumo(insumo.id)
+      setConfirmandoBaja(false)
+      onEliminado?.()
+    } catch (error) {
+      setErrorBaja(error instanceof Error ? error.message : 'No se pudo eliminar el insumo.')
+    } finally {
+      setBajaPendiente(false)
     }
   }
 
@@ -404,6 +484,88 @@ export function EditarInsumoForm({
         )}
       </div>
 
+      {filasStock.length > 0 && (
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-1.5 text-sm font-bold text-text">Stock por lote</legend>
+          {filasStock.map((fila) => {
+            const clave = claveFila(fila.lote.id, fila.lugarId)
+            const valor = valorFila(fila)
+            const numero = Number(valor)
+            const diferencia =
+              valor.trim() !== '' && Number.isFinite(numero) ? numero - fila.stock : 0
+            const idError = `error-lote-${clave}`
+            const cambiar = (siguiente: string) =>
+              setCantidades((actuales) => ({ ...actuales, [clave]: siguiente }))
+            return (
+              <div
+                key={clave}
+                className="flex flex-col gap-1.5 rounded-md border border-border p-2.5"
+              >
+                <div className="flex flex-wrap items-center gap-2 text-sm text-text">
+                  <span>
+                    Lote {fila.lote.numeroLote} ·{' '}
+                    {fila.lote.fechaCaducidad
+                      ? `vence ${fila.lote.fechaCaducidad}`
+                      : 'No caduca'}
+                  </span>
+                  {fila.vencido && (
+                    <Badge variant="danger" icono={ICONO_ESTADO.caducado}>
+                      Vencido
+                    </Badge>
+                  )}
+                </div>
+                {fila.nombreLugar && (
+                  <span className="text-xs text-text-muted">Lugar: {fila.nombreLugar}</span>
+                )}
+                <div className="flex items-stretch gap-2">
+                  <TouchButton
+                    type="button"
+                    variant="ghost"
+                    onClick={() => cambiar(textoStock(Math.max(0, (Number(valor) || 0) - 1)))}
+                    aria-label={`Restar uno al lote ${fila.lote.numeroLote}`}
+                  >
+                    <Minus size={16} />
+                  </TouchButton>
+                  <div className="touch-target flex flex-1 items-center gap-2 rounded-md border border-border bg-surface px-3">
+                    <NumeroInput
+                      step="any"
+                      min={0}
+                      inputMode={insumo.permiteDecimales ? 'decimal' : 'numeric'}
+                      value={valor}
+                      onChange={(event) => cambiar(event.target.value)}
+                      aria-label={`Cantidad del lote ${fila.lote.numeroLote}${
+                        fila.nombreLugar ? ` en ${fila.nombreLugar}` : ''
+                      }`}
+                      aria-invalid={erroresStock[clave] ? true : undefined}
+                      aria-describedby={erroresStock[clave] ? idError : undefined}
+                      className="w-full border-none bg-transparent text-center text-[15px] font-extrabold text-text outline-none"
+                    />
+                    <span className="shrink-0 text-xs text-text-muted">
+                      {insumo.unidadMedida}
+                    </span>
+                  </div>
+                  <TouchButton
+                    type="button"
+                    variant="ghost"
+                    onClick={() => cambiar(textoStock((Number(valor) || 0) + 1))}
+                    aria-label={`Sumar uno al lote ${fila.lote.numeroLote}`}
+                  >
+                    <Plus size={16} />
+                  </TouchButton>
+                </div>
+                {Math.abs(diferencia) > 1e-9 && (
+                  <span className="text-xs font-bold text-text-muted">
+                    Ajuste: {diferencia < 0 ? '−' : '+'}
+                    {formatearCantidad(Math.abs(diferencia), insumo.unidadMedida)}
+                  </span>
+                )}
+                <ErrorCampo id={idError} mensaje={erroresStock[clave]} />
+              </div>
+            )
+          })}
+        </fieldset>
+      )}
+
       {errorGeneral && (
         <p role="alert" className="text-sm text-danger">
           {errorGeneral}
@@ -421,12 +583,36 @@ export function EditarInsumoForm({
         </TouchButton>
         <TouchButton
           type="submit"
-          disabled={!(hayCambios || cambiaMinimoLugar) || isPending}
+          disabled={!(hayCambios || cambiaMinimoLugar || correcciones.length > 0) || isPending}
           className="flex-1"
         >
           {isPending ? 'Guardando…' : 'Guardar'}
         </TouchButton>
       </div>
+      {esAdministrador && onEliminado && (
+        <TouchButton
+          type="button"
+          variant="ghost"
+          onClick={() => {
+            setErrorBaja(null)
+            setConfirmandoBaja(true)
+          }}
+          className="mt-2 text-danger"
+        >
+          <Trash size={18} />
+          Eliminar insumo
+        </TouchButton>
+      )}
+      {confirmandoBaja && (
+        <ConfirmarBajaDialog
+          insumo={insumo}
+          stockTotal={stockTotal}
+          isPending={bajaPendiente}
+          error={errorBaja}
+          onConfirmar={() => void confirmarBaja()}
+          onCancelar={() => setConfirmandoBaja(false)}
+        />
+      )}
       {convirtiendo && (
         <ConvertirUnidadDialog
           insumo={insumo}

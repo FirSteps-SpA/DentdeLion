@@ -18,6 +18,10 @@ import { CantidadIngresoField } from '../../insumos/components/CantidadIngresoFi
 import { PrecioIngresoField } from '../../insumos/components/PrecioIngresoField'
 import { convertirIngreso } from '../../insumos/lib/ingreso'
 import { SelectorProveedor } from '../../proveedores/components/SelectorProveedor'
+import { stockVencidoEnLugar } from '../../insumos/lib/ajusteStock'
+import { formatearCantidad, formatearEquivalente } from '../../../lib/unidades'
+import { useInventoryStore } from '../../../stores/inventoryStore'
+import { getLugarParaEscribir } from '../../../stores/lugarStore'
 import { usePredeterminado } from '../../proveedores/lib/usePredeterminado'
 
 export interface RecibirItemFormProps {
@@ -69,6 +73,16 @@ export function RecibirItemForm({
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
   const [mostrarDialogoCaducado, setMostrarDialogoCaducado] = useState(false)
+  // Spec 024 (US1, R2/R3): reponer reemplaza lo vencido, salvo que se desmarque.
+  const [descartarVencidos, setDescartarVencidos] = useState(true)
+  const lotes = useInventoryStore((s) => s.lotes)
+  const movimientos = useInventoryStore((s) => s.movimientos)
+  const lugarRecepcion = getLugarParaEscribir(lugarId)
+  const vencidos = lugarRecepcion
+    ? stockVencidoEnLugar(insumo, lotes, movimientos, lugarRecepcion)
+    : []
+  const totalVencido = vencidos.reduce((total, { stock }) => total + stock, 0)
+  const equivalenteVencido = formatearEquivalente(totalVencido, insumo)
 
   const vidaUtil = insumo.caduca ? mesesRestantes(datos.fechaCaducidad) : null
   // Spec 021 (FR-006): sin elección a mano, el predeterminado del lugar del ítem.
@@ -76,7 +90,11 @@ export function RecibirItemForm({
   const proveedorEfectivo = datos.proveedorId ?? proveedorPredeterminado
 
   async function intentarGuardar(datosSinProveedor: RecepcionInput) {
-    const datosParaGuardar = { ...datosSinProveedor, proveedorId: proveedorEfectivo }
+    const datosParaGuardar = {
+      ...datosSinProveedor,
+      proveedorId: proveedorEfectivo,
+      descartarVencidos: vencidos.length > 0 && descartarVencidos,
+    }
     const hoy = new Date().toISOString().slice(0, 10)
     const validacion = validarRecepcion(datosParaGuardar, insumo, hoy)
     if (!validacion.valido) {
@@ -192,6 +210,26 @@ export function RecibirItemForm({
               className="h-full w-full border-none bg-transparent text-sm text-text outline-none"
             />
           </IconField>
+        )}
+
+        {vencidos.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <label className="touch-target flex items-center gap-2 text-sm font-bold text-text">
+              <input
+                type="checkbox"
+                checked={descartarVencidos}
+                onChange={(event) => setDescartarVencidos(event.target.checked)}
+                className="h-5 w-5 shrink-0"
+              />
+              Descartar stock vencido ({formatearCantidad(totalVencido, insumo.unidadMedida)}
+              {equivalenteVencido && ` ${equivalenteVencido}`})
+            </label>
+            <p className="text-xs text-text-muted">
+              {vencidos
+                .map(({ lote }) => `Lote ${lote.numeroLote} (venció ${lote.fechaCaducidad})`)
+                .join(' · ')}
+            </p>
+          </div>
         )}
 
         {errorGeneral && (

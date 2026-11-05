@@ -1460,12 +1460,20 @@ async function pushMovimientos(
     })),
   )
   return subidos
-    .filter((movimiento) => restaStock(movimiento.tipo))
+    .filter(restaStock)
     .map((movimiento) => movimiento.loteId)
 }
 
-function restaStock(tipo: Movimiento['tipo']): boolean {
-  return tipo === 'consumo' || tipo === 'traslado_salida'
+/**
+ * Movimientos que bajan el stock de su lote y por eso pueden sobregirarlo.
+ * Spec 024 (research.md R6): también un `ajuste` negativo (descarte o
+ * corrección), que puede cruzarse sin conexión con un consumo de otro
+ * dispositivo.
+ */
+function restaStock({ tipo, cantidad }: Pick<Movimiento, 'tipo' | 'cantidad'>): boolean {
+  return (
+    tipo === 'consumo' || tipo === 'traslado_salida' || (tipo === 'ajuste' && cantidad < 0)
+  )
 }
 
 /**
@@ -1976,7 +1984,7 @@ async function pullMovimientos(
   if (respuesta.error || !respuesta.data) return []
   const rows = respuesta.data as MovimientoRow[]
   await db.movimientos.bulkPut(rows.map(fromMovimientoRow))
-  return rows.filter((row) => restaStock(row.tipo)).map((row) => row.lote_id)
+  return rows.filter(restaStock).map((row) => row.lote_id)
 }
 
 /**
