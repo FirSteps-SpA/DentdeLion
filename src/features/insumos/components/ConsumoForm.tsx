@@ -16,6 +16,7 @@ import { IconField } from '../../../components/ui/IconField'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { useLugarStore } from '../../../stores/lugarStore'
 import { NumeroInput } from '../../../components/ui/NumeroInput'
+import { formatearCantidad } from '../../../lib/unidades'
 
 /**
  * User Story 2 (P2): busca un insumo y confirma una cantidad de consumo,
@@ -122,7 +123,7 @@ export function ConsumoForm({ insumoInicial, onDone, lugarId: lugarElegido }: Co
     if (cantidadNumerica > loteSeleccionado.stockDisponible) {
       setError(
         `Stock insuficiente en el lote ${loteSeleccionado.lote.numeroLote}: ` +
-          `disponible ${loteSeleccionado.stockDisponible} ${insumo.unidadMedida}.`,
+          `disponible ${formatearCantidad(loteSeleccionado.stockDisponible, insumo.unidadMedida)}.`,
       )
       return
     }
@@ -204,7 +205,7 @@ export function ConsumoForm({ insumoInicial, onDone, lugarId: lugarElegido }: Co
                   {lote.fechaCaducidad
                     ? `vence ${lote.fechaCaducidad}`
                     : 'sin fecha de caducidad'}{' '}
-                  — disponible {stockDisponible} {insumo.unidadMedida}
+                  — disponible {formatearCantidad(stockDisponible, insumo.unidadMedida)}
                 </option>
               ))}
             </select>

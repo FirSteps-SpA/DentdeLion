@@ -343,6 +343,85 @@ describe('ComprasView — Marcar un ítem sugerido como recibido (User Story 2)'
   })
 })
 
+describe('ComprasView — reponer un insumo vencido (spec 024 US1)', () => {
+  function sembrarGuantesVencidos(extra: Partial<Insumo> = {}) {
+    insumosT.seed([
+      makeInsumo({
+        id: 'i1',
+        nombre: 'Guantes',
+        unidadMedida: 'caja',
+        unidadCompra: 'caja',
+        ...extra,
+      }),
+    ])
+    lotesT.seed([
+      makeLote({ id: 'l-old', insumoId: 'i1', numeroLote: 'OLD', fechaCaducidad: fechaEnDias(-5) }),
+    ])
+    movimientosT.seed([makeIngreso('l-old', 4)])
+    reflejarStore()
+  }
+
+  async function abrirRecepcion() {
+    render(<ComprasView />)
+    fireEvent.click(
+      screen.getByRole('button', { name: /Marcar Guantes como comprado o recibido/ }),
+    )
+    await screen.findByRole('heading', { name: 'Recibir Guantes' })
+  }
+
+  function completarYConfirmar() {
+    fireEvent.change(screen.getByLabelText('Número de lote'), { target: { value: 'NEW' } })
+    fireEvent.change(screen.getByLabelText('Fecha de vencimiento'), {
+      target: { value: fechaEnDias(365) },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar recepción' }))
+  }
+
+  it('ofrece descartar lo vencido, marcado, con los lotes que se descartan', async () => {
+    sembrarGuantesVencidos()
+    await abrirRecepcion()
+
+    const casilla = screen.getByRole('checkbox', {
+      name: /Descartar stock vencido \(4 cajas\)/,
+    })
+    expect(casilla).toBeChecked()
+    expect(screen.getByText(/Lote OLD \(venció/)).toBeInTheDocument()
+  })
+
+  it('caso reportado: con la casilla marcada el insumo sale de Sugeridos', async () => {
+    sembrarGuantesVencidos()
+    await abrirRecepcion()
+    completarYConfirmar()
+
+    await waitFor(() => expect(lotesT.all()).toHaveLength(2))
+    expect(movimientosT.all().filter((m) => m.tipo === 'ajuste')).toEqual([
+      expect.objectContaining({ loteId: 'l-old', cantidad: -4 }),
+    ])
+    await waitFor(() => expect(screen.queryByText('Guantes')).not.toBeInTheDocument())
+  })
+
+  it('desmarcada, lo vencido queda y el insumo sigue sugerido', async () => {
+    sembrarGuantesVencidos()
+    await abrirRecepcion()
+    fireEvent.click(screen.getByRole('checkbox', { name: /Descartar stock vencido/ }))
+    completarYConfirmar()
+
+    await waitFor(() => expect(lotesT.all()).toHaveLength(2))
+    expect(movimientosT.all().some((m) => m.tipo === 'ajuste')).toBe(false)
+    expect(screen.getByText('Guantes')).toBeInTheDocument()
+  })
+
+  it('sin lotes vencidos no muestra la casilla', async () => {
+    insumosT.seed([makeInsumo({ id: 'i1', nombre: 'Guantes', stockMinimo: 10 })])
+    lotesT.seed([makeLote({ id: 'l1', insumoId: 'i1' })])
+    movimientosT.seed([makeIngreso('l1', 2)])
+    reflejarStore()
+    await abrirRecepcion()
+
+    expect(screen.queryByRole('checkbox', { name: /Descartar stock vencido/ })).toBeNull()
+  })
+})
+
 describe('ComprasView — Agregar y gestionar ítems manuales (User Story 3)', () => {
   it('adds a manual item without a matching insumo; it shows up with the Manual badge (FR-015)', async () => {
     reflejarStore()

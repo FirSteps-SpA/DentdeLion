@@ -51,6 +51,7 @@ import { useAvisosStore, DURACION_AVISO_MS } from '../../src/stores/avisosStore'
 import { InventarioView } from '../../src/features/insumos/components/InventarioView'
 import { AlertasView } from '../../src/features/alertas/components/AlertasView'
 import { ConsumoForm } from '../../src/features/insumos/components/ConsumoForm'
+import { EditarInsumoForm } from '../../src/features/insumos/components/EditarInsumoForm'
 import { AvisosConsumo } from '../../src/app/AvisosConsumo'
 import { computeStockLote } from '../../src/features/insumos/lib/stock'
 import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
@@ -252,7 +253,7 @@ describe('Consumir 1 (User Story 1)', () => {
     expect(
       movimientosT.all().find((m) => m.tipo === 'consumo')?.usuarioId,
     ).toBe('personal-1')
-    expect(within(tarjeta('Anestesia')).getByText('7 caja')).toBeInTheDocument()
+    expect(within(tarjeta('Anestesia')).getByText('7 cajas')).toBeInTheDocument()
     expect(vibrate).toHaveBeenCalled()
   })
 
@@ -503,7 +504,7 @@ describe('Baja (User Story 4)', () => {
     fireEvent.click(screen.getByText('Eliminar'))
     let dialogo = screen.getByRole('dialog', { name: 'Eliminar insumo' })
     expect(
-      within(dialogo).getByText('Aún quedan 6 caja en stock.'),
+      within(dialogo).getByText('Aún quedan 6 cajas en stock.'),
     ).toBeInTheDocument()
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Cancelar' }))
     expect(
@@ -579,6 +580,101 @@ describe('Edición — marca (spec 023)', () => {
       expect.objectContaining({ campo: 'marcaId', valorAnterior: null, valorNuevo: 'tres' }),
     ])
     expect(insumosT.all().find((i) => i.id === 'a')?.marcaId).toBe('tres')
+  })
+})
+
+/** Spec 024 US2 (FR-005..FR-008). */
+describe('Edición — stock por lote (spec 024)', () => {
+  function abrirEdicion(nombre: string): HTMLElement {
+    fireEvent.click(screen.getByRole('button', { name: `Más opciones de ${nombre}` }))
+    fireEvent.click(screen.getByText('Editar'))
+    return screen.getByRole('dialog', { name: 'Editar insumo' })
+  }
+
+  it('administración pone en 0 el lote vencido y el insumo deja de estar Caducado', async () => {
+    useAuthStore.setState({ usuario: admin })
+    render(<Harness />)
+    expect(within(tarjeta('Bisturí')).getByText('Caducado')).toBeInTheDocument()
+
+    const form = abrirEdicion('Bisturí')
+    const seccion = within(form).getByRole('group', { name: 'Stock por lote' })
+    expect(within(seccion).getByText('Vencido')).toBeInTheDocument()
+    const vencido = within(seccion).getByLabelText('Cantidad del lote B-CAD')
+    expect(vencido).toHaveValue(2)
+    expect(within(seccion).getByLabelText('Cantidad del lote B-VIG')).toHaveValue(4)
+
+    fireEvent.change(vencido, { target: { value: '0' } })
+    expect(within(seccion).getByText('Ajuste: −2 cajas')).toBeInTheDocument()
+    fireEvent.click(within(form).getByRole('button', { name: 'Guardar' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(movimientosT.all().filter((m) => m.tipo === 'ajuste')).toEqual([
+      expect.objectContaining({ loteId: 'b-cad', cantidad: -2, usuarioId: 'admin-1' }),
+    ])
+    expect(stock('b-cad')).toBe(0)
+    expect(within(tarjeta('Bisturí')).queryByText('Caducado')).toBeNull()
+    expect(cambiosT.all()).toEqual([])
+  })
+
+  it('una cantidad con decimales no guarda nada, tampoco el nombre', async () => {
+    useAuthStore.setState({ usuario: admin })
+    render(<Harness />)
+    const form = abrirEdicion('Bisturí')
+
+    fireEvent.change(within(form).getByLabelText('Nombre comercial'), {
+      target: { value: 'Bisturí 15' },
+    })
+    fireEvent.change(within(form).getByLabelText('Cantidad del lote B-VIG'), {
+      target: { value: '1.5' },
+    })
+    fireEvent.click(within(form).getByRole('button', { name: 'Guardar' }))
+
+    expect(await within(form).findByText('Esta unidad no admite decimales.')).toBeInTheDocument()
+    expect(cambiosT.all()).toEqual([])
+    expect(movimientosT.all().some((m) => m.tipo === 'ajuste')).toBe(false)
+  })
+
+  it('el personal no ve la corrección de stock', () => {
+    useAuthStore.setState({ usuario: personal })
+    render(
+      <EditarInsumoForm
+        insumo={insumosT.all().find((i) => i.id === 'b')!}
+        onGuardado={() => {}}
+        onCancelar={() => {}}
+        onEliminado={() => {}}
+      />,
+    )
+    expect(screen.queryByRole('group', { name: 'Stock por lote' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Eliminar insumo' })).toBeNull()
+  })
+})
+
+/** Spec 024 US3 (FR-009). */
+describe('Edición — eliminar desde Editar (spec 024)', () => {
+  it('cancelar conserva lo editado; confirmar da de baja como desde el menú', async () => {
+    useAuthStore.setState({ usuario: admin })
+    render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Más opciones de Bisturí' }))
+    fireEvent.click(screen.getByText('Editar'))
+    const form = screen.getByRole('dialog', { name: 'Editar insumo' })
+    fireEvent.change(within(form).getByLabelText('Nombre comercial'), {
+      target: { value: 'Bisturí 15' },
+    })
+
+    fireEvent.click(within(form).getByRole('button', { name: 'Eliminar insumo' }))
+    let dialogo = screen.getByRole('dialog', { name: 'Eliminar insumo' })
+    expect(within(dialogo).getByText('Aún quedan 6 cajas en stock.')).toBeInTheDocument()
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Cancelar' }))
+    expect(screen.queryByRole('dialog', { name: 'Eliminar insumo' })).toBeNull()
+    expect(within(form).getByLabelText('Nombre comercial')).toHaveValue('Bisturí 15')
+
+    fireEvent.click(within(form).getByRole('button', { name: 'Eliminar insumo' }))
+    dialogo = screen.getByRole('dialog', { name: 'Eliminar insumo' })
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Eliminar' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.queryAllByText(/Bisturí/)).toHaveLength(0)
+    expect(cambiosT.all()).toEqual([expect.objectContaining({ insumoId: 'b', campo: 'baja' })])
   })
 })
 

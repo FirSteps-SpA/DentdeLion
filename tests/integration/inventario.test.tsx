@@ -251,7 +251,7 @@ describe('InventarioView (User Story 1 — resumen y tap-to-filter)', () => {
     // Spec 020 R5: el detalle se abre en una hoja encima de la lista.
     const detalle = screen.getByRole('dialog', { name: 'Detalle del insumo' })
     expect(
-      within(detalle).getByText(`Stock total: 10 ${insumoMultiLote.unidadMedida}`),
+      within(detalle).getByText("Stock total: 10 unidades"),
     ).toBeInTheDocument()
     expect(within(detalle).getByText(/Lote A-1/)).toBeInTheDocument()
     expect(within(detalle).getByText(/Lote B-2/)).toBeInTheDocument()

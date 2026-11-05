@@ -6,6 +6,8 @@
  * `transaction()` serializes callers so concurrent `rw` transactions don't
  * interleave — the property Dexie gives the double-tap guard (T009).
  */
+import { AsyncLocalStorage } from 'node:async_hooks'
+
 // `id`, o la clave compuesta `[insumoId+lugarId]` de `minimosLugar` (spec 014).
 type Row = { id?: string } | { insumoId: string; lugarId: string }
 type Clave = string | [string, string]
@@ -158,6 +160,10 @@ export function createMemoryDb<Tables extends Record<string, MemoryTable<any>>>(
   tables: Tables,
 ) {
   let cola: Promise<unknown> = Promise.resolve()
+  // Spec 024 (R4): como en Dexie, una transacción abierta dentro de otra corre
+  // como parte de ella (sin esperar la cola, que la bloquearía) y un error
+  // revierte la de afuera completa.
+  const dentroDeTransaccion = new AsyncLocalStorage<true>()
   return {
     ...tables,
     /**
@@ -168,12 +174,13 @@ export function createMemoryDb<Tables extends Record<string, MemoryTable<any>>>(
      */
     transaction(...args: unknown[]) {
       const fn = args[args.length - 1] as () => Promise<unknown>
+      if (dentroDeTransaccion.getStore()) return fn()
       const resultado = cola.then(async () => {
         const snapshot = Object.entries(tables).map(
           ([nombre, tabla]) => [nombre, new Map(tabla.rows)] as const,
         )
         try {
-          return await fn()
+          return await dentroDeTransaccion.run(true, fn)
         } catch (error) {
           for (const [nombre, filas] of snapshot) {
             tables[nombre].rows = filas

@@ -72,6 +72,17 @@ describe('consumosValorizados', () => {
     expect(consumos[0]).toMatchObject({ movimientoId: parcial.id, creadoEn: parcial.creadoEn, monto: 1950 })
   })
 
+  it('un ajuste de stock sin origen (descarte o corrección) no es consumo ni gasto (spec 024)', () => {
+    const consumo = mov('consumo', 'l1', 2, iso(2026, 9, 3))
+    const sinAjustes = consumosValorizados([consumo], indice, 'todos')
+    const conAjustes = consumosValorizados(
+      [consumo, mov('ajuste', 'l1', -4, iso(2026, 9, 4)), mov('ajuste', 'l1', 3, iso(2026, 9, 5))],
+      indice,
+      'todos',
+    )
+    expect(conAjustes).toEqual(sinAjustes)
+  })
+
   it('deja monto null en lotes sin precio', () => {
     const indiceSinPrecio = indiceCostos([lote('l9', 'i1', null)], [anestesia], [], [])
     const consumos = consumosValorizados([mov('consumo', 'l9', 1, iso(2026, 9))], indiceSinPrecio, 'todos')

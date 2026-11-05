@@ -1,5 +1,5 @@
 import { textoPedido, type ItemSugerido } from '../lib/sugeridos'
-import { formatearEquivalente } from '../../../lib/unidades'
+import { formatearEquivalente, formatearCantidad } from '../../../lib/unidades'
 import { AlertTriangle, PackageMinus, Check } from '../../../components/icons'
 import { Badge } from '../../../components/ui/Badge'
 import { Card } from '../../../components/ui/Card'
@@ -65,7 +65,7 @@ export function ItemSugeridoCard({
           className="text-sm font-bold text-text"
         />
         <span className="text-sm font-bold text-text-muted">
-          {stockTotal} {insumo.unidadMedida}
+          {formatearCantidad(stockTotal, insumo.unidadMedida)}
           {formatearEquivalente(stockTotal, insumo) && (
             <span className="font-normal"> {formatearEquivalente(stockTotal, insumo)}</span>
           )}

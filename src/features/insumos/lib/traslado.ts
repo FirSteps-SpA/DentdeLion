@@ -4,6 +4,7 @@ import { lugaresActivos } from '../../../stores/lugarStore'
 import { crearMovimiento, unidadDeConsumoDelLote } from './movements'
 import { validateQuantity } from './quantity'
 import { movimientosNormalizadosDeLote, stockLoteEnLugar } from './stock'
+import { formatearCantidad } from '../../../lib/unidades'
 
 /**
  * Traslados entre lugares (spec 014 US6, FR-022–FR-024, research.md R4): un
@@ -36,7 +37,7 @@ export function validarTraslado(
   if (!cantidad.valid) return cantidad.error ?? 'Cantidad inválida.'
   const disponible = stockLoteEnLugar(movimientos, input.loteId, input.origenId)
   if (input.cantidad > disponible) {
-    return `Stock insuficiente en el lote: disponible ${disponible} ${insumo.unidadMedida}.`
+    return `Stock insuficiente en el lote: disponible ${formatearCantidad(disponible, insumo.unidadMedida)}.`
   }
   return null
 }

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { computeAlertasCaducidad } from '../../../src/features/alertas/lib/caducidad'
+import {
+  computeAlertasCaducidad,
+  estaVencido,
+} from '../../../src/features/alertas/lib/caducidad'
 import type { Insumo, Lote, Movimiento } from '../../../src/lib/db'
 import { LUGAR_1, TENANT_1 } from '../../helpers/tenancy'
 
@@ -186,5 +189,32 @@ describe('computeAlertasCaducidad', () => {
     expect(
       computeAlertasCaducidad([insumo], [lote], movimientos, NIVELES, HOY),
     ).toEqual([])
+  })
+})
+
+describe('estaVencido (spec 024 R2)', () => {
+  it('vence ayer → vencido; hoy o mañana → no', () => {
+    expect(estaVencido({ fechaCaducidad: fechaEnDias(-1) }, HOY)).toBe(true)
+    expect(estaVencido({ fechaCaducidad: fechaEnDias(0) }, HOY)).toBe(false)
+    expect(estaVencido({ fechaCaducidad: fechaEnDias(1) }, HOY)).toBe(false)
+  })
+
+  it('un lote sin fecha nunca está vencido', () => {
+    expect(estaVencido({ fechaCaducidad: null }, HOY)).toBe(false)
+  })
+
+  it('coincide con el nivel caducado de computeAlertasCaducidad', () => {
+    const insumo = makeInsumo({})
+    for (const dias of [-30, -1, 0, 1]) {
+      const lote = makeLote({ fechaCaducidad: fechaEnDias(dias) })
+      const alertas = computeAlertasCaducidad(
+        [insumo],
+        [lote],
+        [makeIngreso(lote.id, 1)],
+        NIVELES,
+        HOY,
+      )
+      expect(alertas[0]?.nivel === 'caducado').toBe(estaVencido(lote, HOY))
+    }
   })
 })

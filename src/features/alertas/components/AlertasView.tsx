@@ -14,6 +14,7 @@ import { etiquetaStockBajo } from '../lib/etiquetaStock'
 import { formatearFechaCaducidad, textoTiempoCaducidad } from '../lib/textoCaducidad'
 import { RenglonAlerta } from './RenglonAlerta'
 import { DetalleDesdeAlerta, type DetalleAbierto } from './DetalleDesdeAlerta'
+import { formatearCantidad } from '../../../lib/unidades'
 
 function badgeVariantParaNivel(nivel: number | 'caducado'): BadgeVariant {
   if (nivel === 'caducado') return 'danger'
@@ -100,8 +101,8 @@ export function AlertasView() {
                     titulo={insumo.nombre}
                     detalle={
                       <>
-                        {stockActual} {insumo.unidadMedida} disponibles (mínimo{' '}
-                        {insumo.stockMinimo} {insumo.unidadMedida}) {chip(lugar)}
+                        {formatearCantidad(stockActual, insumo.unidadMedida)} disponibles (mínimo{' '}
+                        {formatearCantidad(insumo.stockMinimo ?? 0, insumo.unidadMedida)}) {chip(lugar)}
                       </>
                     }
                     badge={
@@ -189,7 +190,7 @@ export function AlertasView() {
                     <AlertTriangle size={16} className="mt-0.5 shrink-0 text-danger" />
                     <span>
                       <span className="font-bold">{insumo.nombre}</span> — lote{' '}
-                      {lote.numeroLote}: stock {stockDerivado} {insumo.unidadMedida}{' '}
+                      {lote.numeroLote}: stock {formatearCantidad(stockDerivado, insumo.unidadMedida)}{' '}
                       {chip(lugar)}
                     </span>
                   </span>
