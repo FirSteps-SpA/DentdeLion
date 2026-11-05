@@ -214,6 +214,26 @@ describe('Alertas de caducidad (spec 018 US2)', () => {
     useInventoryStore.setState({ marcas: [] })
   })
 
+  it('spec 024: el historial del lote muestra cada ajuste de stock con su autor, no las anulaciones', () => {
+    const { movimientos } = useInventoryStore.getState()
+    const base = movimientos.find((m) => m.loteId === 'r1')!
+    useInventoryStore.setState({
+      movimientos: [
+        ...movimientos,
+        { ...base, id: 'aj-1', tipo: 'ajuste', cantidad: -4, usuarioId: 'user-1' },
+        { ...base, id: 'aj-2', tipo: 'ajuste', cantidad: 2, usuarioId: 'user-1' },
+        { ...base, id: 'anul', tipo: 'ajuste', cantidad: 1, movimientoOrigenId: 'otro' },
+      ],
+    })
+    render(<AlertasView />)
+    fireEvent.click(screen.getAllByRole('button', { name: /Ver detalle de Resina A2/ })[0])
+
+    const hoja = screen.getByRole('dialog', { name: 'Detalle del insumo' })
+    expect(within(hoja).getByText(/Ajuste de stock: −4 unidades · .* · Persona/)).toBeInTheDocument()
+    expect(within(hoja).getByText(/Ajuste de stock: \+2 unidades/)).toBeInTheDocument()
+    expect(within(hoja).getAllByText(/Ajuste de stock/)).toHaveLength(2)
+  })
+
   it('tocar una alerta abre el detalle con los lotes y cerrarlo vuelve a Alertas', () => {
     render(<AlertasView />)
     const [renglon] = screen.getAllByRole('button', { name: /Ver detalle de Lidocaína 2 %/ })

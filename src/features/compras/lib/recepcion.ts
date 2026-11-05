@@ -16,6 +16,7 @@ import {
   validarPrecio,
   type PrecioIngreso,
 } from '../../insumos/lib/precio'
+import { descartarVencidosEnTransaccion } from '../../insumos/lib/ajusteStock'
 
 /** Formulario de recepción de un ítem de Compras (spec 009 contracts/ui-contracts.md). */
 export interface RecepcionInput {
@@ -33,6 +34,11 @@ export interface RecepcionInput {
   /** Ignorada si `insumo.caduca === false`. */
   fechaCaducidad: string
   confirmarCaducado: boolean
+  /**
+   * Spec 024 (R2) — deja en 0 los lotes vencidos del insumo en el lugar de la
+   * recepción. Ausente = `false`.
+   */
+  descartarVencidos?: boolean
 }
 
 export type CampoRecepcion =
@@ -97,7 +103,9 @@ export function validarRecepcion(
  * su movimiento de ingreso y, si viene de un `ItemCompra` (sugerido con
  * recepción directa o manual vinculado), lo marca `'comprado'`. Un único
  * lote por llamada — un pedido con varios lotes repite la acción
- * (research.md R4). Cualquier excepción aborta todo.
+ * (research.md R4). Spec 024 (R2): con `descartarVencidos`, en la misma
+ * transacción deja en 0 los lotes vencidos del lugar, antes de agregar el
+ * nuevo. Cualquier excepción aborta todo.
  */
 /** Spec 015 — la cantidad de la recepción con su unidad (por defecto, la de compra). */
 export function ingresoDe(input: RecepcionInput, insumo: Insumo): CantidadIngreso {
@@ -133,12 +141,12 @@ export async function recibirEnInsumo(
   const { cantidadConsumo, presentaciones } = convertirIngreso(insumo, ingreso)
   return db.transaction(
     'rw',
-    db.lotes,
-    db.movimientos,
-    db.itemsCompra,
-    db.proveedores,
+    [db.lotes, db.movimientos, db.itemsCompra, db.proveedores, db.insumos, db.cambiosInsumo],
     async () => {
       const proveedor = await proveedorParaLote(input.proveedorId)
+      if (input.descartarVencidos) {
+        await descartarVencidosEnTransaccion(insumo, lugarId, new Date())
+      }
       const lote: Lote = {
         id: crypto.randomUUID(),
         tenantId,

@@ -117,6 +117,28 @@ export function InsumoDetalle({
       })
   }
 
+  // Spec 024 (R7, FR-010): descartes y correcciones de stock del lote. Los
+  // `ajuste` con origen son anulaciones de un consumo, no ajustes de stock.
+  function ajustesDe(loteId: string) {
+    return movimientos
+      .filter((m) => m.loteId === loteId && m.tipo === 'ajuste' && m.movimientoOrigenId === null)
+      .sort((a, b) => b.creadoEn.localeCompare(a.creadoEn))
+      .map((m) => {
+        const cantidadOriginal = 'cantidadOriginal' in m ? m.cantidadOriginal : undefined
+        const magnitud = cantidadConOriginal({
+          ...m,
+          cantidad: Math.abs(m.cantidad),
+          ...(cantidadOriginal !== undefined && { cantidadOriginal: Math.abs(cantidadOriginal) }),
+        })
+        return {
+          id: m.id,
+          texto: `Ajuste de stock: ${m.cantidad < 0 ? '−' : '+'}${magnitud}`,
+          creadoEn: m.creadoEn,
+          autor: autor(m.usuarioId),
+        }
+      })
+  }
+
   // Spec 015 FR-010: "Ingreso: 2 cajas (100 cartuchos)", desde el snapshot del
   // lote (cada lote tiene un solo ingreso). Lotes anteriores a la spec: nada.
   function textoIngreso(lote: Lote): string | null {
@@ -252,6 +274,12 @@ export function InsumoDetalle({
                 {traslado.texto}: {traslado.cantidad} ·{' '}
                 {fecha.format(new Date(traslado.creadoEn))}
                 {traslado.autor && ` · ${traslado.autor}`}
+              </span>
+            ))}
+            {ajustesDe(lote.id).map((ajuste) => (
+              <span key={ajuste.id} className="text-xs text-text-muted">
+                {ajuste.texto} · {fecha.format(new Date(ajuste.creadoEn))}
+                {ajuste.autor && ` · ${ajuste.autor}`}
               </span>
             ))}
           </li>

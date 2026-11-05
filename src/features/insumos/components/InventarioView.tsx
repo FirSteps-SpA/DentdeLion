@@ -432,6 +432,10 @@ export function InventarioView() {
             insumo={insumoOverlay}
             onGuardado={cerrarOverlay}
             onCancelar={cerrarOverlay}
+            onEliminado={() => {
+              if (insumoSeleccionadoId === insumoOverlay.id) setInsumoSeleccionadoId(null)
+              cerrarOverlay()
+            }}
           />
         </BottomSheet>
       )}
