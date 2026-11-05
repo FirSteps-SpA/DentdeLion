@@ -7,7 +7,7 @@ import { Badge } from '../../../components/ui/Badge'
 import { Card } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { formatearPresentacion } from '../lib/presentacion'
-import { formatearEquivalente } from '../../../lib/unidades'
+import { formatearEquivalente, formatearCantidad } from '../../../lib/unidades'
 import { formatearCLP } from '../lib/precio'
 import { useCostosUnitarios } from '../lib/useCostosUnitarios'
 import { NombreConMarca } from '../../marcas/components/NombreConMarca'
@@ -88,7 +88,7 @@ export function InsumoCard({
           </span>
         )}
         <span className="text-sm font-bold text-text-muted">
-          {stockTotal} {insumo.unidadMedida}
+          {formatearCantidad(stockTotal, insumo.unidadMedida)}
           {formatearEquivalente(stockTotal, insumo) && (
             // Spec 015 FR-021.
             <span className="font-normal"> {formatearEquivalente(stockTotal, insumo)}</span>

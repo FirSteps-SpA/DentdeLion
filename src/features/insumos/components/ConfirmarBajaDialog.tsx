@@ -3,6 +3,7 @@ import { AlertTriangle } from '../../../components/icons'
 import { BottomSheet } from '../../../components/ui/BottomSheet'
 import { Card } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
+import { formatearCantidad } from '../../../lib/unidades'
 
 export interface ConfirmarBajaDialogProps {
   insumo: Insumo
@@ -36,7 +37,7 @@ export function ConfirmarBajaDialog({
         <Card className="flex items-center gap-2 bg-warning-30-bg px-3.5 py-2.5">
           <AlertTriangle size={18} className="shrink-0 text-warning-30-text" />
           <p className="text-sm font-bold text-warning-30-text">
-            Aún quedan {stockTotal} {insumo.unidadMedida} en stock.
+            Aún quedan {formatearCantidad(stockTotal, insumo.unidadMedida)} en stock.
           </p>
         </Card>
       )}

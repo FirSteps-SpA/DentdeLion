@@ -440,12 +440,12 @@ describe('AltaMaterialView — US2 (stock inicial + primer lote)', () => {
     await screen.findByText('«Anestesia X» agregado al inventario')
     expect(
       within(screen.getByText('Anestesia X').closest('li')!).getByText(
-        '10 cartucho',
+        '10 cartuchos',
       ),
     ).toBeInTheDocument()
 
     fireEvent.click(screen.getByText('Anestesia X'))
-    const detalle = screen.getByText('Stock total: 10 cartucho').closest('div')!
+    const detalle = screen.getByText('Stock total: 10 cartuchos').closest('div')!
     expect(within(detalle).getByText(/Lote A123/)).toBeInTheDocument()
   }, 15000)
 
