@@ -199,6 +199,17 @@ sobre la restauración del respaldo del 2026-10-24 con 021, 022 y 023 encima: 73
 marca), 77 lotes (ninguno sin proveedor), 12 proveedores y los 28 cambios del historial, igual que
 antes.
 
+**Spec 024 (descarte de vencidos y ajuste de stock por lote):** sin migración ni versión nueva de
+Dexie. Los descartes y las correcciones son movimientos `ajuste` sin `movimiento_origen_id` (las
+anulaciones de consumo sí lo llevan), que el servidor ya aceptaba. Al recibir desde Compras, una
+casilla marcada por defecto deja en 0 los lotes vencidos del lugar. En Editar, administración corrige
+el stock de cada lote y puede eliminar el insumo. Una 2.6.0 en caché ya suma estos ajustes al stock:
+solo no muestra la casilla, la sección ni la línea del historial.
+
+**Release 2.7.0 (spec 024 y plural de unidades):** solo front, sin `db push`. Merge a `main` y
+comprobar en un dispositivo que el caso reportado (reponer un insumo vencido) deja el insumo fuera de
+Compras. Si el front falla, se revierte sin tocar el servidor.
+
 ## ¿Quedó bien configurado mi entorno?
 
 Checklist manual (sin script) — cada punto debe poder confirmarse a simple vista en menos de 2
