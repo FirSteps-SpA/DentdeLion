@@ -3,8 +3,16 @@ import { normalizarUnidad } from '../../../lib/unidades'
 import type { CostoUnitario } from '../../insumos/lib/precio'
 import { factoresDeUnidad } from '../../insumos/lib/stock'
 
-/** FR-010 (DS §27): la ganancia nunca se llama "utilidad". */
-export const ETIQUETA_GANANCIA = 'Ganancia estimada'
+/**
+ * Lo que gana el profesional: precio × su % (lo que queda tras el % de la
+ * clínica). Es el dato principal de los montos.
+ */
+export const ETIQUETA_GANANCIA_PROFESIONAL = 'Ganancia del profesional'
+/**
+ * Dato secundario: ganancia del profesional − costo de materiales. FR-010
+ * (DS §27): nunca se llama "utilidad".
+ */
+export const ETIQUETA_NETO = 'Neto tras materiales'
 export const NOTA_GANANCIA = 'No es utilidad contable'
 
 /**
@@ -98,6 +106,14 @@ export function calcularGanancia(
   }
   const comision = (precio * porcentaje) / 100
   return { comision, ganancia: comision - costoMateriales }
+}
+
+/** Ganancia del profesional de un registro (snapshot); `null` sin precio o sin %. */
+export function comisionRegistro(registro: {
+  precio: number | null
+  porcentajeProfesional: number | null
+}): number | null {
+  return calcularGanancia(registro.precio, registro.porcentajeProfesional, 0).comision
 }
 
 export const TEXTO_MOTIVO: Record<NonNullable<Ganancia['motivo']>, string> = {

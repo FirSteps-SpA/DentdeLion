@@ -1,4 +1,5 @@
 import type { TratamientoRealizado } from '../../../lib/db'
+import { comisionRegistro } from './montos'
 
 export type Periodo = 'hoy' | 'semana' | 'mes'
 
@@ -39,6 +40,8 @@ export function registrosDelPeriodo(
 export interface TotalesHistorial {
   cantidad: number
   precios: number
+  /** Σ precio × % profesional: lo que gana el profesional (dato principal). */
+  gananciaProfesional: number
   costoMateriales: number
   gananciaEstimada: number
   /** Registros vigentes sin precio o sin %: no suman a precio ni a ganancia. */
@@ -51,6 +54,7 @@ export function totalesHistorial(registros: TratamientoRealizado[]): TotalesHist
   return {
     cantidad: vigentes.length,
     precios: vigentes.reduce((t, r) => t + (r.precio ?? 0), 0),
+    gananciaProfesional: vigentes.reduce((t, r) => t + (comisionRegistro(r) ?? 0), 0),
     costoMateriales: vigentes.reduce((t, r) => t + r.costoMateriales, 0),
     gananciaEstimada: vigentes.reduce((t, r) => t + (r.gananciaEstimada ?? 0), 0),
     sinMonto: vigentes.filter((r) => r.gananciaEstimada === null).length,

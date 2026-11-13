@@ -171,11 +171,10 @@ describe('resumenInicio (spec 013 FR-022–FR-027)', () => {
     ])
   })
 
-  it('próximos vencimientos: por fecha, solo con stock y fecha', () => {
+  it('próximos vencimientos: por fecha, solo con stock y fecha, sin los ya caducados', () => {
     expect(
       r.proximosVencimientos.map((v) => [v.insumo.nombre, v.diasRestantes]),
     ).toEqual([
-      ['Ácido', -2],
       ['Anestesia', 3],
       ['Resina', 200],
     ])

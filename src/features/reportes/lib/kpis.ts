@@ -1,5 +1,6 @@
 import type { Insumo, Lugar, TratamientoRealizado } from '../../../lib/db'
 import { SIN_CATEGORIA, claveCategoria } from '../../insumos/lib/categorias'
+import { comisionRegistro } from '../../tratamientos/lib/montos'
 import type { ConsumoValorizado, FiltroLugar } from './gasto'
 import { rangoPeriodo, type Periodo, type Rango, type RangoPeriodo } from './periodos'
 
@@ -58,6 +59,9 @@ export interface ResumenReportes {
   rango: RangoPeriodo
   produccion: Kpi
   gasto: Kpi
+  /** Σ precio × % profesional: lo que gana el profesional (dato principal). */
+  gananciaProfesional: Kpi
+  /** Neto tras materiales (Σ ganancia estimada de los snapshots), dato adicional. */
   ganancia: Kpi
   porCategoria: CategoriaGasto[]
   gastosMensuales: GastoMes[]
@@ -142,6 +146,7 @@ function gastosPorMes(consumos: ConFecha<ConsumoValorizado>[], meses: RangoPerio
 
 interface TotalesTratamientos {
   produccion: number
+  gananciaProfesional: number
   ganancia: number
   sinPrecio: number
   sinPorcentaje: number
@@ -150,7 +155,7 @@ interface TotalesTratamientos {
 
 /** research.md R3: precios y ganancias de los snapshots; los sin precio no suman. */
 function totalesTratamientos(realizados: TratamientoRealizado[]): TotalesTratamientos {
-  const totales = { produccion: 0, ganancia: 0, sinPrecio: 0, sinPorcentaje: 0, cantidad: 0 }
+  const totales = { produccion: 0, gananciaProfesional: 0, ganancia: 0, sinPrecio: 0, sinPorcentaje: 0, cantidad: 0 }
   for (const r of realizados) {
     totales.cantidad++
     if (r.precio === null) {
@@ -160,6 +165,7 @@ function totalesTratamientos(realizados: TratamientoRealizado[]): TotalesTratami
     totales.produccion += r.precio
     if (r.gananciaEstimada === null) totales.sinPorcentaje++
     else totales.ganancia += r.gananciaEstimada
+    totales.gananciaProfesional += comisionRegistro(r) ?? 0
   }
   return totales
 }
@@ -222,6 +228,12 @@ export function resumenReportes(
       gAnterior?.gasto ?? null,
       false,
       g.materialesSinPrecio > 0 ? { materialesSinPrecio: g.materialesSinPrecio } : null,
+    ),
+    gananciaProfesional: kpi(
+      t.gananciaProfesional,
+      tAnterior?.gananciaProfesional ?? null,
+      true,
+      incompletoTratamientos(t, true),
     ),
     ganancia: kpi(t.ganancia, tAnterior?.ganancia ?? null, true, incompletoTratamientos(t, true)),
     porCategoria: porCategoria(valorizados, insumos),
@@ -302,7 +314,7 @@ function gananciaPorLugar(realizados: TratamientoRealizado[], lugares: Lugar[]):
   const nombres = new Map(lugares.map((lugar) => [lugar.id, lugar.nombre]))
   const montos = new Map<string, number>()
   for (const r of realizados) {
-    montos.set(r.lugarId, (montos.get(r.lugarId) ?? 0) + (r.gananciaEstimada ?? 0))
+    montos.set(r.lugarId, (montos.get(r.lugarId) ?? 0) + (comisionRegistro(r) ?? 0))
   }
   if (montos.size < 2) return null
   return [...montos.entries()]

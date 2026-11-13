@@ -110,7 +110,6 @@ function FilaAlerta({
 }
 
 function puntoVencimiento(dias: number): string {
-  if (dias < 0) return 'bg-danger'
   if (dias <= 30) return 'bg-warning-icon'
   return 'bg-success-icon'
 }

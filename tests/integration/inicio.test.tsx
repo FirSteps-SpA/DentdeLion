@@ -258,10 +258,10 @@ describe('Inicio (spec 013 US3)', () => {
     const vencimientos = screen.getByRole('region', {
       name: 'Próximos vencimientos',
     })
-    // Spec 018 FR-007: "caducado hace", como en Alertas.
+    // Los ya caducados solo aparecen en Alertas.
     expect(
-      within(vencimientos).getByText(/caducado hace 2 días/),
-    ).toBeInTheDocument()
+      within(vencimientos).queryByText(/caducado hace/),
+    ).not.toBeInTheDocument()
     expect(
       within(vencimientos).getByText(/vence en 3 días/),
     ).toBeInTheDocument()

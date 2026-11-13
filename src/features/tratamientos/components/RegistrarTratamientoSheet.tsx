@@ -10,7 +10,12 @@ import { useTratamientosStore } from '../../../stores/tratamientosStore'
 import { formatearCLP } from '../../insumos/lib/precio'
 import { computeStockLote } from '../../insumos/lib/stock'
 import { useCostosUnitarios } from '../../insumos/lib/useCostosUnitarios'
-import { calcularGanancia, cantidadEfectiva, ETIQUETA_GANANCIA } from '../lib/montos'
+import {
+  calcularGanancia,
+  cantidadEfectiva,
+  ETIQUETA_GANANCIA_PROFESIONAL,
+  ETIQUETA_NETO,
+} from '../lib/montos'
 import type { TratamientoProyectado } from '../lib/proyeccion'
 import { esLoteVigente, registrarTratamiento, StockInsuficienteError } from '../lib/registro'
 import { formatearConSigno } from '../lib/textos'
@@ -90,11 +95,11 @@ export function RegistrarTratamientoSheet({
   const completo = filas.every(
     (fila) => fila.dadoDeBaja || fila.cantidad === 0 || costos.has(fila.material.insumoId),
   )
-  const ganancia = calcularGanancia(
+  const { comision, ganancia } = calcularGanancia(
     tratamiento.precios.get(lugarId) ?? null,
     porcentaje,
     costoMateriales,
-  ).ganancia
+  )
 
   async function registrar() {
     setIsPending(true)
@@ -159,16 +164,23 @@ export function RegistrarTratamientoSheet({
         ))}
       </ul>
       <p className="text-sm text-text" aria-live="polite">
+        {comision !== null && (
+          <>
+            {ETIQUETA_GANANCIA_PROFESIONAL}:{' '}
+            <span className="font-bold whitespace-nowrap">{formatearCLP(comision)}</span>
+            {' · '}
+          </>
+        )}
         Costo de materiales:{' '}
-        <span className="font-bold">
+        <span className="whitespace-nowrap">
           {completo ? '' : 'desde '}
           {formatearCLP(costoMateriales)}
         </span>
         {ganancia !== null && (
           <>
             {' '}
-            · {ETIQUETA_GANANCIA}:{' '}
-            <span className={`font-bold whitespace-nowrap ${ganancia < 0 ? 'text-danger' : ''}`}>
+            · {ETIQUETA_NETO}:{' '}
+            <span className={`whitespace-nowrap ${ganancia < 0 ? 'text-danger' : ''}`}>
               {formatearConSigno(ganancia)}
             </span>
           </>

@@ -7,9 +7,9 @@ import { useAuthStore } from '../../../stores/authStore'
 import { lugaresActivos, useLugarStore } from '../../../stores/lugarStore'
 import { useTratamientosStore } from '../../../stores/tratamientosStore'
 import { formatearCLP } from '../../insumos/lib/precio'
-import { ETIQUETA_GANANCIA, TEXTO_MOTIVO } from '../lib/montos'
+import { ETIQUETA_GANANCIA_PROFESIONAL, ETIQUETA_NETO, TEXTO_MOTIVO } from '../lib/montos'
 import type { TratamientoProyectado } from '../lib/proyeccion'
-import { textoCosto, textoGanancia } from '../lib/textos'
+import { textoComision, textoCosto, textoGanancia } from '../lib/textos'
 import { useMontosTratamiento } from '../lib/useMontosTratamiento'
 import { HistorialTratamientos } from './HistorialTratamientos'
 import { RegistrarTratamientoSheet } from './RegistrarTratamientoSheet'
@@ -26,7 +26,7 @@ type Overlay =
 /**
  * Spec 016 (contracts/ui-contracts.md §2): sección Tratamientos con pestañas
  * Tratamientos | Historial. Cada tratamiento muestra el precio del lugar
- * activo, el costo de materiales y la "Ganancia estimada" (o por lugar en
+ * activo, la ganancia del profesional, el costo de materiales y el neto (o por lugar en
  * "Todos"), y "Registrar". Crear y editar: solo administración (FR-004).
  */
 export function TratamientosView() {
@@ -139,15 +139,24 @@ export function TratamientosView() {
                               {esTodos && `${lugar.nombre}: `}
                               {montos.precio === null
                                 ? TEXTO_MOTIVO['sin-precio']
-                                : formatearCLP(montos.precio)}{' '}
-                              · Materiales {textoCosto(montos)}
+                                : formatearCLP(montos.precio)}
                               {montos.precio !== null && (
                                 <>
                                   {' '}
-                                  · {ETIQUETA_GANANCIA}{' '}
+                                  · {ETIQUETA_GANANCIA_PROFESIONAL}{' '}
+                                  <span className="font-bold whitespace-nowrap text-text">
+                                    {textoComision(montos)}
+                                  </span>
+                                </>
+                              )}{' '}
+                              · Materiales {textoCosto(montos)}
+                              {montos.ganancia.ganancia !== null && (
+                                <>
+                                  {' '}
+                                  · {ETIQUETA_NETO}{' '}
                                   <span
-                                    className={`font-bold whitespace-nowrap ${
-                                      (montos.ganancia.ganancia ?? 0) < 0 ? 'text-danger' : 'text-text'
+                                    className={`whitespace-nowrap ${
+                                      montos.ganancia.ganancia < 0 ? 'text-danger' : ''
                                     }`}
                                   >
                                     {textoGanancia(montos)}

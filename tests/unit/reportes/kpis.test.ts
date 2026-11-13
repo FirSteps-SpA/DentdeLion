@@ -71,6 +71,7 @@ describe('KPIs del período (US1)', () => {
     )
     expect(r.produccion.valor).toBe(120000)
     expect(r.ganancia.valor).toBe(38040)
+    expect(r.gananciaProfesional.valor).toBe(48000)
     expect(r.produccion.variacion).toMatchObject({ tipo: 'porcentaje' })
     expect((r.produccion.variacion as { valor: number }).valor).toBeCloseTo(120000 / 45000 - 1)
     expect(r.produccion.mejora).toBe(true)
@@ -157,16 +158,17 @@ describe('lugar y "Todos" (US2)', () => {
     const todos = resumenReportes(datos, ESTE_MES, 'todos', AHORA)
     const l1 = resumenReportes(datos, ESTE_MES, LUGAR_1, AHORA)
     const l2 = resumenReportes(datos, ESTE_MES, LUGAR_2, AHORA)
-    for (const k of ['produccion', 'gasto', 'ganancia'] as const) {
+    for (const k of ['produccion', 'gasto', 'gananciaProfesional', 'ganancia'] as const) {
       expect(l1[k].valor + l2[k].valor).toBe(todos[k].valor)
     }
     expect(todos.gasto.valor).toBe(7000)
   })
 
-  it('ganancia por lugar de mayor a menor, solo en "Todos"', () => {
+  it('ganancia del profesional por lugar de mayor a menor, solo en "Todos"', () => {
+    // 40 % de los precios: Las Condes $80.000, Providencia $45.000.
     expect(resumenReportes(datos, ESTE_MES, 'todos', AHORA).gananciaPorLugar).toEqual([
-      { lugarId: LUGAR_1, nombre: 'Clínica Providencia', monto: 14000 },
-      { lugarId: LUGAR_2, nombre: 'Box Las Condes', monto: 7000 },
+      { lugarId: LUGAR_2, nombre: 'Box Las Condes', monto: 32000 },
+      { lugarId: LUGAR_1, nombre: 'Clínica Providencia', monto: 18000 },
     ])
     expect(resumenReportes(datos, ESTE_MES, LUGAR_1, AHORA).gananciaPorLugar).toBeNull()
   })

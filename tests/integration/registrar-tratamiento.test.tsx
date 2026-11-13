@@ -217,7 +217,8 @@ describe('registrar un tratamiento realizado (US3)', () => {
     }
     tocar(screen.getByRole('button', { name: 'Registrar Restauración clase II' }))
     const panel = await screen.findByRole('dialog', { name: 'Registrar Restauración clase II' })
-    expect(within(panel).getByText(/Ganancia estimada/)).toBeInTheDocument()
+    expect(within(panel).getByText(/Ganancia del profesional/)).toBeInTheDocument()
+    expect(within(panel).getByText(/Neto tras materiales/)).toBeInTheDocument()
     tocar(within(panel).getByRole('button', { name: 'Registrar' }))
 
     await waitFor(() => expect(realizadosT.all()).toHaveLength(1))

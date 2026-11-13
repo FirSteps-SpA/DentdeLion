@@ -12,7 +12,12 @@ import {
   totalesHistorial,
   type Periodo,
 } from '../lib/historial'
-import { ETIQUETA_GANANCIA, NOTA_GANANCIA } from '../lib/montos'
+import {
+  comisionRegistro,
+  ETIQUETA_GANANCIA_PROFESIONAL,
+  ETIQUETA_NETO,
+  NOTA_GANANCIA,
+} from '../lib/montos'
 import { anularTratamiento } from '../lib/registro'
 import { formatearConSigno } from '../lib/textos'
 
@@ -63,7 +68,11 @@ export function HistorialTratamientos() {
         ))}
       </div>
 
-      <Card className="grid grid-cols-2 gap-2 p-3.5 text-sm text-text md:grid-cols-4">
+      <Card className="grid grid-cols-2 gap-2 p-3.5 text-sm text-text md:grid-cols-5">
+        <p className="col-span-2 md:col-span-1">
+          <span className="block text-xs text-text-muted">{ETIQUETA_GANANCIA_PROFESIONAL}</span>
+          <span className="text-h3 font-bold">{formatearCLP(totales.gananciaProfesional)}</span>
+        </p>
         <p>
           <span className="block text-xs text-text-muted">Tratamientos</span>
           <span className="font-bold">{totales.cantidad}</span>
@@ -72,20 +81,20 @@ export function HistorialTratamientos() {
           <span className="block text-xs text-text-muted">Producción</span>
           <span className="font-bold">{formatearCLP(totales.precios)}</span>
         </p>
-        <p>
-          <span className="block text-xs text-text-muted">Costo de materiales</span>
-          <span className="font-bold">{formatearCLP(totales.costoMateriales)}</span>
+        <p className="text-text-muted">
+          <span className="block text-xs">Costo de materiales</span>
+          <span>{formatearCLP(totales.costoMateriales)}</span>
         </p>
-        <p>
-          <span className="block text-xs text-text-muted">{ETIQUETA_GANANCIA}</span>
-          <span className={`font-bold ${totales.gananciaEstimada < 0 ? 'text-danger' : ''}`}>
+        <p className="text-text-muted">
+          <span className="block text-xs">{ETIQUETA_NETO}</span>
+          <span className={totales.gananciaEstimada < 0 ? 'text-danger' : ''}>
             {formatearConSigno(totales.gananciaEstimada)}
           </span>
         </p>
-        <p className="col-span-2 text-xs text-text-muted md:col-span-4">
+        <p className="col-span-2 text-xs text-text-muted md:col-span-5">
           {NOTA_GANANCIA}
           {totales.sinMonto > 0 &&
-            ` · ${totales.sinMonto} sin precio o sin % no suman a producción ni a ganancia.`}
+            ` · ${totales.sinMonto} sin precio o sin % no suman a producción ni a ganancias.`}
         </p>
       </Card>
 
@@ -113,11 +122,20 @@ export function HistorialTratamientos() {
                       {esTodos && ` · ${nombreLugar(lugares, registro.lugarId)}`}
                     </span>
                     <span className="text-xs text-text-muted">
-                      Costo {formatearCLP(registro.costoMateriales)}
-                      {!registro.costoCompleto && ' (incompleto)'} ·{' '}
-                      {registro.gananciaEstimada === null
-                        ? 'Sin precio'
-                        : `${ETIQUETA_GANANCIA} ${formatearConSigno(registro.gananciaEstimada)}`}
+                      {comisionRegistro(registro) === null ? (
+                        'Sin precio'
+                      ) : (
+                        <>
+                          {ETIQUETA_GANANCIA_PROFESIONAL}{' '}
+                          <span className="font-bold text-text">
+                            {formatearCLP(comisionRegistro(registro) ?? 0)}
+                          </span>
+                        </>
+                      )}{' '}
+                      · Costo {formatearCLP(registro.costoMateriales)}
+                      {!registro.costoCompleto && ' (incompleto)'}
+                      {registro.gananciaEstimada !== null &&
+                        ` · ${ETIQUETA_NETO} ${formatearConSigno(registro.gananciaEstimada)}`}
                     </span>
                     {anulado && (
                       <span className="text-xs font-bold text-text-muted">

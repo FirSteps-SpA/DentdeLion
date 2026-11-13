@@ -4,12 +4,13 @@ import { CircleAlert, Package, Stethoscope, Wallet } from '../../../components/i
 import { formatearCantidad } from '../../../lib/unidades'
 import { useLugarStore } from '../../../stores/lugarStore'
 import { useSyncStore } from '../../../stores/syncStore'
-import { ETIQUETA_GANANCIA } from '../../tratamientos/lib/montos'
+import { ETIQUETA_GANANCIA_PROFESIONAL, ETIQUETA_NETO } from '../../tratamientos/lib/montos'
 import {
   NOTAS_GANANCIA,
   NOTAS_GASTO,
   formatearMonto,
   mesLargo,
+  montoKpi,
   notasIncompleto,
   porcentaje,
 } from '../lib/formato'
@@ -26,7 +27,7 @@ import { TarjetaKpiReporte } from './TarjetaKpiReporte'
 
 /**
  * Spec 017 (US1–US3, UI §2) — sección Reportes: Producción, Gasto en
- * materiales y Ganancia estimada del período en el lugar activo (o "Todos"),
+ * materiales y Ganancia del profesional (con el neto tras materiales) del período en el lugar activo (o "Todos"),
  * y los gráficos del DS §34. Todo se calcula en el dispositivo (FR-018).
  */
 export function ReportesView({ onNavegar }: { onNavegar?: (vista: Vista) => void } = {}) {
@@ -81,11 +82,14 @@ export function ReportesView({ onNavegar }: { onNavegar?: (vista: Vista) => void
               notasFijas={NOTAS_GASTO}
             />
             <TarjetaKpiReporte
-              titulo={ETIQUETA_GANANCIA}
+              titulo={ETIQUETA_GANANCIA_PROFESIONAL}
               Icono={Wallet}
-              kpi={resumen.ganancia}
+              kpi={resumen.gananciaProfesional}
               comparacion={resumen.rango.etiquetaComparacion}
-              notasFijas={NOTAS_GANANCIA}
+              notasFijas={[
+                `${ETIQUETA_NETO}: ${montoKpi(resumen.ganancia.valor, resumen.ganancia.incompleto)}`,
+                ...NOTAS_GANANCIA,
+              ]}
             />
           </section>
 
@@ -128,11 +132,11 @@ export function ReportesView({ onNavegar }: { onNavegar?: (vista: Vista) => void
             </TarjetaGrafico>
             {resumen.gananciaPorLugar && (
               <TarjetaGrafico
-                titulo="Ganancia por lugar"
+                titulo="Ganancia del profesional por lugar"
                 vacio={false}
-                nota={notasIncompleto(resumen.ganancia.incompleto).join(' · ') || undefined}
+                nota={notasIncompleto(resumen.gananciaProfesional.incompleto).join(' · ') || undefined}
                 tabla={{
-                  columnas: ['Lugar', ETIQUETA_GANANCIA],
+                  columnas: ['Lugar', ETIQUETA_GANANCIA_PROFESIONAL],
                   filas: resumen.gananciaPorLugar.map((g) => [g.nombre, formatearMonto(g.monto)]),
                 }}
               >
