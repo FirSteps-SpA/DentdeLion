@@ -210,6 +210,14 @@ solo no muestra la casilla, la sección ni la línea del historial.
 comprobar en un dispositivo que el caso reportado (reponer un insumo vencido) deja el insumo fuera de
 Compras. Si el front falla, se revierte sin tocar el servidor.
 
+**Release 2.8.0 (ganancia del profesional y próximos vencimientos):** solo front, sin `db push` ni
+cambios de datos. En Tratamientos, Historial y Reportes el dato principal pasa a ser la ganancia del
+profesional (precio × % profesional, calculada desde el snapshot de cada registro, así que vale para
+los registros antiguos); el neto tras materiales (antes "Ganancia estimada") queda como dato
+adicional. En Inicio, "Próximos vencimientos" ya no repite los lotes caducados de Alertas. Merge a
+`main` y comprobar en un dispositivo el detalle de un tratamiento y la tarjeta de Reportes. Si el
+front falla, se revierte sin tocar el servidor.
+
 ## ¿Quedó bien configurado mi entorno?
 
 Checklist manual (sin script) — cada punto debe poder confirmarse a simple vista en menos de 2
