@@ -66,6 +66,7 @@ describe('totales (FR-019)', () => {
     expect(totales).toEqual({
       cantidad: 2,
       precios: 45000,
+      gananciaProfesional: 18000,
       costoMateriales: 4480,
       gananciaEstimada: 14520,
       sinMonto: 1,

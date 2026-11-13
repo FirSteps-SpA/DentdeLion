@@ -34,7 +34,7 @@ import { esperarQueLaRuedaNoCambie } from '../helpers/rueda'
 
 /**
  * Spec 016 US1/US2 (T021, T026): catálogo con precio por lugar, montos con
- * "Ganancia estimada" del DS §27 y permisos.
+ * ganancia del profesional y neto tras materiales (DS §27) y permisos.
  */
 const insumosT = db.insumos as unknown as MemoryTable<Insumo>
 const lotesT = db.lotes as unknown as MemoryTable<Lote>
@@ -181,6 +181,7 @@ async function crearRestauracion() {
 describe('crear y ver tratamientos (US1)', () => {
   it('la administración crea uno con precios por lugar y materiales', async () => {
     const form = await crearRestauracion()
+    expect(within(form).getByText('$18.000')).toBeInTheDocument()
     expect(within(form).getByText('$3.480')).toBeInTheDocument()
     expect(within(form).getByText('$14.520')).toBeInTheDocument()
     fireEvent.click(within(form).getByRole('button', { name: 'Guardar' }))
@@ -229,7 +230,7 @@ describe('crear y ver tratamientos (US1)', () => {
   })
 })
 
-describe('costo y ganancia estimada (US2)', () => {
+describe('ganancia del profesional, costo y neto (US2)', () => {
   it('el ejemplo del DS en el detalle, y otro % en otro lugar', async () => {
     const form = await crearRestauracion()
     fireEvent.click(within(form).getByRole('button', { name: 'Guardar' }))
@@ -241,7 +242,8 @@ describe('costo y ganancia estimada (US2)', () => {
     expect(within(detalle).getByText('$45.000')).toBeInTheDocument()
     expect(within(detalle).getByText('$18.000')).toBeInTheDocument()
     expect(within(detalle).getByText('$3.480')).toBeInTheDocument()
-    expect(within(detalle).getByText('Ganancia estimada')).toBeInTheDocument()
+    expect(within(detalle).getByText(/Ganancia del profesional/)).toBeInTheDocument()
+    expect(within(detalle).getByText('Neto tras materiales')).toBeInTheDocument()
     expect(within(detalle).getByText('$14.520')).toBeInTheDocument()
     // FR-010: "utilidad" solo aparece en la nota que aclara que no lo es.
     for (const elemento of screen.queryAllByText(/utilidad/i)) {

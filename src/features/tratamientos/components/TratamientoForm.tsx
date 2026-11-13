@@ -18,9 +18,9 @@ import {
 } from '../lib/catalogo'
 import { cantidadEfectiva } from '../lib/montos'
 import type { TratamientoProyectado } from '../lib/proyeccion'
-import { textoCosto, textoGanancia } from '../lib/textos'
+import { textoComision, textoCosto, textoGanancia } from '../lib/textos'
 import { useInsumosPorId, useMontosTratamiento } from '../lib/useMontosTratamiento'
-import { ETIQUETA_GANANCIA } from '../lib/montos'
+import { ETIQUETA_GANANCIA_PROFESIONAL, ETIQUETA_NETO } from '../lib/montos'
 import { NumeroInput } from '../../../components/ui/NumeroInput'
 
 const INPUT_CLASS = 'h-full w-full border-none bg-transparent text-[15px] text-text outline-none'
@@ -35,7 +35,7 @@ export interface TratamientoFormProps {
 /**
  * Spec 016 US1 (contracts/ui-contracts.md §3) — alta y edición de un
  * tratamiento: nombre, precio en cada lugar (Q1), materiales con su cantidad
- * en la unidad de consumo y vista previa de costo y "Ganancia estimada" en el
+ * en la unidad de consumo y vista previa de ganancia del profesional, costo y neto en el
  * lugar activo. Solo administración. Controles ≥ 48 px.
  */
 export function TratamientoForm({ tratamiento, onGuardado, onCancelar }: TratamientoFormProps) {
@@ -265,8 +265,11 @@ export function TratamientoForm({ tratamiento, onGuardado, onCancelar }: Tratami
 
         {vistaPrevia && (
           <p className="text-sm text-text" aria-live="polite">
-            Costo de materiales: <span className="font-bold">{textoCosto(vistaPrevia)}</span> ·{' '}
-            {ETIQUETA_GANANCIA}: <span className="font-bold whitespace-nowrap">{textoGanancia(vistaPrevia)}</span>
+            {ETIQUETA_GANANCIA_PROFESIONAL}:{' '}
+            <span className="font-bold whitespace-nowrap">{textoComision(vistaPrevia)}</span> · Costo de
+            materiales: <span className="whitespace-nowrap">{textoCosto(vistaPrevia)}</span> ·{' '}
+            {ETIQUETA_NETO}:{' '}
+            <span className="whitespace-nowrap">{textoGanancia(vistaPrevia)}</span>
           </p>
         )}
 

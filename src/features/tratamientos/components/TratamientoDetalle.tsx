@@ -27,7 +27,7 @@ export interface TratamientoDetalleProps {
 
 /**
  * Spec 016 US2 (contracts/ui-contracts.md §4): materiales con su costo, el
- * bloque de montos del DS §27 con "Ganancia estimada" y el historial de
+ * bloque de montos del DS §27 con la ganancia del profesional y el neto y el historial de
  * cambios del tratamiento. Los materiales dados de baja se marcan y
  * administración ve el aviso para reemplazarlos (Edge Cases).
  */

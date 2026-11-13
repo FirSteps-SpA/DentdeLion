@@ -89,7 +89,7 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers())
 
 describe('KPIs del período (US1)', () => {
-  it('muestra producción, gasto y ganancia estimada del mes con su comparación', () => {
+  it('muestra producción, gasto y ganancia del profesional del mes con su comparación', () => {
     escenarioBase()
     render(<ReportesView />)
     expect(screen.getByRole('heading', { name: 'Reportes' })).toBeInTheDocument()
@@ -98,8 +98,12 @@ describe('KPIs del período (US1)', () => {
     expect(within(tarjeta('Producción')).getByText('↑ 167 % vs. mes anterior completo')).toBeInTheDocument()
     // 2 × $650 + 2 g × $1.200; el consumo deshecho no suma.
     expect(within(tarjeta('Gasto en materiales')).getByText('$3.700')).toBeInTheDocument()
-    expect(within(tarjeta('Ganancia estimada')).getByText('$38.040')).toBeInTheDocument()
-    expect(within(tarjeta('Ganancia estimada')).getByText('No es utilidad contable')).toBeInTheDocument()
+    // 40 % de $120.000; el neto tras materiales va como dato adicional.
+    expect(within(tarjeta('Ganancia del profesional')).getByText('$48.000')).toBeInTheDocument()
+    expect(
+      within(tarjeta('Ganancia del profesional')).getByText('Neto tras materiales: $38.040'),
+    ).toBeInTheDocument()
+    expect(within(tarjeta('Ganancia del profesional')).getByText('No es utilidad contable')).toBeInTheDocument()
     const textos = document.body.textContent ?? ''
     expect(textos.replace('No es utilidad contable', '')).not.toMatch(/utilidad/i)
   })
@@ -138,11 +142,12 @@ describe('KPIs del período (US1)', () => {
     expect(within(tarjeta('Gasto en materiales')).getByText('1 material sin precio')).toBeInTheDocument()
   })
 
-  it('una ganancia negativa se muestra con signo y en rojo', () => {
+  it('un neto negativo se muestra con signo bajo la ganancia del profesional', () => {
     cargar({ realizados: [realizado(1000, -500, iso(2026, 9, 3))] })
     render(<ReportesView />)
-    const valor = within(tarjeta('Ganancia estimada')).getByText('−$500')
-    expect(valor).toHaveClass('text-danger')
+    const tarjetaGanancia = tarjeta('Ganancia del profesional')
+    expect(within(tarjetaGanancia).getByText('$400')).toBeInTheDocument()
+    expect(within(tarjetaGanancia).getByText('Neto tras materiales: −$500')).toBeInTheDocument()
   })
 
   it('sin datos muestra el estado vacío con accesos', () => {
@@ -171,24 +176,25 @@ describe('lugar y "Todos" (US2)', () => {
     ],
   })
 
-  it('en "Todos" suma los lugares y muestra Ganancia por lugar con su tabla', () => {
+  it('en "Todos" suma los lugares y muestra la ganancia del profesional por lugar', () => {
     cargar({ ...datos(), lugarActivoId: 'todos' })
     render(<ReportesView />)
     expect(screen.getByText('Todos los lugares')).toBeInTheDocument()
     expect(within(tarjeta('Producción')).getByText('$95.000')).toBeInTheDocument()
-    const grafico = screen.getByRole('figure', { name: 'Ganancia por lugar' })
+    const grafico = screen.getByRole('figure', { name: 'Ganancia del profesional por lugar' })
     const botones = within(grafico).getAllByRole('button', { pressed: false })
-    expect(botones[0]).toHaveTextContent('Clínica Providencia')
-    expect(botones[1]).toHaveTextContent('Box Las Condes')
+    // 40 %: Las Condes $20.000, Providencia $18.000.
+    expect(botones[0]).toHaveTextContent('Box Las Condes')
+    expect(botones[1]).toHaveTextContent('Clínica Providencia')
     const tabla = within(grafico).getByRole('table', { hidden: true })
     expect(within(tabla).getAllByRole('row', { hidden: true })).toHaveLength(3)
   })
 
-  it('en un lugar solo cuenta ese lugar y no muestra Ganancia por lugar', () => {
+  it('en un lugar solo cuenta ese lugar y no muestra la ganancia por lugar', () => {
     cargar({ ...datos(), lugarActivoId: LUGAR_2 })
     render(<ReportesView />)
     expect(within(tarjeta('Producción')).getByText('$50.000')).toBeInTheDocument()
-    expect(screen.queryByRole('figure', { name: 'Ganancia por lugar' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('figure', { name: 'Ganancia del profesional por lugar' })).not.toBeInTheDocument()
   })
 })
 

@@ -19,3 +19,10 @@ export function textoGanancia(montos: MontosTratamiento): string {
   if (ganancia === null) return motivo ? TEXTO_MOTIVO[motivo] : '—'
   return formatearConSigno(ganancia)
 }
+
+/** "$18.000" o el motivo de su ausencia ("Define el % profesional del lugar"). */
+export function textoComision(montos: MontosTratamiento): string {
+  const { comision, motivo } = montos.ganancia
+  if (comision === null) return motivo ? TEXTO_MOTIVO[motivo] : '—'
+  return formatearCLP(comision)
+}

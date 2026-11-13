@@ -179,12 +179,10 @@ function resumenCompleto({
       movimientos.filter((m) => m.loteId === lote.id),
     )
     if (stock <= 0) continue
-    proximosVencimientos.push({
-      insumo,
-      lote,
-      diasRestantes: diasEntre(lote.fechaCaducidad, hoy),
-      lugar,
-    })
+    const diasRestantes = diasEntre(lote.fechaCaducidad, hoy)
+    // Los ya caducados están en Alertas; aquí solo lo que aún no vence.
+    if (diasRestantes < 0) continue
+    proximosVencimientos.push({ insumo, lote, diasRestantes, lugar })
   }
   proximosVencimientos.sort((a, b) => a.diasRestantes - b.diasRestantes)
 

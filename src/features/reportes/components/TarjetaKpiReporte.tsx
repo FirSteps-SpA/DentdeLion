@@ -9,7 +9,7 @@ export interface TarjetaKpiReporteProps {
   Icono: ComponentType<IconProps>
   kpi: Kpi
   comparacion: string
-  /** Notas fijas bajo el valor (la de "Ganancia estimada", la ayuda del gasto). */
+  /** Notas fijas bajo el valor (el neto tras materiales, la ayuda del gasto). */
   notasFijas?: string[]
 }
 
