@@ -42,6 +42,9 @@ import { formatearConSigno } from '../lib/textos'
  *
  * Spec 028 (US2, US3): "Paciente: …" solo para el autor del registro y la
  * administración, edición desde el lápiz y buscador por paciente.
+ *
+ * Los registros anulados con "Deshacer" ya no se listan (pedido 2026-11-23):
+ * siguen en la base, con quién y cuándo los anuló, pero no en esta lista.
  */
 export function HistorialTratamientos() {
   const realizados = useTratamientosStore((s) => s.realizados)
@@ -52,6 +55,8 @@ export function HistorialTratamientos() {
   const conocidos = usePendientesStore((s) => s.usuariosConocidos)
   const [periodo, setPeriodo] = useState<Periodo>('hoy')
   const [error, setError] = useState<string | null>(null)
+  // Al deshacer, el registro sale de la lista: el aviso confirma qué pasó.
+  const [aviso, setAviso] = useState<string | null>(null)
   // Spec 026 (FR-014): '' = todas.
   const [filtroCategoria, setFiltroCategoria] = useState('')
   // Spec 028 (FR-012).
@@ -63,7 +68,9 @@ export function HistorialTratamientos() {
   const pacientes = usePacientesVisibles()
 
   const esTodos = !lugarActivoId || lugarActivoId === 'todos'
-  const delPeriodo = registrosDelPeriodo(realizados, periodo, esTodos ? null : lugarActivoId)
+  const delPeriodo = registrosDelPeriodo(realizados, periodo, esTodos ? null : lugarActivoId).filter(
+    (r) => !r.anuladoEn,
+  )
   const opcionesCategoria = opcionesCategoriaHistorial(delPeriodo, categorias)
   // Si la categoría elegida no tiene registros en el nuevo período, vuelve a "Todas".
   const filtroEfectivo = opcionesCategoria.some((o) => o.valor === filtroCategoria)
@@ -92,10 +99,12 @@ export function HistorialTratamientos() {
     }
   }
 
-  async function deshacer(id: string) {
+  async function deshacer(id: string, nombre: string) {
     setError(null)
+    setAviso(null)
     try {
       await anularTratamiento(id)
+      setAviso(`Se deshizo "${nombre}": sus materiales volvieron al stock.`)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo deshacer.')
     }
@@ -185,6 +194,11 @@ export function HistorialTratamientos() {
           {error}
         </p>
       )}
+      {aviso && (
+        <p role="status" className="text-sm text-text">
+          {aviso}
+        </p>
+      )}
 
       {registros.length === 0 ? (
         <Card>
@@ -193,12 +207,11 @@ export function HistorialTratamientos() {
       ) : (
         <ul className="flex flex-col gap-2">
           {registros.map((registro) => {
-            const anulado = Boolean(registro.anuladoEn)
             return (
               <li key={registro.id}>
                 <Card className="flex items-center gap-2 p-3">
-                  <div className={`flex flex-1 flex-col gap-0.5 text-sm ${anulado ? 'opacity-60' : ''}`}>
-                    <span className={`font-bold text-text ${anulado ? 'line-through' : ''}`}>
+                  <div className="flex flex-1 flex-col gap-0.5 text-sm">
+                    <span className="font-bold text-text">
                       {registro.nombre}
                     </span>
                     {pacientes.has(registro.id) && (
@@ -227,11 +240,6 @@ export function HistorialTratamientos() {
                       {registro.gananciaEstimada !== null &&
                         ` · ${ETIQUETA_NETO} ${formatearConSigno(registro.gananciaEstimada)}`}
                     </span>
-                    {anulado && (
-                      <span className="text-xs font-bold text-text-muted">
-                        Anulado por {autor(registro.anuladoPor)}
-                      </span>
-                    )}
                   </div>
                   {puedeEditarPaciente(registro, usuario) && (
                     <TouchButton
@@ -251,17 +259,15 @@ export function HistorialTratamientos() {
                       <Pencil size={16} />
                     </TouchButton>
                   )}
-                  {!anulado && (
-                    <TouchButton
-                      type="button"
-                      variant="ghost"
-                      aria-label={`Deshacer ${registro.nombre}`}
-                      onClick={() => void deshacer(registro.id)}
-                      className="shrink-0 px-3"
-                    >
-                      Deshacer
-                    </TouchButton>
-                  )}
+                  <TouchButton
+                    type="button"
+                    variant="ghost"
+                    aria-label={`Deshacer ${registro.nombre}`}
+                    onClick={() => void deshacer(registro.id, registro.nombre)}
+                    className="shrink-0 px-3"
+                  >
+                    Deshacer
+                  </TouchButton>
                 </Card>
               </li>
             )
