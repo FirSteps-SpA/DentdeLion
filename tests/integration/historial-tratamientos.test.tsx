@@ -110,13 +110,31 @@ describe('historial de tratamientos (US5)', () => {
     expect(screen.queryByText('Tratamiento c')).not.toBeInTheDocument()
   })
 
-  it('Deshacer anula el registro, lo tacha y lo saca de los totales', async () => {
+  it('Deshacer anula el registro, lo saca de la lista y de los totales, y avisa', async () => {
     render(<HistorialTratamientos />)
     fireEvent.click(screen.getByRole('button', { name: 'Deshacer Tratamiento a' }))
-    await waitFor(() => expect(screen.getByText('Anulado por Paula')).toBeInTheDocument())
-    expect(screen.getByText('Tratamiento a')).toHaveClass('line-through')
-    expect(screen.queryByRole('button', { name: 'Deshacer Tratamiento a' })).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByText('Tratamiento a')).not.toBeInTheDocument())
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Se deshizo "Tratamiento a": sus materiales volvieron al stock.',
+    )
+    expect(screen.queryByText(/Anulado por/)).not.toBeInTheDocument()
+    expect(screen.getByText('No hay tratamientos registrados en este período.')).toBeInTheDocument()
+    // Sigue en la base, con quién lo anuló (trazabilidad).
     expect(realizadosT.all().find((r) => r.id === 'a')).toMatchObject({ anuladoPor: 'p1' })
+  })
+
+  it('un registro ya anulado no aparece', () => {
+    realizadosT.seed([
+      registro('a', new Date(2026, 9, 15, 9), {
+        anuladoEn: '2026-10-15T13:00:00.000Z',
+        anuladoPor: 'p1',
+      }),
+      registro('b', new Date(2026, 9, 15, 10)),
+    ])
+    reflejar()
+    render(<HistorialTratamientos />)
+    expect(screen.getByText('Tratamiento b')).toBeInTheDocument()
+    expect(screen.queryByText('Tratamiento a')).not.toBeInTheDocument()
   })
 
   it('en "Todos" muestra el lugar de cada registro', () => {

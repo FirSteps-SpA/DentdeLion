@@ -144,7 +144,7 @@ export const AYUDAS: Record<IdAyuda, Ayuda> = {
         pasos: [
           'Abre la pestaña "Historial" y elige el período.',
           'Busca por paciente si lo necesitas.',
-          'Toca "Deshacer" para anular un registro: el stock vuelve.',
+          'Toca "Deshacer" para anular un registro: el stock vuelve y deja de aparecer en la lista.',
         ],
       },
       {
