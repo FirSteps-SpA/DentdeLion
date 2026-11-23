@@ -252,6 +252,30 @@ obligaciones de la ley de protección de datos. Solo lo ven quien registró y la
 cerrar sesión se borran del dispositivo los ya subidos. Incluye además un arreglo de la 027: en el
 teléfono, la barra inferior tapaba el pie de las hojas.
 
+**Release 2.9.0 (specs 025–028):** **con migraciones**. Un solo `supabase db push --linked` aplica
+`20261123000000_categorias_tratamiento` (026) y `20261124000000_pacientes_registro` (028), en ese
+orden. Pasos:
+
+1. Respaldo de producción (`respaldo.sh`).
+2. `supabase db push --linked` (**con visto bueno explícito**) y comprobar en producción: cada tenant
+   con 9 categorías de tratamientos, `pacientes_registro` vacía y el resto de las tablas con los
+   mismos conteos que el respaldo.
+3. Comprobar que la 2.8.0 publicada sigue sincronizando contra el servidor nuevo (ignora los campos
+   nuevos y registra con el % general).
+4. Merge del PR `release/2.9.0` a `main` (Netlify publica el front), tag `2.9.0` y merge de vuelta a
+   `develop`.
+5. Comprobar en un teléfono: "Consumir" abre la hoja con 1; las hojas no quedan tapadas por la barra
+   inferior; Ajustes → Categorías de tratamientos con las 9; un registro con categoría y % propio;
+   el rediseño en Inicio.
+6. Avisar al equipo: "Consumir 1" pasa a "Consumir", categorías de tratamientos con % por lugar, el
+   cambio de apariencia y que actualice la app (una versión en caché registra con el % general y sin
+   categoría ni paciente).
+
+Ensayado el 2026-11-23 sobre la restauración del respaldo del 2026-11-23: 412 filas antes, 421
+después (las 9 categorías de Clínica Denart), `pacientes_registro` vacía y el resto igual. Si el
+front falla, se revierte solo el front: la 2.8.0 convive con el servidor nuevo. **Spec 028**: el
+paciente es un dato de salud; revisar con asesoría legal antes de anunciarlo a la clienta.
+
 ## ¿Quedó bien configurado mi entorno?
 
 Checklist manual (sin script) — cada punto debe poder confirmarse a simple vista en menos de 2
