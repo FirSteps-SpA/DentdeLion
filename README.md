@@ -276,6 +276,24 @@ después (las 9 categorías de Clínica Denart), `pacientes_registro` vacía y e
 front falla, se revierte solo el front: la 2.8.0 convive con el servidor nuevo. **Spec 028**: el
 paciente es un dato de salud; revisar con asesoría legal antes de anunciarlo a la clienta.
 
+**Spec 029 (estimación de materiales con IA):** **con migración**
+(`20261125000000_estimaciones_ia.sql`, solo agrega la tabla `estimaciones_ia` y la función
+`reservar_estimacion`; ningún dato existente cambia) y **una Edge Function nueva**,
+`estimar-materiales`, que llama a Claude (`claude-opus-5-5`). Orden:
+
+1. Respaldo y `supabase db push --linked` (**con visto bueno explícito**).
+2. En la consola de Anthropic: crear la clave de API para DentdeLion y fijar un **tope de gasto
+   mensual**. Guardarla como secreto: `supabase secrets set ANTHROPIC_API_KEY=… --project-ref …`
+   (nunca en el repositorio ni en `.env` versionado).
+3. `supabase functions deploy estimar-materiales`.
+4. Front. Sin la clave, el botón responde "La estimación no está disponible" y nada más se afecta.
+
+Límite: 20 estimaciones por cliente por día (medianoche de Chile), reservadas antes de llamar a la
+IA; cada una queda en `estimaciones_ia` (quién, cuándo, resultado; nunca la respuesta). A la IA solo
+van el nombre del tratamiento y el nombre, unidad y presentación de los materiales (sin pacientes,
+precios ni stock). Probar en local sin costo con `supabase functions serve` sin clave
+(`npm run test:rls`); una prueba real cuesta y requiere visto bueno.
+
 ## ¿Quedó bien configurado mi entorno?
 
 Checklist manual (sin script) — cada punto debe poder confirmarse a simple vista en menos de 2

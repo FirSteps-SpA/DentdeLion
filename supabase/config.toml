@@ -418,3 +418,7 @@ enabled = true
 # de la invitación, no un JWT de usuario).
 [functions.aceptar-invitacion]
 verify_jwt = false
+
+# Spec 029: estimación de materiales con IA (solo administración, con sesión).
+[functions.estimar-materiales]
+verify_jwt = true

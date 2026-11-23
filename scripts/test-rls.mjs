@@ -1942,6 +1942,77 @@ check('paciente: no se anota en un registro anulado', r.status >= 400, `HTTP ${r
 await http('DELETE', `/rest/v1/pacientes_registro?registro_id=eq.${registro026.id}`, { token: adm.token })
 check('paciente: nadie borra la fila', (await pacienteDe(registro026.id)) !== undefined)
 
+// Spec 029 — estimación de materiales con IA (contracts/api.md §controles).
+const reservar = (key, tenant, usuario) =>
+  http('POST', '/rest/v1/rpc/reservar_estimacion', {
+    key,
+    token: key === SVC ? undefined : adm.token,
+    body: { p_tenant: tenant, p_usuario: usuario, p_tratamiento: 'Resina', p_materiales: 1 },
+  })
+r = await reservar(ANON, TENANT_1, adm.id)
+check('estimación: reservar_estimacion no se llama por la API', r.status >= 400, `HTTP ${r.status}`)
+const reservas = []
+for (let i = 0; i < 21; i++) reservas.push((await reservar(SVC, TENANT_B, admB.id)).data)
+check(
+  'estimación: 20 reservas por día y la 21 da null',
+  reservas.slice(0, 20).every((id) => typeof id === 'string') && reservas[20] === null,
+  JSON.stringify(reservas.slice(18)),
+)
+r = await http('GET', '/rest/v1/estimaciones_ia?select=tenant_id', { token: admB.token })
+check(
+  'estimación: administración lee las de su tenant',
+  Array.isArray(r.data) && r.data.length === 20 && r.data.every((f) => f.tenant_id === TENANT_B),
+  `HTTP ${r.status} ${r.data?.length}`,
+)
+r = await http('GET', '/rest/v1/estimaciones_ia?select=id', { token: perB.token })
+check('estimación: personal no lee el registro', Array.isArray(r.data) && r.data.length === 0)
+r = await http('GET', '/rest/v1/estimaciones_ia?select=id', { token: adm.token })
+check('estimación: otra administración no ve las ajenas', Array.isArray(r.data) && r.data.length === 0)
+r = await http('POST', '/rest/v1/estimaciones_ia', {
+  token: adm.token,
+  body: { tenant_id: TENANT_1, usuario_id: adm.id, tratamiento: 'X', materiales: 1 },
+})
+check('estimación: nadie inserta por la API', r.status >= 400, `HTTP ${r.status}`)
+await http('PATCH', `/rest/v1/estimaciones_ia?id=eq.${reservas[0]}`, {
+  token: admB.token,
+  body: { resultado: 'ok' },
+})
+check(
+  'estimación: nadie actualiza por la API',
+  (await leer(`estimaciones_ia?id=eq.${reservas[0]}&select=resultado`))[0]?.resultado === 'pendiente',
+)
+
+const insumoPropio = (await leer(`insumos?tenant_id=eq.${TENANT_1}&dado_de_baja_en=is.null&select=id&limit=1`))[0].id
+const insumoAjeno = (await leer(`insumos?tenant_id=eq.${TENANT_B}&select=id&limit=1`))[0].id
+const estimar = (token, insumoIds) =>
+  http('POST', '/functions/v1/estimar-materiales', {
+    token,
+    body: { tratamiento: 'Restauración clase II', insumoIds },
+  })
+r = await estimar(undefined, [insumoPropio])
+check('estimación: sin sesión da sin_sesion', r.data?.codigo === 'sin_sesion', `HTTP ${r.status} ${r.data?.codigo}`)
+r = await estimar(per.token, [insumoPropio])
+check(
+  'estimación: personal da solo_administracion',
+  r.status === 403 && r.data?.codigo === 'solo_administracion',
+  `HTTP ${r.status} ${r.data?.codigo}`,
+)
+r = await estimar(adm.token, [insumoPropio, insumoAjeno])
+check(
+  'estimación: un material de otro tenant da materiales_invalidos',
+  r.status === 404 && r.data?.codigo === 'materiales_invalidos',
+  `HTTP ${r.status} ${r.data?.codigo}`,
+)
+const estimacionesAntes = (await leer(`estimaciones_ia?tenant_id=eq.${TENANT_1}&select=id`)).length
+r = await estimar(adm.token, [insumoPropio])
+check(
+  'estimación: sin clave da no_configurado y no consume el límite',
+  r.status === 503 &&
+    r.data?.codigo === 'no_configurado' &&
+    (await leer(`estimaciones_ia?tenant_id=eq.${TENANT_1}&select=id`)).length === estimacionesAntes,
+  `HTTP ${r.status} ${r.data?.codigo}`,
+)
+
 r = await http('GET', '/rest/v1/insumos?select=id')
 check(
   'sin sesión no se lee el inventario',

@@ -3,8 +3,8 @@ import { BottomSheet } from '../../../components/ui/BottomSheet'
 import { IconField } from '../../../components/ui/IconField'
 import { Stepper } from '../../../components/ui/Stepper'
 import { TouchButton } from '../../../components/ui/TouchButton'
-import { Search, Trash } from '../../../components/icons'
-import { etiquetaUnidad, unidadAdmiteDecimales } from '../../../lib/unidades'
+import { Search, Sparkles, Trash } from '../../../components/icons'
+import { etiquetaUnidad, formatearCantidad, unidadAdmiteDecimales } from '../../../lib/unidades'
 import { useInventoryStore } from '../../../stores/inventoryStore'
 import { lugaresActivos, useLugarStore } from '../../../stores/lugarStore'
 import { useTratamientosStore } from '../../../stores/tratamientosStore'
@@ -23,6 +23,13 @@ import { useInsumosPorId, useMontosTratamiento } from '../lib/useMontosTratamien
 import { ETIQUETA_GANANCIA_PROFESIONAL, ETIQUETA_NETO } from '../lib/montos'
 import { NumeroInput } from '../../../components/ui/NumeroInput'
 import { SelectorCategoriaTratamiento } from './SelectorCategoriaTratamiento'
+import {
+  MAX_MATERIALES_ESTIMACION,
+  MENSAJES_ESTIMACION,
+  estimarMateriales,
+  useEnLinea,
+  type SugerenciaMaterial,
+} from '../lib/estimacion'
 
 const INPUT_CLASS = 'h-full w-full border-none bg-transparent text-[15px] text-text outline-none'
 
@@ -67,6 +74,15 @@ export function TratamientoForm({ tratamiento, onGuardado, onCancelar }: Tratami
   const [errores, setErrores] = useState<Partial<Record<CampoTratamientoInput, string>>>({})
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
+  // Spec 029: sugerencias de la IA, atadas al nombre y materiales con que se
+  // pidieron (FR-004: si cambian, dejan de mostrarse).
+  const enLinea = useEnLinea()
+  const [estimacion, setEstimacion] = useState<{
+    firma: string
+    porInsumo: Map<string, SugerenciaMaterial>
+  } | null>(null)
+  const [estimando, setEstimando] = useState(false)
+  const [avisoEstimacion, setAvisoEstimacion] = useState<string | null>(null)
 
   const input: TratamientoInput = {
     nombre,
@@ -105,6 +121,54 @@ export function TratamientoForm({ tratamiento, onGuardado, onCancelar }: Tratami
     : null
 
   const elegidos = new Set(materiales.map((m) => m.insumoId))
+
+  // Spec 029: se estiman los materiales vigentes, hasta 20 (edge cases).
+  const estimables = materiales
+    .map((m) => m.insumoId)
+    .filter((id) => {
+      const insumo = insumosPorId.get(id)
+      return insumo !== undefined && !insumo.dadoDeBajaEn
+    })
+  const firmaActual = `${nombre.trim().replace(/\s+/g, ' ')}|${estimables.join(',')}`
+  const sugerencias = estimacion?.firma === firmaActual ? estimacion.porInsumo : null
+  const motivoSinEstimar = !enLinea
+    ? MENSAJES_ESTIMACION.sin_conexion
+    : nombre.trim() === ''
+      ? 'Escribe el nombre del tratamiento.'
+      : estimables.length === 0
+        ? 'Agrega al menos un material.'
+        : null
+  const hayAplicables = sugerencias
+    ? [...sugerencias.values()].some((s) => s.cantidad !== null)
+    : false
+
+  async function sugerirCantidades() {
+    if (motivoSinEstimar || estimando) return
+    const firma = firmaActual
+    setEstimando(true)
+    setAvisoEstimacion(null)
+    setEstimacion(null)
+    const resultado = await estimarMateriales(nombre, estimables)
+    setEstimando(false)
+    if (typeof resultado === 'string') {
+      setAvisoEstimacion(MENSAJES_ESTIMACION[resultado])
+      return
+    }
+    setEstimacion({ firma, porInsumo: new Map(resultado.map((s) => [s.insumoId, s])) })
+    if (estimables.length > MAX_MATERIALES_ESTIMACION) {
+      setAvisoEstimacion(`Se estimaron los primeros ${MAX_MATERIALES_ESTIMACION} materiales.`)
+    }
+  }
+
+  function usarSugerencias() {
+    if (!sugerencias) return
+    setMateriales(
+      materiales.map((m) => {
+        const cantidad = sugerencias.get(m.insumoId)?.cantidad
+        return cantidad == null ? m : { ...m, cantidad }
+      }),
+    )
+  }
   const resultados = busqueda.trim()
     ? insumos
         .filter(
@@ -237,9 +301,46 @@ export function TratamientoForm({ tratamiento, onGuardado, onCancelar }: Tratami
                     <Trash size={18} />
                   </TouchButton>
                 </div>
+                {sugerencias?.has(material.insumoId) && (
+                  <p className="text-xs text-text-muted" data-testid={`sugerencia-${material.insumoId}`}>
+                    {(() => {
+                      const s = sugerencias.get(material.insumoId)!
+                      return s.cantidad === null
+                        ? 'Sin sugerencia'
+                        : `Sugerido: ${formatearCantidad(s.cantidad, unidad)}${s.nota ? ` · ${s.nota}` : ''}`
+                    })()}
+                  </p>
+                )}
               </div>
             )
           })}
+          {materiales.length > 0 && (
+            <div className="flex flex-col gap-2 rounded-md bg-tinte-info p-3">
+              <TouchButton
+                type="button"
+                variant="secondary"
+                disabled={motivoSinEstimar !== null || estimando}
+                onClick={() => void sugerirCantidades()}
+                aria-describedby="estimacion-ayuda"
+              >
+                <Sparkles size={18} />
+                {estimando ? 'Estimando…' : 'Sugerir cantidades'}
+              </TouchButton>
+              {hayAplicables && (
+                <TouchButton type="button" variant="ghost" onClick={usarSugerencias}>
+                  Usar sugerencias
+                </TouchButton>
+              )}
+              <p id="estimacion-ayuda" className="text-xs text-text-muted">
+                {motivoSinEstimar ?? 'Sugerencia orientativa con IA: revisa antes de guardar.'}
+              </p>
+              {avisoEstimacion && (
+                <p role="status" className="text-xs text-text">
+                  {avisoEstimacion}
+                </p>
+              )}
+            </div>
+          )}
           <IconField label="Agregar material" htmlFor="tratamiento-buscar" icon={<Search size={18} />}>
             <input
               id="tratamiento-buscar"
