@@ -74,10 +74,9 @@ describe('AppShell sin contexto de apilamiento', () => {
     )
     const main = container.querySelector('main')!
     expect(main.className).not.toMatch(/(^|\s)z-/)
-    for (const nodo of container.querySelectorAll('main ~ *, main, div')) {
-      if (nodo.contains(main) || nodo === main) continue
-    }
-    const encabezado = screen.getByText('contenido').closest('main')!.previousElementSibling
+    // En jsdom (sin matchMedia) la disposición es la del teléfono: el
+    // encabezado móvil va justo antes del main.
+    const encabezado = main.previousElementSibling
     expect(encabezado?.className ?? '').not.toMatch(/(^|\s)z-/)
   })
 })
