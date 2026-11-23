@@ -69,7 +69,7 @@ describe('resumenSeccion', () => {
     insumosDadosDeBaja: 3,
     proveedoresActivos: 6,
     marcasActivas: 12,
-    categoriasTratamiento: { activas: 8, conPorcentaje: 0 },
+    categoriasTratamiento: { activas: 9, conPorcentaje: 0 },
     notificaciones: { stockBajo: true, caducidad: true },
     nivelesAvisoDias: [7, 30, 15],
   }
@@ -110,13 +110,13 @@ describe('resumenSeccion', () => {
   })
 
   it('categorías de tratamientos: activas y cuántas tienen % propio (spec 026)', () => {
-    expect(resumenSeccion('categoriasTratamiento', listos)).toBe('8 categorías')
+    expect(resumenSeccion('categoriasTratamiento', listos)).toBe('9 categorías')
     expect(
       resumenSeccion('categoriasTratamiento', {
         ...listos,
-        categoriasTratamiento: { activas: 8, conPorcentaje: 1 },
+        categoriasTratamiento: { activas: 9, conPorcentaje: 1 },
       }),
-    ).toBe('8 categorías · 1 con % propio')
+    ).toBe('9 categorías · 1 con % propio')
     expect(
       resumenSeccion('categoriasTratamiento', { ...listos, categoriasTratamiento: null }),
     ).toBeNull()

@@ -20,10 +20,10 @@
   - Ledger propio para el catálogo: no hace falta historial del nombre; el historial que pide la spec
     es el de la asignación y el % (FR-006, FR-009), que va en el ledger existente (R3, R4).
 
-## R2 — Siembra de las 8 categorías
+## R2 — Siembra de las 9 categorías
 
 - **Decision**: función `public.sembrar_categorias_tratamiento(p_tenant uuid)` (security definer) que
-  inserta las 8 si el tenant no tiene ninguna. La migración la llama para cada tenant existente, y un
+  inserta las 9 si el tenant no tiene ninguna. La migración la llama para cada tenant existente, y un
   trigger `after insert on tenants` la llama para los nuevos (`scripts/alta-tenant.mjs` crea el tenant
   por PostgREST con service role, así que el trigger cubre el alta sin cambiar el script). `creado_por
   null`, ids `gen_random_uuid()`.

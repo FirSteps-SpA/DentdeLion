@@ -2,7 +2,7 @@
 
 ## 1. Ajustes → "Categorías de tratamientos" (solo administración)
 
-- Tarjeta en el índice de Ajustes después de "Lugares de trabajo", con resumen "8 categorías · 1 con %
+- Tarjeta en el índice de Ajustes después de "Lugares de trabajo", con resumen "9 categorías · 1 con %
   propio".
 - Lista ordenada por nombre: nombre, "Desactivada" (texto) si lo está, y por cada lugar con % propio
   "Clínica A: 50 %". "Ver más" a partir de 25 (spec 020).

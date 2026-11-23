@@ -3,7 +3,7 @@
 -- data-model.md y research.md (R1–R6). Todo en una transacción.
 --
 -- Ningún dato existente cambia: los tratamientos quedan sin categoría y los
--- registros conservan su % y su ganancia. Se agregan las 8 categorías
+-- registros conservan su % y su ganancia. Se agregan las 9 categorías
 -- sembradas a cada tenant (y a los nuevos, por trigger).
 
 begin;
@@ -65,7 +65,7 @@ create trigger categorias_tratamiento_proteger
   for each row execute function public.proteger_categoria_tratamiento();
 
 -- ---------------------------------------------------------------------------
--- 2. Siembra (R2): 8 categorías por tenant, una sola vez.
+-- 2. Siembra (R2): 9 categorías por tenant, una sola vez.
 -- ---------------------------------------------------------------------------
 
 create function public.sembrar_categorias_tratamiento(p_tenant uuid) returns void
@@ -79,7 +79,7 @@ begin
   select gen_random_uuid(), p_tenant, nombre, null
   from unnest(array[
     'Evaluación', 'Prevención', 'Restauración', 'Endodoncia', 'Periodoncia',
-    'Extracción y cirugía', 'Prótesis', 'Urgencia'
+    'Cirugía', 'Prótesis', 'Urgencia', 'Odontopediatría'
   ]) as nombre;
 end;
 $$;

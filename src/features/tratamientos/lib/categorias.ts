@@ -9,16 +9,17 @@ import { claveCategoriaLugar, porcentajesPorCategoria } from './proyeccion'
  * y su % profesional por lugar. Solo administración (FR-008).
  */
 
-/** Las 8 que la migración siembra en cada tenant (FR-001). Referencia para pruebas y textos. */
+/** Las 9 que la migración siembra en cada tenant (FR-001). Referencia para pruebas y textos. */
 export const CATEGORIAS_TRATAMIENTO_SEMBRADAS = [
   'Evaluación',
   'Prevención',
   'Restauración',
   'Endodoncia',
   'Periodoncia',
-  'Extracción y cirugía',
+  'Cirugía',
   'Prótesis',
   'Urgencia',
+  'Odontopediatría',
 ] as const
 
 export const SIN_CATEGORIA_TRATAMIENTO = 'Sin categoría'

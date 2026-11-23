@@ -38,7 +38,7 @@ Trigger `proteger_categoria_tratamiento`: conserva `tenant_id`, `creado_por`, `c
 ### Siembra
 
 `sembrar_categorias_tratamiento(p_tenant)`: Evaluación, Prevención, Restauración, Endodoncia,
-Periodoncia, Extracción y cirugía, Prótesis, Urgencia, solo si el tenant no tiene categorías. Trigger
+Periodoncia, Cirugía, Prótesis, Urgencia, Odontopediatría, solo si el tenant no tiene categorías. Trigger
 `after insert on tenants`.
 
 ## Dexie v15

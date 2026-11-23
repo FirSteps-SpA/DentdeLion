@@ -44,7 +44,7 @@ begin
   insert into categorias_tratamiento (id, tenant_id, nombre, creado_por)
   select gen_random_uuid(), p_tenant, n, null
   from unnest(array['Evaluación','Prevención','Restauración','Endodoncia','Periodoncia',
-                    'Extracción y cirugía','Prótesis','Urgencia']) as n;
+                    'Cirugía','Prótesis','Urgencia','Odontopediatría']) as n;
 end $$;
 
 select public.sembrar_categorias_tratamiento(id) from public.tenants;
@@ -94,7 +94,7 @@ old.categoria_nombre;`.
 
 ## 5. Controles de `npm run test:rls` (nuevos)
 
-1. Un tenant existente tiene las 8 sembradas; un tenant creado después también, una sola vez.
+1. Un tenant existente tiene las 9 sembradas; un tenant creado después también, una sola vez.
 2. Personal no inserta ni actualiza `categorias_tratamiento`; administración sí.
 3. Nombre repetido por clave ("evaluacion " vs "Evaluación") → `23505`.
 4. Administración no puede cambiar `tenant_id`/`creado_por` de una categoría (el trigger lo revierte).

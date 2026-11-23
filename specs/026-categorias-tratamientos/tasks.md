@@ -37,8 +37,8 @@ implementar.
 - **Ensayo** (T034): respaldo del 2026-11-23 restaurado en un proyecto Supabase temporal (puertos
   565xx). El `auth` local es más viejo que el de producción (faltan columnas en `one_time_tokens` y
   `saml_providers`): esos COPY fallan y no afectan a `public`. `public`: 18 tablas, 412 filas antes;
-  migración sin errores; 420 después (las 8 categorías de "Clínica Denart"); un tenant insertado
-  después recibe sus 8. Producción no tenía tratamientos ni registros, así que SC-003 se cumple
+  migración sin errores; 421 después (las 9 categorías de "Clínica Denart"); un tenant insertado
+  después recibe sus 9. Repetido tras cambiar la lista (ver abajo). Producción no tenía tratamientos ni registros, así que SC-003 se cumple
   trivialmente.
 - **Recorrido** (T035, `run-indentory`, desktop, administración): % general 40 en Clínica; categoría
   "Evaluación" creada y con 50 %; "Evaluación inicial" ($20.000) con categoría y "Resina simple"
@@ -46,6 +46,13 @@ implementar.
   "Ganancia del profesional (50 % · Evaluación): $10.000"; el historial muestra la categoría de cada
   registro y Reportes "Por categoría de tratamiento" con $10.000 y $8.000. No se recorrieron a mano
   personal, móvil ni sin conexión: los cubren las pruebas de integración y de sync.
+
+- **Lista de categorías iniciales** (cambio pedido tras implementar, 2026-11-23): "Extracción y
+  cirugía" pasa a "Cirugía" y se agrega "Odontopediatría" (9 en total). Se editó la migración, que aún
+  no estaba en producción. La base local, que ya tenía la versión anterior, se alineó a mano
+  (función de siembra reemplazada; categoría renombrada y la nueva insertada en cada tenant); el
+  ensayo sobre el respaldo se repitió desde cero con la migración corregida (412 → 421) y
+  `test:rls` volvió a pasar completo.
 
 **Organization**: por historia de spec.md. `R#` = research.md, "UI §n" = `contracts/ui-contracts.md`,
 "SQL §n" = `contracts/supabase-schema.md`, "DM" = data-model.md, "QS" = quickstart.md.
@@ -202,7 +209,7 @@ implementar.
 - [X] T033 `npm run lint && npm run build && npm test` en verde (incluye `rendimiento` de Reportes y
   `lecturas-movimientos`); `npm run test:rls` en verde
 - [X] T034 Ensayo de la migración sobre la restauración del último respaldo de producción (QS "Ensayo"):
-  8 categorías por tenant, filas intactas, totales idénticos; anotar los conteos
+  9 categorías por tenant, filas intactas, totales idénticos; anotar los conteos
 - [X] T035 Recorrido de [quickstart.md](./quickstart.md) con `run-indentory` (administración y personal;
   móvil y desktop) y capturas
 - [X] T036 Notas de despliegue en `README.md`: migración antes del front con respaldo y visto bueno;

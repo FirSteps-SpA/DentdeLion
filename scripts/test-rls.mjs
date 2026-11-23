@@ -1673,7 +1673,7 @@ check(
 
 const SEMBRADAS_026 = [
   'Evaluación', 'Prevención', 'Restauración', 'Endodoncia', 'Periodoncia',
-  'Extracción y cirugía', 'Prótesis', 'Urgencia',
+  'Cirugía', 'Prótesis', 'Urgencia', 'Odontopediatría',
 ]
 const categoriasDe = async (tenant) =>
   leer(`categorias_tratamiento?tenant_id=eq.${tenant}&select=id,nombre,creado_por`)
@@ -1682,8 +1682,8 @@ const categoriasDe = async (tenant) =>
 for (const [nombreTenant, tenant] of [['existente', TENANT_1], ['nuevo (B)', TENANT_B]]) {
   const sembradas = (await categoriasDe(tenant)).filter((c) => c.creado_por === null)
   check(
-    `categorías de tratamientos: el tenant ${nombreTenant} tiene las 8 sembradas, una vez cada una`,
-    sembradas.length === 8 &&
+    `categorías de tratamientos: el tenant ${nombreTenant} tiene las 9 sembradas, una vez cada una`,
+    sembradas.length === SEMBRADAS_026.length &&
       SEMBRADAS_026.every((n) => sembradas.filter((c) => c.nombre === n).length === 1),
     `${sembradas.length}`,
   )

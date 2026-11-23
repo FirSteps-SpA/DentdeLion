@@ -133,11 +133,11 @@ describe('Ajustes → Categorías de tratamientos', () => {
       .getAllByRole('button')
       .map((b) => b.textContent)
     const i = tarjetas.findIndex((t) => t?.startsWith('Categorías de tratamientos'))
-    expect(tarjetas[i]).toBe('Categorías de tratamientos8 categorías')
+    expect(tarjetas[i]).toBe('Categorías de tratamientos9 categorías')
     expect(tarjetas[i - 1]).toMatch(/^Lugares de trabajo/)
   })
 
-  it('muestra las 8 sembradas en orden alfabético', () => {
+  it('muestra las 9 sembradas en orden alfabético', () => {
     abrirSeccion()
     const nombres = screen
       .getAllByRole('button', { name: /^Editar / })

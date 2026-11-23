@@ -14,18 +14,18 @@ npm run test:rls                      # controles nuevos de contracts/supabase-s
 
 1. Respaldo de producción (`004-operacion/respaldo/respaldo.sh` en 1stDocs).
 2. Restaurarlo en Supabase local, aplicar `20261123000000_categorias_tratamiento.sql` y comprobar:
-   - cada tenant tiene 8 categorías;
+   - cada tenant tiene 9 categorías;
    - `cambios_tratamiento` y `tratamientos_realizados` conservan sus filas, con las columnas nuevas en
      `null`;
    - totales de `tratamientos_realizados` (precio, % y ganancia) idénticos antes y después (SC-003).
-3. Insertar un tenant de prueba y ver sus 8 categorías.
+3. Insertar un tenant de prueba y ver sus 9 categorías.
 
 ## Recorrido manual (skill `run-indentory`)
 
 Datos: dos lugares (Clínica A con % general 40, Clínica B con 45), tratamientos "Evaluación inicial"
 ($20.000) y "Resina simple" ($20.000) con precio en ambos.
 
-1. **Sembradas (US1)**: Ajustes → Categorías de tratamientos muestra las 8.
+1. **Sembradas (US1)**: Ajustes → Categorías de tratamientos muestra las 9.
 2. **Asignar**: Tratamientos → "Evaluación inicial" → Editar → Categoría "Evaluación" → Guardar. El
    catálogo muestra "Evaluación"; el chip "Evaluación" filtra.
 3. **% por lugar (US2)**: en la categoría Evaluación, Clínica A = 50; Clínica B vacía (placeholder

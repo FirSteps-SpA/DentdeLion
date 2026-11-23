@@ -39,6 +39,8 @@ para revisar cuánto se hizo de cada cosa.
 - Q: ¿Quién administra las categorías y sus %? → A: **Solo administración**, como el catálogo de
   tratamientos y el % profesional. El personal ve la categoría pero no la cambia.
 - Q: ¿Se incluye ver producción y ganancia por categoría? → A: **Sí, en Historial y Reportes.**
+- Q: ¿Cuáles son las categorías iniciales? → A: Evaluación, Prevención, Restauración, Endodoncia,
+  Periodoncia, Cirugía, Prótesis, Urgencia y Odontopediatría (9).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -59,7 +61,7 @@ tratamiento con su categoría.
 
 1. **Given** un cliente (nuevo o existente), **When** administración abre Ajustes → **Categorías de
    tratamientos**, **Then** ve las categorías sembradas: Evaluación, Prevención, Restauración,
-   Endodoncia, Periodoncia, Extracción y cirugía, Prótesis y Urgencia.
+   Endodoncia, Periodoncia, Cirugía, Prótesis, Urgencia y Odontopediatría.
 2. **Given** esa sección, **When** agrega "Blanqueamiento", **Then** aparece en la lista y queda
    disponible al crear o editar un tratamiento.
 3. **Given** el formulario de un tratamiento, **When** administración elige una categoría en el
@@ -172,9 +174,9 @@ profesional de cada categoría.
 
 **Categorías (US1)**
 
-- **FR-001**: Cada cliente DEBE tener un catálogo de categorías de tratamientos, con las 8 sembradas
-  (Evaluación, Prevención, Restauración, Endodoncia, Periodoncia, Extracción y cirugía, Prótesis,
-  Urgencia), creadas una sola vez para clientes existentes y en el alta de clientes nuevos.
+- **FR-001**: Cada cliente DEBE tener un catálogo de categorías de tratamientos, con las 9 sembradas
+  (Evaluación, Prevención, Restauración, Endodoncia, Periodoncia, Cirugía, Prótesis, Urgencia,
+  Odontopediatría), creadas una sola vez para clientes existentes y en el alta de clientes nuevos.
 - **FR-002**: Administración DEBE poder crear, renombrar, desactivar y reactivar categorías desde una
   sección nueva de Ajustes, **Categorías de tratamientos**. Las sembradas se administran igual que las
   creadas.
@@ -244,11 +246,11 @@ profesional de cada categoría.
   totales de Reportes de meses anteriores).
 - **SC-004**: El historial filtrado por una categoría y el bloque de Reportes dan el mismo total para
   el mismo período y lugar.
-- **SC-005**: Un cliente nuevo ve las 8 categorías sembradas sin hacer nada.
+- **SC-005**: Un cliente nuevo ve las 9 categorías sembradas sin hacer nada.
 
 ## Assumptions
 
-- Las categorías sembradas son las 8 de FR-001; cada clínica puede renombrarlas o desactivarlas.
+- Las categorías sembradas son las 9 de FR-001; cada clínica puede renombrarlas o desactivarlas.
 - No hay % por tratamiento individual ni por profesional: solo por categoría y lugar.
 - No se asignan categorías automáticamente a los tratamientos existentes; lo hace administración.
 - El filtro por categoría del catálogo y del historial es de un valor a la vez.

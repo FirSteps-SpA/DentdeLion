@@ -6,7 +6,7 @@
 
 ## Summary
 
-Los tratamientos ganan una categoría opcional de un catálogo por cliente (8 sembradas, administrables)
+Los tratamientos ganan una categoría opcional de un catálogo por cliente (9 sembradas, administrables)
 y cada categoría puede tener un % profesional propio **por lugar**, que reemplaza al general del lugar
 al registrar. Historial y Reportes muestran lo realizado por categoría.
 
@@ -119,6 +119,6 @@ una sección nueva en `features/ajustes` y una tarjeta en `features/reportes`.
 
 1. Respaldo de producción y ensayo de la migración sobre su restauración ([quickstart.md](./quickstart.md)).
 2. `supabase db push` de `20261123000000_categorias_tratamiento.sql` (**requiere visto bueno explícito**:
-   cambia la base de producción) y comprobación (8 categorías por tenant, totales intactos).
+   cambia la base de producción) y comprobación (9 categorías por tenant, totales intactos).
 3. Front (release con `main` → Netlify).
 4. Avisar al equipo; mientras quede un dispositivo con versión anterior, sus registros usan el % general.
