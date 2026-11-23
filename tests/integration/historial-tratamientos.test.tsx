@@ -51,6 +51,8 @@ function registro(id: string, creadoEn: Date, extra: Partial<TratamientoRealizad
     nombre: `Tratamiento ${id}`,
     precio: 45000,
     porcentajeProfesional: 40,
+    categoriaId: null,
+    categoriaNombre: null,
     materiales: [],
     costoMateriales: 3480,
     costoCompleto: true,
@@ -116,5 +118,39 @@ describe('historial de tratamientos (US5)', () => {
     render(<HistorialTratamientos />)
     expect(screen.getByText('Tratamiento d')).toBeInTheDocument()
     expect(screen.getByText(/· Box Las Condes/)).toBeInTheDocument()
+  })
+})
+
+/** Spec 026 T030 (FR-014, US3-1, US3-2; SC-004). */
+describe('historial por categoría (spec 026)', () => {
+  beforeEach(() => {
+    realizadosT.seed([
+      registro('e', new Date(2026, 9, 15, 9), {
+        categoriaId: 'eval',
+        categoriaNombre: 'Evaluación',
+        precio: 20000,
+        porcentajeProfesional: 50,
+      }),
+      registro('f', new Date(2026, 9, 15, 10)),
+    ])
+    reflejar()
+  })
+
+  it('cada registro muestra su categoría; el filtro deja los de esa categoría y sus totales', () => {
+    render(<HistorialTratamientos />)
+    expect(screen.getByText('Tratamiento e').parentElement).toHaveTextContent('Evaluación ·')
+    expect(screen.getByText('Tratamiento f').parentElement).toHaveTextContent('Sin categoría ·')
+
+    const filtro = screen.getByLabelText('Categoría')
+    expect([...(filtro as HTMLSelectElement).options].map((o) => o.textContent)).toEqual([
+      'Todas',
+      'Evaluación',
+      'Sin categoría',
+    ])
+    fireEvent.change(filtro, { target: { value: 'eval' } })
+    expect(screen.getByText('Tratamiento e')).toBeInTheDocument()
+    expect(screen.queryByText('Tratamiento f')).not.toBeInTheDocument()
+    // $20.000 × 50 %.
+    expect(screen.getAllByText('$10.000').length).toBeGreaterThan(0)
   })
 })

@@ -9,14 +9,52 @@ import {
   type CostoTratamiento,
   type Ganancia,
 } from './montos'
-import type { TratamientoProyectado } from './proyeccion'
+import { porcentajeAplicable, type TratamientoProyectado } from './proyeccion'
 
 export interface MontosTratamiento {
   costo: CostoTratamiento
   /** Precio en el lugar pedido (Q1); `null` = sin precio ahí. */
   precio: number | null
   porcentaje: number | null
+  /** Spec 026 (FR-012): de dónde viene el % ("50 % · Evaluación"). */
+  origenPorcentaje: PorcentajeConOrigen
   ganancia: Ganancia
+}
+
+export interface PorcentajeConOrigen {
+  valor: number | null
+  origen: 'categoria' | 'lugar' | null
+  /** Nombre de la categoría cuando `origen === 'categoria'`. */
+  categoriaNombre: string | null
+}
+
+/**
+ * Spec 026 (R5, FR-010/FR-012) — % que aplicaría a un tratamiento en un lugar,
+ * con su origen, desde el store (la misma regla que guarda el registro).
+ */
+export function usePorcentajeAplicable(): (
+  tratamiento: Pick<TratamientoProyectado, 'categoriaId'>,
+  lugarId: string,
+) => PorcentajeConOrigen {
+  const porcentajesLugar = useTratamientosStore((s) => s.porcentajes)
+  const porcentajesCategoria = useTratamientosStore((s) => s.porcentajesCategoria)
+  const categorias = useTratamientosStore((s) => s.categorias)
+  return useMemo(
+    () => (tratamiento, lugarId) => {
+      const { valor, origen } = porcentajeAplicable({
+        categoriaId: tratamiento.categoriaId,
+        lugarId,
+        porcentajesLugar,
+        porcentajesCategoria,
+      })
+      const categoriaNombre =
+        origen === 'categoria'
+          ? (categorias.find((c) => c.id === tratamiento.categoriaId)?.nombre ?? null)
+          : null
+      return { valor, origen, categoriaNombre }
+    },
+    [porcentajesLugar, porcentajesCategoria, categorias],
+  )
 }
 
 /**
@@ -44,7 +82,7 @@ export function useMontosTratamiento(): (
   const insumos = useInsumosPorId()
   const costos = useCostosUnitarios()
   const cambiosInsumo = useInventoryStore((s) => s.cambiosInsumo)
-  const porcentajes = useTratamientosStore((s) => s.porcentajes)
+  const porcentajeDe = usePorcentajeAplicable()
 
   return useMemo(
     () => (tratamiento, lugarId) => {
@@ -55,14 +93,16 @@ export function useMontosTratamiento(): (
         cambiosInsumo,
       )
       const precio = tratamiento.precios.get(lugarId) ?? null
-      const porcentaje = porcentajes.get(lugarId) ?? null
+      const origenPorcentaje = porcentajeDe(tratamiento, lugarId)
+      const porcentaje = origenPorcentaje.valor
       return {
         costo,
         precio,
         porcentaje,
+        origenPorcentaje,
         ganancia: calcularGanancia(precio, porcentaje, costo.costoMateriales),
       }
     },
-    [insumos, costos, cambiosInsumo, porcentajes],
+    [insumos, costos, cambiosInsumo, porcentajeDe],
   )
 }

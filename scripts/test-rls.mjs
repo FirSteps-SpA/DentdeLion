@@ -1666,6 +1666,171 @@ check(
   `HTTP ${r.status}`,
 )
 
+// ---------------------------------------------------------------------------
+// Spec 026 — categorías de tratamientos y % por categoría
+// (contracts/supabase-schema.md §5)
+// ---------------------------------------------------------------------------
+
+const SEMBRADAS_026 = [
+  'Evaluación', 'Prevención', 'Restauración', 'Endodoncia', 'Periodoncia',
+  'Cirugía', 'Prótesis', 'Urgencia', 'Odontopediatría',
+]
+const categoriasDe = async (tenant) =>
+  leer(`categorias_tratamiento?tenant_id=eq.${tenant}&select=id,nombre,creado_por`)
+
+// 1. Sembradas en el tenant existente y en uno creado después (B), una sola vez.
+for (const [nombreTenant, tenant] of [['existente', TENANT_1], ['nuevo (B)', TENANT_B]]) {
+  const sembradas = (await categoriasDe(tenant)).filter((c) => c.creado_por === null)
+  check(
+    `categorías de tratamientos: el tenant ${nombreTenant} tiene las 9 sembradas, una vez cada una`,
+    sembradas.length === SEMBRADAS_026.length &&
+      SEMBRADAS_026.every((n) => sembradas.filter((c) => c.nombre === n).length === 1),
+    `${sembradas.length}`,
+  )
+}
+r = await http('POST', '/rest/v1/rpc/sembrar_categorias_tratamiento', {
+  token: adm.token,
+  body: { p_tenant: TENANT_1 },
+})
+check('categorías de tratamientos: nadie llama la siembra por la API', r.status >= 400, `HTTP ${r.status}`)
+
+// 2. Solo administración crea y actualiza.
+const nuevaCategoria = (creado_por, nombre) => ({
+  id: randomUUID(),
+  nombre,
+  creado_por,
+  creado_en: new Date().toISOString(),
+})
+const blanqueamiento = nuevaCategoria(adm.id, `Blanqueamiento ${run}`)
+r = await http('POST', '/rest/v1/categorias_tratamiento', {
+  token: per.token,
+  body: nuevaCategoria(per.id, `Personal ${run}`),
+})
+check('categorías de tratamientos: personal no crea', r.status >= 400, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/categorias_tratamiento', { token: adm.token, body: blanqueamiento })
+check('categorías de tratamientos: administración crea', r.status === 201, `HTTP ${r.status}`)
+await http('PATCH', `/rest/v1/categorias_tratamiento?id=eq.${blanqueamiento.id}`, {
+  token: per.token,
+  body: { nombre: 'Cambiada por personal' },
+})
+let [categoriaLeida] = await leer(`categorias_tratamiento?id=eq.${blanqueamiento.id}&select=nombre`)
+check(
+  'categorías de tratamientos: personal no renombra',
+  categoriaLeida?.nombre === blanqueamiento.nombre,
+)
+
+// 3. Clave repetida (mayúsculas, tildes, espacios).
+r = await http('POST', '/rest/v1/categorias_tratamiento', {
+  token: adm.token,
+  body: nuevaCategoria(adm.id, ' evaluacion '),
+})
+check('categorías de tratamientos: "evaluacion " repite "Evaluación"', r.status === 409, `HTTP ${r.status}`)
+
+// 4. Identidad inmutable; renombrar y desactivar sí.
+await http('PATCH', `/rest/v1/categorias_tratamiento?id=eq.${blanqueamiento.id}`, {
+  token: adm.token,
+  body: { creado_por: per.id, nombre: `Estética ${run}`, desactivado_en: new Date().toISOString() },
+})
+;[categoriaLeida] = await leer(
+  `categorias_tratamiento?id=eq.${blanqueamiento.id}&select=nombre,creado_por,desactivado_en,tenant_id`,
+)
+check(
+  'categorías de tratamientos: se renombra y desactiva, sin cambiar autor ni tenant',
+  categoriaLeida?.nombre === `Estética ${run}` &&
+    categoriaLeida?.desactivado_en !== null &&
+    categoriaLeida?.creado_por === adm.id &&
+    categoriaLeida?.tenant_id === TENANT_1,
+)
+
+// 5–7. Cambios `categoria` y `porcentajeCategoria`.
+const evaluacion = (await categoriasDe(TENANT_1)).find((c) => c.nombre === 'Evaluación')
+const pctCategoria = (usuario, extra = {}) =>
+  cambioTratamiento(usuario.id, {
+    tratamiento_id: null,
+    campo: 'porcentajeCategoria',
+    lugar_id: LUGAR_1,
+    categoria_tratamiento_id: evaluacion?.id,
+    valor_nuevo: 50,
+    ...extra,
+  })
+r = await http('POST', '/rest/v1/cambios_tratamiento', {
+  token: per.token,
+  body: cambioTratamiento(per.id, { campo: 'categoria', valor_nuevo: evaluacion?.id }),
+})
+check('% por categoría: personal no asigna categoría', r.status >= 400, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/cambios_tratamiento', { token: per.token, body: pctCategoria(per) })
+check('% por categoría: personal no fija %', r.status >= 400, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/cambios_tratamiento', {
+  token: adm.token,
+  body: cambioTratamiento(adm.id, { campo: 'categoria', valor_nuevo: evaluacion?.id }),
+})
+check('% por categoría: administración asigna categoría', r.status === 201, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/cambios_tratamiento', { token: adm.token, body: pctCategoria(adm) })
+check('% por categoría: administración fija 50 % en un lugar', r.status === 201, `HTTP ${r.status}`)
+for (const [caso, extra] of [
+  ['sin categoría', { categoria_tratamiento_id: null }],
+  ['con tratamiento', { tratamiento_id: tratamiento016 }],
+  ['sin lugar', { lugar_id: null }],
+  ['de 120', { valor_nuevo: 120 }],
+]) {
+  r = await http('POST', '/rest/v1/cambios_tratamiento', { token: adm.token, body: pctCategoria(adm, extra) })
+  check(`% por categoría: un cambio ${caso} se rechaza`, r.status >= 400, `HTTP ${r.status}`)
+}
+r = await http('POST', '/rest/v1/cambios_tratamiento', {
+  token: adm.token,
+  body: cambioTratamiento(adm.id, { campo: 'categoria', valor_nuevo: 7 }),
+})
+check('% por categoría: una categoría numérica se rechaza', r.status >= 400, `HTTP ${r.status}`)
+r = await http('POST', '/rest/v1/cambios_tratamiento', {
+  token: adm.token,
+  body: cambioTratamiento(adm.id, { campo: 'categoria', valor_nuevo: null }),
+})
+check('% por categoría: quitar la categoría (null) se acepta', r.status === 201, `HTTP ${r.status}`)
+
+// 8. Aislamiento: B no lee ni referencia categorías de A.
+r = await http('GET', '/rest/v1/categorias_tratamiento?select=id,tenant_id', { token: admB.token })
+check(
+  'categorías de tratamientos: otro tenant solo lee las suyas',
+  Array.isArray(r.data) && r.data.length > 0 && r.data.every((c) => c.tenant_id === TENANT_B),
+  `HTTP ${r.status}`,
+)
+r = await http('POST', '/rest/v1/cambios_tratamiento', {
+  token: admB.token,
+  body: {
+    id: randomUUID(),
+    tratamiento_id: null,
+    lugar_id: LUGAR_B1,
+    categoria_tratamiento_id: evaluacion?.id,
+    campo: 'porcentajeCategoria',
+    valor_anterior: null,
+    valor_nuevo: 50,
+    usuario_id: admB.id,
+    creado_en: new Date().toISOString(),
+  },
+})
+check('% por categoría: otro tenant no usa una categoría ajena', r.status >= 400, `HTTP ${r.status}`)
+
+// 9. La categoría del registro es parte del snapshot inmutable.
+const registro026 = realizado(per.id, {
+  porcentaje_profesional: 50,
+  categoria_tratamiento_id: evaluacion?.id,
+  categoria_nombre: 'Evaluación',
+})
+r = await http('POST', '/rest/v1/tratamientos_realizados', { token: per.token, body: registro026 })
+check('registro con categoría: personal lo registra', r.status === 201, `HTTP ${r.status}`)
+await http('PATCH', `/rest/v1/tratamientos_realizados?id=eq.${registro026.id}`, {
+  token: adm.token,
+  body: { categoria_tratamiento_id: null, categoria_nombre: 'Otra' },
+})
+const [snapshot026] = await leer(
+  `tratamientos_realizados?id=eq.${registro026.id}&select=categoria_tratamiento_id,categoria_nombre`,
+)
+check(
+  'registro con categoría: nadie cambia su categoría después',
+  snapshot026?.categoria_tratamiento_id === evaluacion?.id &&
+    snapshot026?.categoria_nombre === 'Evaluación',
+)
+
 r = await http('GET', '/rest/v1/insumos?select=id')
 check(
   'sin sesión no se lee el inventario',

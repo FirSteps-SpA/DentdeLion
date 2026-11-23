@@ -116,6 +116,7 @@ describe('validarTratamiento (FR-001)', () => {
       activo: true,
       materiales: [],
       precios: new Map(),
+      categoriaId: null,
       creadoEn: '',
       creadoPor: '',
     }

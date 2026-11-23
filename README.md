@@ -227,6 +227,16 @@ caché sigue mostrando "Consumir 1" y escribe los mismos movimientos, así que c
 un teléfono que al abrir la hoja "Confirmar consumo" queda a la vista (sin teclado) y que consumir 1
 toma 2 toques. Si el front falla, se revierte sin tocar el servidor.
 
+**Spec 026 (categorías de tratamientos y % por categoría):** **con migración**
+(`20261123000000_categorias_tratamiento.sql`). Orden: respaldo de producción (`respaldo.sh`), ensayo de
+la migración sobre su restauración (cada tenant con 9 categorías y el resto de las filas igual),
+`supabase db push` **con visto bueno explícito** y comprobación en producción (9 categorías por
+tenant), y recién después el front. El ensayo sobre el respaldo del 2026-11-23 dio 412 filas antes y
+421 después (las 9 categorías de Clínica Denart); producción todavía no tenía tratamientos ni
+registros. Mientras un dispositivo tenga una versión anterior en caché, no ve categorías y sus
+registros llevan el % general del lugar, aunque la categoría tenga uno propio: avisar al equipo que
+actualice. En Ajustes, "Categorías" pasa a llamarse "Categorías de insumos".
+
 ## ¿Quedó bien configurado mi entorno?
 
 Checklist manual (sin script) — cada punto debe poder confirmarse a simple vista en menos de 2

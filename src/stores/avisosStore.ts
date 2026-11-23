@@ -28,6 +28,8 @@ export interface Aviso {
     | 'marca-repetida'
     /** Spec 023 (Edge Cases): la marca elegida se eliminó antes de guardar el alta. */
     | 'marca-descartada'
+    /** Spec 026 (research.md R8): otra administradora creó o renombró una categoría de tratamientos con el mismo nombre. */
+    | 'categoria-tratamiento-repetida'
   /**
    * Consumo: el movimiento de consumo. Traslado (spec 014): la salida del par.
    * Tratamiento (spec 016): el tratamiento realizado.
@@ -51,7 +53,8 @@ function esInformativo(aviso: Pick<Aviso, 'tipo'>): boolean {
     aviso.tipo === 'proveedor-repetido' ||
     aviso.tipo === 'marca-no-eliminada' ||
     aviso.tipo === 'marca-repetida' ||
-    aviso.tipo === 'marca-descartada'
+    aviso.tipo === 'marca-descartada' ||
+    aviso.tipo === 'categoria-tratamiento-repetida'
   )
 }
 

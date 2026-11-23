@@ -111,6 +111,8 @@ export function realizado(
     nombre: 'Restauración',
     precio,
     porcentajeProfesional: precio === null ? null : 40,
+    categoriaId: null,
+    categoriaNombre: null,
     materiales: [],
     costoMateriales: 0,
     costoCompleto: true,

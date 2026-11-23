@@ -1,4 +1,4 @@
-import type { Insumo, Lugar, TratamientoRealizado } from '../../../lib/db'
+import type { CategoriaTratamiento, Insumo, Lugar, TratamientoRealizado } from '../../../lib/db'
 import { SIN_CATEGORIA, claveCategoria } from '../../insumos/lib/categorias'
 import { comisionRegistro } from '../../tratamientos/lib/montos'
 import type { ConsumoValorizado, FiltroLugar } from './gasto'
@@ -55,6 +55,19 @@ export interface GananciaLugar {
   monto: number
 }
 
+/** Spec 026 (FR-015, R11) — producción y ganancia del profesional de una categoría de tratamientos. */
+export interface CategoriaTratamientoReporte {
+  /** `null` = "Sin categoría". */
+  id: string | null
+  nombre: string
+  /** Σ precio de los registros. */
+  produccion: number
+  /** Σ precio × % profesional. */
+  gananciaProfesional: number
+  /** Para el gráfico: igual a `produccion`. */
+  monto: number
+}
+
 export interface ResumenReportes {
   rango: RangoPeriodo
   produccion: Kpi
@@ -68,6 +81,8 @@ export interface ResumenReportes {
   masUtilizados: MaterialMasUsado[]
   /** `null` salvo "Todos" con ≥ 2 lugares con datos en el período (FR-012). */
   gananciaPorLugar: GananciaLugar[] | null
+  /** Spec 026: de mayor a menor producción. */
+  porCategoriaTratamiento: CategoriaTratamientoReporte[]
   /** Sin tratamientos realizados ni consumos en el período (FR-017). */
   vacio: boolean
 }
@@ -80,6 +95,8 @@ export interface EntradaReportes {
   insumos: Insumo[]
   /** Incluidos los desactivados, para nombrar sus datos históricos. */
   lugares: Lugar[]
+  /** Spec 026: para nombrar cada categoría con su nombre actual. */
+  categoriasTratamiento?: CategoriaTratamiento[]
 }
 
 /** Máximo de sectores del donut: 3 categorías + "Otras" (research.md R7). */
@@ -240,6 +257,10 @@ export function resumenReportes(
     gastosMensuales: gastosPorMes(consumos, rango.meses),
     masUtilizados: masUtilizados(valorizados, insumos),
     gananciaPorLugar: filtro === 'todos' ? gananciaPorLugar(realizadosRango, entrada.lugares) : null,
+    porCategoriaTratamiento: porCategoriaTratamiento(
+      realizadosRango,
+      entrada.categoriasTratamiento ?? [],
+    ),
     vacio: t.cantidad === 0 && g.cantidad === 0,
   }
 }
@@ -320,4 +341,35 @@ function gananciaPorLugar(realizados: TratamientoRealizado[], lugares: Lugar[]):
   return [...montos.entries()]
     .map(([lugarId, monto]) => ({ lugarId, nombre: nombres.get(lugarId) ?? 'Lugar', monto }))
     .sort(porMontoYNombre)
+}
+
+/**
+ * Spec 026 (FR-015, FR-016, R11): agrupa los registros vigentes del rango por
+ * la categoría con que se registraron (su identidad), con el nombre actual de
+ * la categoría o, si ya no está, el del registro. Sin categoría → "Sin
+ * categoría" (el mismo texto que en insumos).
+ */
+function porCategoriaTratamiento(
+  realizados: TratamientoRealizado[],
+  categorias: CategoriaTratamiento[],
+): CategoriaTratamientoReporte[] {
+  const actuales = new Map(categorias.map((c) => [c.id, c.nombre]))
+  const grupos = new Map<string, CategoriaTratamientoReporte>()
+  for (const r of realizados) {
+    const clave = r.categoriaId ?? ''
+    const grupo = grupos.get(clave) ?? {
+      id: r.categoriaId,
+      nombre: r.categoriaId
+        ? (actuales.get(r.categoriaId) ?? r.categoriaNombre ?? SIN_CATEGORIA)
+        : SIN_CATEGORIA,
+      produccion: 0,
+      gananciaProfesional: 0,
+      monto: 0,
+    }
+    grupo.produccion += r.precio ?? 0
+    grupo.monto = grupo.produccion
+    grupo.gananciaProfesional += comisionRegistro(r) ?? 0
+    grupos.set(clave, grupo)
+  }
+  return [...grupos.values()].sort(porMontoYNombre)
 }

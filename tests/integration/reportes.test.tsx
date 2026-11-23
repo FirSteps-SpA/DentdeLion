@@ -261,3 +261,30 @@ describe('gráficos de gasto (US3)', () => {
     )
   })
 })
+
+/** Spec 026 T030 (FR-015, US3-3). */
+describe('por categoría de tratamiento (spec 026)', () => {
+  it('muestra producción y ganancia del profesional por categoría, con tabla', () => {
+    cargar({
+      realizados: [
+        realizado(20000, 10000, iso(2026, 9, 3), {
+          categoriaId: 'eval',
+          categoriaNombre: 'Evaluación',
+          porcentajeProfesional: 50,
+        }),
+        realizado(45000, 14520, iso(2026, 9, 5)),
+      ],
+    })
+    render(<ReportesView />)
+    const grafico = screen.getByRole('figure', { name: 'Por categoría de tratamiento' })
+    const filas = within(grafico).getAllByRole('button', { pressed: false })
+    expect(filas[0]).toHaveTextContent('Sin categoría')
+    expect(filas[1]).toHaveTextContent('Evaluación')
+    fireEvent.click(filas[1])
+    expect(
+      within(grafico).getByText('Evaluación: $20.000 · ganancia del profesional $10.000'),
+    ).toBeInTheDocument()
+    const tabla = within(grafico).getByRole('table', { hidden: true })
+    expect(within(tabla).getAllByRole('row', { hidden: true })).toHaveLength(3)
+  })
+})
