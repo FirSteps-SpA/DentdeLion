@@ -19,10 +19,11 @@ describe('SECCIONES_AJUSTES', () => {
       'proveedores',
       'marcas',
       'baja',
+      'guia',
     ])
   })
 
-  it('la administración ve las ocho en orden; el personal solo perfil y avisos', () => {
+  it('la administración ve las nueve en orden; el personal perfil, avisos y la guía (spec 030)', () => {
     expect(seccionesVisibles('administrador').map((s) => s.id)).toEqual([
       'perfil',
       'lugares',
@@ -32,8 +33,9 @@ describe('SECCIONES_AJUSTES', () => {
       'proveedores',
       'marcas',
       'baja',
+      'guia',
     ])
-    expect(seccionesVisibles('personal').map((s) => s.id)).toEqual(['perfil', 'avisos'])
+    expect(seccionesVisibles('personal').map((s) => s.id)).toEqual(['perfil', 'avisos', 'guia'])
   })
 
   it('titula por rol solo las secciones con partes de administración', () => {
@@ -49,6 +51,7 @@ describe('SECCIONES_AJUSTES', () => {
       proveedores: ['Proveedores', 'Proveedores'],
       marcas: ['Marcas', 'Marcas'],
       baja: ['Insumos dados de baja', 'Insumos dados de baja'],
+      guia: ['Guía de uso', 'Guía de uso'],
     })
   })
 

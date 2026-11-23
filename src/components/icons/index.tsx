@@ -18,6 +18,7 @@ import {
   ChevronRight as LucideChevronRight,
   CircleAlert as LucideCircleAlert,
   CircleCheck as LucideCircleCheck,
+  CircleHelp as LucideCircleHelp,
   CircleUserRound,
   Clock3,
   CloudOff as LucideCloudOff,
@@ -140,6 +141,7 @@ export const ChevronRight = deLucide(LucideChevronRight)
 // Estados (DS §21)
 export const Check = deLucide(LucideCheck)
 export const CircleCheck = deLucide(LucideCircleCheck)
+export const CircleHelp = deLucide(LucideCircleHelp)
 export const CircleAlert = deLucide(LucideCircleAlert)
 export const AlertTriangle = deLucide(TriangleAlert)
 export const Clock = deLucide(Clock3)

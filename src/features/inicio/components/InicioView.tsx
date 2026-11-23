@@ -211,6 +211,7 @@ export function InicioView({ onNavegar }: InicioViewProps) {
         titulo={`¡Hola, ${primerNombre}!`}
         subtitulo={<span className="inline-block first-letter:uppercase">{hoy}</span>}
         ilustracion="diente"
+        ayuda="inicio"
       />
 
       <section

@@ -239,7 +239,7 @@ export function InventarioView() {
   return (
     <div className="flex w-full flex-col gap-4 text-left">
       {/* Spec 027 (FR-011): encabezado común. */}
-      <EncabezadoVista titulo="Inventario" Icono={Boxes} />
+      <EncabezadoVista titulo="Inventario" Icono={Boxes} ayuda="inventario" />
 
       <ResumenAlertasBanner
         totalCaducidad={totalCaducidad}

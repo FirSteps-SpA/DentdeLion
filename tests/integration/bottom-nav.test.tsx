@@ -74,7 +74,7 @@ describe('4-tab navigation (User Story 4)', () => {
   it('defaults to Inventario and highlights the active tab', () => {
     render(<NavHarness />)
 
-    expect(screen.getByRole('button', { name: /Inventario/ })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /^Inventario/ })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
@@ -84,8 +84,8 @@ describe('4-tab navigation (User Story 4)', () => {
   it('navigates to each tab and marks it active (FR-001, FR-002)', () => {
     render(<NavHarness />)
 
-    fireEvent.click(screen.getByRole('button', { name: /Alertas/ }))
-    expect(screen.getByRole('button', { name: /Alertas/ })).toHaveAttribute(
+    fireEvent.click(screen.getByRole('button', { name: /^Alertas/ }))
+    expect(screen.getByRole('button', { name: /^Alertas/ })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
@@ -221,7 +221,7 @@ describe('Alertas badge (User Story 7, FR-025/026/028)', () => {
 
     expect(screen.queryByLabelText(/alertas pendientes/)).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /Alertas/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Alertas/ }))
     expect(screen.getByText(/Guantes/)).toBeInTheDocument()
   })
 })
