@@ -25,7 +25,8 @@ import {
   porcentaje,
 } from '../lib/formato'
 import type { Periodo } from '../lib/periodos'
-import { useReportes } from '../useReportes'
+import { useReportes, useValorInventario } from '../useReportes'
+import { TarjetaValorInventario } from './TarjetaValorInventario'
 import { BarChart } from './charts/BarChart'
 import { DonutChart } from './charts/DonutChart'
 import { HorizontalBarChart } from './charts/HorizontalBarChart'
@@ -43,6 +44,8 @@ import { TarjetaKpiReporte } from './TarjetaKpiReporte'
 export function ReportesView({ onNavegar }: { onNavegar?: (vista: Vista) => void } = {}) {
   const [periodo, setPeriodo] = useState<Periodo>({ tipo: 'esteMes' })
   const resumen = useReportes(periodo)
+  // Pasó desde Inicio (2026-11-23): es el valor de hoy, no depende del período.
+  const valorInventario = useValorInventario()
   const lugares = useLugarStore((s) => s.lugares)
   const lugarActivoId = useLugarStore((s) => s.lugarActivoId)
   // R10: el aviso se decide al abrir Reportes, no parpadea con cada ciclo.
@@ -63,6 +66,7 @@ export function ReportesView({ onNavegar }: { onNavegar?: (vista: Vista) => void
         titulo="Reportes"
         subtitulo={nombreLugar || undefined}
         Icono={ChartColumn}
+        ayuda="reportes"
         accion={<SelectorPeriodo periodo={periodo} onCambiar={setPeriodo} />}
       />
 
@@ -74,10 +78,17 @@ export function ReportesView({ onNavegar }: { onNavegar?: (vista: Vista) => void
       )}
 
       {resumen === null ? null : resumen.vacio ? (
-        <EstadoVacioReportes onNavegar={onNavegar} />
+        <>
+          {valorInventario && (
+            <section aria-label="Indicadores" className="grid grid-cols-1 gap-3 md:grid-cols-2 desk:grid-cols-4 desk:gap-6">
+              <TarjetaValorInventario valor={valorInventario} />
+            </section>
+          )}
+          <EstadoVacioReportes onNavegar={onNavegar} />
+        </>
       ) : (
         <>
-          <section aria-label="Indicadores" className="grid grid-cols-1 gap-3 md:grid-cols-3 desk:gap-6">
+          <section aria-label="Indicadores" className="grid grid-cols-1 gap-3 md:grid-cols-2 desk:grid-cols-4 desk:gap-6">
             <TarjetaKpiReporte
               titulo="Producción"
               Icono={Stethoscope}
@@ -101,6 +112,7 @@ export function ReportesView({ onNavegar }: { onNavegar?: (vista: Vista) => void
                 ...NOTAS_GANANCIA,
               ]}
             />
+            {valorInventario && <TarjetaValorInventario valor={valorInventario} />}
           </section>
 
           <section aria-label="Gráficos" className="grid grid-cols-1 gap-3 desk:grid-cols-2 desk:gap-6">

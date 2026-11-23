@@ -276,6 +276,65 @@ después (las 9 categorías de Clínica Denart), `pacientes_registro` vacía y e
 front falla, se revierte solo el front: la 2.8.0 convive con el servidor nuevo. **Spec 028**: el
 paciente es un dato de salud; revisar con asesoría legal antes de anunciarlo a la clienta.
 
+**Spec 029 (estimación de materiales con IA):** **con migración**
+(`20261125000000_estimaciones_ia.sql`, solo agrega la tabla `estimaciones_ia` y la función
+`reservar_estimacion`; ningún dato existente cambia) y **una Edge Function nueva**,
+`estimar-materiales`, que llama a Claude (`claude-opus-5-5`). Orden:
+
+1. Respaldo y `supabase db push --linked` (**con visto bueno explícito**).
+2. En la consola de Anthropic: crear la clave de API para DentdeLion y fijar un **tope de gasto
+   mensual**. Guardarla como secreto: `supabase secrets set ANTHROPIC_API_KEY=… --project-ref …`
+   (nunca en el repositorio ni en `.env` versionado).
+3. `supabase functions deploy estimar-materiales`.
+4. Front. Sin la clave, el botón responde "La estimación no está disponible" y nada más se afecta.
+
+Límite: 20 estimaciones por cliente por día (medianoche de Chile), reservadas antes de llamar a la
+IA; cada una queda en `estimaciones_ia` (quién, cuándo, resultado; nunca la respuesta). A la IA solo
+van el nombre del tratamiento y el nombre, unidad y presentación de los materiales (sin pacientes,
+precios ni stock). Probar en local sin costo con `supabase functions serve` sin clave
+(`npm run test:rls`); una prueba real cuesta y requiere visto bueno.
+
+**Spec 030 (guía de uso):** solo front, sin `db push` ni cambios de datos. Botón "?" en el
+encabezado de las 7 vistas y de las 8 secciones de Ajustes, con la ayuda de esa pantalla (filtrada
+por rol), y Ajustes → "Guía de uso" con todas. Los textos están en
+`src/features/ayuda/contenido.ts`: **la clienta los revisa antes del release**. La primera vez que
+cada persona entra a cada pantalla en un dispositivo, la ayuda se abre sola (se recuerda en
+`localStorage`, no se sincroniza): avisar al equipo que, al actualizar, verá esas ayudas una vez.
+
+**Historial sin tratamientos deshechos (PR #29) e Inicio con la ganancia del mes (PR #30):** solo
+front. Los registros anulados con "Deshacer" ya no se listan (siguen en la base). Inicio muestra la
+ganancia del profesional del mes en vez del valor de inventario, que pasa a Reportes; "Este mes" se
+compara con los mismos días del mes anterior.
+
+**Release 2.10.0 (specs 029 y 030, PR #29 y #30):** **con migración** y **una Edge Function nueva**.
+Pasos:
+
+1. Respaldo de producción (`respaldo.sh`).
+2. `supabase db push --linked` (**con visto bueno explícito**): aplica solo
+   `20261125000000_estimaciones_ia` (tabla `estimaciones_ia` y función `reservar_estimacion`; ningún
+   dato existente cambia). Comprobar en producción: 21 tablas, `estimaciones_ia` vacía y el resto con
+   los mismos conteos que el respaldo.
+3. Clave de **producción** de Anthropic (distinta de la local) con tope de gasto mensual en la
+   consola; `supabase secrets set ANTHROPIC_API_KEY=… --project-ref <ref>`.
+4. `supabase functions deploy estimar-materiales --project-ref <ref>`; comprobar que sin sesión
+   responde `sin_sesion` (sin gastar).
+5. Merge del PR `release/2.10.0` a `main` (Netlify publica el front), tag `2.10.0` y merge de vuelta
+   a `develop`.
+6. Comprobar en un teléfono: la ayuda de Inicio se abre sola una vez; "?" en cada pantalla; Ajustes →
+   "Guía de uso"; Inicio con la ganancia del mes; Reportes con el valor de inventario; el historial
+   sin deshechos; como administración, una estimación real en un tratamiento (cuenta para el límite
+   de 20 diarias).
+7. Avisar al equipo: la ayuda se abrirá sola una vez en cada pantalla; Inicio muestra la ganancia del
+   mes; los tratamientos deshechos ya no aparecen; la administración puede sugerir cantidades con IA.
+
+Antes del release, **la clienta revisa los textos de la guía** (`src/features/ayuda/contenido.ts`).
+
+Ensayado el 2026-11-23 sobre la restauración de un respaldo de producción tomado después de la
+2.9.0 (20 tablas, 421 filas): la migración agrega `estimaciones_ia` (21 tablas), las 421 filas
+quedan iguales, `authenticated` no puede ejecutar `reservar_estimacion` y la reserva acepta 20 y
+rechaza la 21. Una 2.9.0 en caché sigue funcionando con el servidor nuevo (no usa la tabla ni la
+función). Si el front falla, se revierte solo el front.
+
 ## ¿Quedó bien configurado mi entorno?
 
 Checklist manual (sin script) — cada punto debe poder confirmarse a simple vista en menos de 2

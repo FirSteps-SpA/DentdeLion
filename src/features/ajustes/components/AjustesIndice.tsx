@@ -33,7 +33,7 @@ export function AjustesIndice({ onAbrir, enfocar, onNavegar }: AjustesIndiceProp
   return (
     <div className="flex w-full max-w-5xl flex-col gap-4 text-left md:gap-6">
       {/* Spec 027 (FR-011): encabezado común. */}
-      <EncabezadoVista titulo="Ajustes" Icono={Settings} />
+      <EncabezadoVista titulo="Ajustes" Icono={Settings} ayuda="ajustes" />
       {/* Specs 016 (R7) y 017 (R11): en móvil, Compras y Reportes se abren
           desde "Más"; lado a lado para que el índice entre en una pantalla
           (spec 019 SC-002). */}

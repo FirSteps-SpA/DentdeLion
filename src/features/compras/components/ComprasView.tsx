@@ -246,6 +246,7 @@ export function ComprasView() {
       <EncabezadoVista
         titulo="Compras"
         Icono={ShoppingCart}
+        ayuda="compras"
         accion={
           items.length > 0 && (
           // FR-002: sobre los ítems visibles; "mixed" con algunos marcados.

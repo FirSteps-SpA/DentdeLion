@@ -32,8 +32,8 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: latest
-      # edge-runtime queda encendido: test:rls llama a la Edge Function
-      # aceptar-invitacion (spec 014).
+      # edge-runtime queda encendido: test:rls llama a las Edge Functions
+      # aceptar-invitacion (spec 014) y estimar-materiales (spec 029, sin clave).
       - run: supabase start -x realtime,imgproxy,mailpit,postgres-meta,studio,logflare,vector,supavisor
       # La Edge Function solo se sirve con `functions serve` (spec 014).
       - run: |

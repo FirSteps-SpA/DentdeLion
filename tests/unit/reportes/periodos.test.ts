@@ -22,13 +22,27 @@ describe('inicioVentana', () => {
 })
 
 describe('rangoPeriodo', () => {
-  it('"Este mes" va del día 1 al mes siguiente y se compara con el mes anterior completo', () => {
+  it('"Este mes" va del día 1 al mes siguiente y se compara con los mismos días del mes anterior', () => {
     const r = rangoPeriodo({ tipo: 'esteMes' }, AHORA)
     expect(r.desde).toEqual(local(2026, 9))
     expect(r.hasta).toEqual(local(2026, 10))
-    expect(r.anterior).toEqual({ desde: local(2026, 8), hasta: local(2026, 9) })
+    // Hoy es el 15: del 1 al 15 de septiembre inclusive.
+    expect(r.anterior).toEqual({
+      desde: local(2026, 8),
+      hasta: new Date(2026, 8, AHORA.getDate() + 1),
+    })
     expect(r.etiqueta).toBe('Este mes')
-    expect(r.etiquetaComparacion).toBe('vs. mes anterior completo')
+    expect(r.etiquetaComparacion).toBe('vs. mismos días del mes anterior')
+  })
+
+  it('"Este mes" el 31 se compara con el mes anterior completo si es más corto', () => {
+    const r = rangoPeriodo({ tipo: 'esteMes' }, new Date(2026, 4, 31, 10))
+    expect(r.anterior).toEqual({ desde: local(2026, 3), hasta: local(2026, 4) })
+  })
+
+  it('"Este mes" el día 1 se compara con el día 1 del mes anterior', () => {
+    const r = rangoPeriodo({ tipo: 'esteMes' }, new Date(2026, 4, 1, 10))
+    expect(r.anterior).toEqual({ desde: local(2026, 3), hasta: new Date(2026, 3, 2) })
   })
 
   it('"Mes anterior" es el mes completo y se compara con el que lo precede', () => {

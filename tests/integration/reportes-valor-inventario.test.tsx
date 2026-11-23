@@ -1,29 +1,29 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 
-vi.mock('../../src/lib/db', () => ({
-  db: {
-    configuracionAlertas: { get: async () => undefined, put: async () => undefined },
-  },
-}))
+vi.mock('../../src/lib/db', () => ({ db: {} }))
 
-import { InicioView } from '../../src/features/inicio/components/InicioView'
+import { ReportesView } from '../../src/features/reportes/components/ReportesView'
 import { normalizarMovimientos } from '../../src/features/insumos/lib/stock'
 import type { Insumo, Lote, Movimiento } from '../../src/lib/db'
-import { useAlertasStore } from '../../src/stores/alertasStore'
-import { useAuthStore } from '../../src/stores/authStore'
 import { useInventoryStore } from '../../src/stores/inventoryStore'
 import { useLugarStore } from '../../src/stores/lugarStore'
-import { LUGAR_1, LUGAR_2, TENANT_1, insumo, iso, lote, lugar, mov } from '../unit/reportes/fixtures'
+import { useTratamientosStore } from '../../src/stores/tratamientosStore'
+import { LUGAR_1, LUGAR_2, insumo, iso, lote, lugar, mov, realizado } from '../unit/reportes/fixtures'
 
 /**
- * Spec 017 T035 (US4, FR-015, UI §4): primera tarjeta de Inicio con el valor
- * del inventario, su variación neutra frente al mes anterior y acceso a
- * Reportes.
+ * Spec 017 T035 (US4, FR-015): valor del inventario con su variación neutra
+ * frente al mes anterior. Desde 2026-11-23 está en Reportes (en Inicio quedó
+ * la ganancia del mes): es el valor de hoy, no depende del período.
  */
 const AHORA = new Date(2026, 9, 15, 10)
 
-function cargar(lotes: Lote[], movimientos: Movimiento[], lugarActivoId: string = LUGAR_1) {
+function cargar(
+  lotes: Lote[],
+  movimientos: Movimiento[],
+  lugarActivoId: string = LUGAR_1,
+  realizados = [realizado(10000, 3000, iso(2026, 9, 12))],
+) {
   const insumos: Insumo[] = [insumo('i1')]
   useInventoryStore.setState({
     insumos,
@@ -36,6 +36,7 @@ function cargar(lotes: Lote[], movimientos: Movimiento[], lugarActivoId: string 
     movimientos: normalizarMovimientos(movimientos, lotes, insumos, []),
     isReady: true,
   })
+  useTratamientosStore.setState({ realizados, isReady: true })
   useLugarStore.setState({
     lugares: [lugar(LUGAR_1, 'Clínica Providencia'), lugar(LUGAR_2, 'Box Las Condes')],
     lugarActivoId,
@@ -43,44 +44,33 @@ function cargar(lotes: Lote[], movimientos: Movimiento[], lugarActivoId: string 
   })
 }
 
-const tarjeta = () => screen.getByRole('button', { name: /^Valor de inventario:/ })
+const tarjeta = () => screen.getByRole('group', { name: /^Valor de inventario:/ })
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(AHORA)
-  useAuthStore.setState({
-    usuario: {
-      tenantId: TENANT_1,
-      desactivadoEn: null,
-      id: 'u1',
-      email: 'a@x.cl',
-      nombre: 'Sofía',
-      rol: 'personal',
-      autenticadoEn: 'x',
-    },
-    isReady: true,
-  })
-  useAlertasStore.setState({ nivelesAvisoDias: [30, 7, 1], preferenciaStockBajo: true, preferenciaCaducidad: true })
 })
 
 afterEach(() => vi.useRealTimers())
 
-describe('Valor de inventario en Inicio (US4)', () => {
-  it('es la primera tarjeta, con monto, variación neutra y acceso a Reportes', () => {
+describe('Valor de inventario en Reportes (spec 017 US4)', () => {
+  it('muestra monto, variación neutra y que es el valor de hoy', () => {
     cargar([lote('l1', 'i1', 1000)], [mov('ingreso', 'l1', 10, iso(2026, 8, 1)), mov('ingreso', 'l1', 2, iso(2026, 9, 3))])
-    const onNavegar = vi.fn()
-    render(<InicioView onNavegar={onNavegar} />)
+    render(<ReportesView />)
 
-    const resumen = screen.getByRole('region', { name: 'Resumen' })
-    expect(resumen.querySelector('button')).toBe(tarjeta())
+    const indicadores = screen.getByRole('region', { name: 'Indicadores' })
+    expect(indicadores).toContainElement(tarjeta())
     expect(tarjeta()).toHaveTextContent('$12.000')
-    const variacion = screen.getByText('↑ 20 % vs. mes anterior')
-    expect(variacion).toHaveClass('text-text-muted')
+    expect(screen.getByText('↑ 20 % vs. mes anterior')).toHaveClass('text-text-muted')
     expect(tarjeta()).toHaveAccessibleName(
-      'Valor de inventario: $12.000. ↑ 20 % vs. mes anterior. Ver Reportes',
+      'Valor de inventario: $12.000. ↑ 20 % vs. mes anterior. Hoy (no depende del período)',
     )
-    fireEvent.click(tarjeta())
-    expect(onNavegar).toHaveBeenCalledWith('reportes')
+  })
+
+  it('también se ve sin tratamientos ni consumos en el período', () => {
+    cargar([lote('l1', 'i1', 1000)], [mov('ingreso', 'l1', 3, iso(2026, 9, 1))], LUGAR_1, [])
+    render(<ReportesView />)
+    expect(tarjeta()).toHaveTextContent('$3.000')
   })
 
   it('con lotes sin precio muestra "desde" y cuántos son', () => {
@@ -88,14 +78,14 @@ describe('Valor de inventario en Inicio (US4)', () => {
       [lote('l1', 'i1', 1000), lote('l2', 'i1', null)],
       [mov('ingreso', 'l1', 1, iso(2026, 9, 1)), mov('ingreso', 'l2', 5, iso(2026, 9, 1))],
     )
-    render(<InicioView onNavegar={vi.fn()} />)
+    render(<ReportesView />)
     expect(tarjeta()).toHaveTextContent('desde $1.000')
     expect(tarjeta()).toHaveTextContent('1 lote sin precio')
   })
 
   it('sin ningún lote con precio dice "Sin precios"', () => {
     cargar([lote('l2', 'i1', null)], [mov('ingreso', 'l2', 5, iso(2026, 9, 1))])
-    render(<InicioView onNavegar={vi.fn()} />)
+    render(<ReportesView />)
     expect(tarjeta()).toHaveTextContent('Sin precios')
     expect(tarjeta()).toHaveTextContent('Ingresa el precio al recibir compras')
   })
@@ -109,7 +99,7 @@ describe('Valor de inventario en Inicio (US4)', () => {
       ],
       'todos',
     )
-    render(<InicioView onNavegar={vi.fn()} />)
+    render(<ReportesView />)
     expect(tarjeta()).toHaveTextContent('$7.000')
   })
 })
