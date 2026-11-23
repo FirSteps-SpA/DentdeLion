@@ -149,6 +149,9 @@ describe('% por lugar (FR-009)', () => {
     await guardarCategoriaTratamiento('eval', { porcentajes: { [LUGAR_1]: 50 } })
     expect(cambiosT.all()).toHaveLength(1)
 
+    // Sin la pausa, el null y el 50 pueden empatar en `creadoEn` y ganar el 50
+    // por el id (falló así en el CI del PR #31).
+    await pausa()
     await guardarCategoriaTratamiento('eval', { porcentajes: { [LUGAR_1]: null } })
     expect(porcentajesPorCategoria(cambiosT.all()).has(claveCategoriaLugar('eval', LUGAR_1))).toBe(
       false,
