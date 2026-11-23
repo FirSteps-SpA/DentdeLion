@@ -18,6 +18,7 @@ import {
   type Movimiento,
   type Marca,
   type CategoriaTratamiento,
+  type PacienteRegistro,
   type Proveedor,
 } from '../db'
 import { fetchPerfilPropio } from '../supabase/perfiles'
@@ -299,6 +300,99 @@ async function pullCategoriasTratamiento(
     (respuesta.data as unknown as CategoriaTratamientoRow[])
       .filter((row) => !conservarCambioLocal(locales.get(row.id)))
       .map(fromCategoriaTratamientoRow),
+  )
+}
+
+interface PacienteRegistroRow {
+  registro_id: string
+  tenant_id: string
+  autor_id: string
+  paciente: string | null
+  actualizado_por: string
+  actualizado_en: string
+}
+
+/**
+ * Spec 028 (research.md R4, R5) — sube los pacientes cambiados aquí por quien
+ * tiene la sesión, después de los registros (FK). Si el servidor lo rechaza
+ * por permisos o porque el registro está anulado, el cambio nunca podrá subir:
+ * se borra del dispositivo (dato de salud: no se conserva lo que no
+ * corresponde). Un error del texto del paciente nunca se registra con el
+ * valor: `errorDe` solo lleva código y mensaje del servidor.
+ */
+async function pushPacientesRegistro(
+  client: SupabaseClient,
+  ciclo: CicloSync,
+): Promise<void> {
+  const usuarioId = usuarioActualId()
+  if (!usuarioId) return
+  const pendientes = delTenantActual(await db.pacientesRegistro.toArray()).filter(
+    (p) => !p.sincronizado && p.actualizadoPor === usuarioId,
+  )
+  for (const fila of pendientes) {
+    const respuesta = await client.from('pacientes_registro').upsert({
+      registro_id: fila.registroId,
+      tenant_id: fila.tenantId,
+      autor_id: fila.autorId,
+      paciente: fila.paciente,
+      actualizado_por: fila.actualizadoPor,
+      actualizado_en: fila.actualizadoEn,
+    } satisfies PacienteRegistroRow)
+    if (!respuesta.error) {
+      const actual = await db.pacientesRegistro.get(fila.registroId)
+      if (actual && actual.actualizadoEn === fila.actualizadoEn) {
+        await db.pacientesRegistro.update(fila.registroId, { sincronizado: true })
+      }
+      continue
+    }
+    if (
+      esRechazoDePermisos(respuesta.error) ||
+      /registro_anulado/.test(respuesta.error.message ?? '')
+    ) {
+      await db.pacientesRegistro.delete(fila.registroId)
+      continue
+    }
+    ciclo.registrar('push pacientes_registro', errorDe(respuesta))
+  }
+}
+
+/**
+ * Baja los pacientes que el servidor deja leer a esta sesión y **reemplaza**
+ * los sincronizados del dispositivo (FR-007): si cambió el rol, desaparecen
+ * los que ya no corresponden. Los pendientes locales se conservan.
+ */
+async function pullPacientesRegistro(
+  client: SupabaseClient,
+  ciclo: CicloSync,
+): Promise<void> {
+  const respuesta = await seleccionarTodo<PacienteRegistroRow & Record<string, unknown>>(
+    client,
+    'pacientes_registro',
+    { clave: ['registro_id'] },
+  )
+  ciclo.registrar('pull pacientes_registro', errorDe(respuesta))
+  if (respuesta.error || !respuesta.data) return
+  const remotas = respuesta.data as unknown as PacienteRegistroRow[]
+  const locales = delTenantActual(await db.pacientesRegistro.toArray())
+  const pendientes = new Set(locales.filter((p) => !p.sincronizado).map((p) => p.registroId))
+  const visibles = new Set(remotas.map((r) => r.registro_id))
+  await db.pacientesRegistro.bulkDelete(
+    locales.filter((p) => p.sincronizado && !visibles.has(p.registroId)).map((p) => p.registroId),
+  )
+  await db.pacientesRegistro.bulkPut(
+    remotas
+      .filter((r) => !pendientes.has(r.registro_id))
+      .map(
+        (r): PacienteRegistro => ({
+          registroId: r.registro_id,
+          tenantId: r.tenant_id,
+          autorId: r.autor_id,
+          paciente: r.paciente ?? null,
+          actualizadoPor: r.actualizado_por,
+          actualizadoEn: r.actualizado_en,
+          sincronizado: true,
+        }),
+      ),
   )
 }
 
@@ -2294,6 +2388,8 @@ async function ejecutarCiclo(
   await pushConfiguracionAlertas(client, ciclo)
   // Spec 016: los registros antes que sus consumos (FK).
   await pushTratamientosRealizados(client, ciclo)
+  // Spec 028: los pacientes después de sus registros (FK).
+  await pushPacientesRegistro(client, ciclo)
   for (const loteId of await pushMovimientos(client, ciclo)) {
     loteIdsTocados.add(loteId)
   }
@@ -2304,6 +2400,7 @@ async function ejecutarCiclo(
   await pullMinimosLugar(client, ciclo)
   await pullConfiguracionAlertas(client, ciclo)
   await pullTratamientosRealizados(client, ciclo)
+  await pullPacientesRegistro(client, ciclo)
   for (const loteId of await pullMovimientos(client, ciclo)) {
     loteIdsTocados.add(loteId)
   }

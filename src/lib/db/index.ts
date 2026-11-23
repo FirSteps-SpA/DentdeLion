@@ -521,6 +521,23 @@ export interface TratamientoRealizado {
   anulacionSincronizada: boolean
 }
 
+/**
+ * Spec 028 data-model.md — paciente de un tratamiento realizado (dato de
+ * salud). Aparte del registro, con RLS de autor o administración (R1, R2).
+ */
+export interface PacienteRegistro {
+  registroId: string
+  tenantId: string
+  /** Quien registró el tratamiento (el servidor lo toma del registro). */
+  autorId: string
+  /** `null` = sin paciente / quitado. */
+  paciente: string | null
+  actualizadoPor: string
+  actualizadoEn: string
+  /** Local: `false` = cambiado aquí y aún sin subir. */
+  sincronizado: boolean
+}
+
 /** Spec 014 (research.md R10) — lugar elegido en este dispositivo. Local. */
 export interface LugarActivo {
   id: 'local'
@@ -555,6 +572,7 @@ export const db = new Dexie('inDENToryDB') as Dexie & {
   proveedores: EntityTable<Proveedor, 'id'>
   marcas: EntityTable<Marca, 'id'>
   categoriasTratamiento: EntityTable<CategoriaTratamiento, 'id'>
+  pacientesRegistro: EntityTable<PacienteRegistro, 'registroId'>
 }
 
 db.version(1).stores({
@@ -880,5 +898,10 @@ db.version(15)
         registro.categoriaNombre ??= null
       })
   })
+
+// Version 16 (spec 028, data-model.md): paciente de cada tratamiento realizado.
+db.version(16).stores({
+  pacientesRegistro: 'registroId, tenantId, sincronizado',
+})
 
 export type { EntityTable }

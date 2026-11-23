@@ -369,3 +369,38 @@ describe('registro con categoría (spec 026)', () => {
     expect(realizadosT.all().find((r) => r.id === registro.id)?.porcentajeProfesional).toBe(50)
   })
 })
+
+/** Spec 028 T009 (FR-001, FR-002). */
+describe('registro con paciente (spec 028)', () => {
+  const pacientesT = db.pacientesRegistro as unknown as MemoryTable<
+    import('../../../src/lib/db').PacienteRegistro
+  >
+  beforeEach(() => pacientesT.seed([]))
+
+  it('guarda el paciente normalizado aparte, en la misma operación, sin subir', async () => {
+    const registro = await registrarTratamiento(restauracion, { paciente: '  Juan   Pérez ' })
+    expect(pacientesT.all()).toEqual([
+      expect.objectContaining({
+        registroId: registro.id,
+        autorId: registro.usuarioId,
+        paciente: 'Juan Pérez',
+        sincronizado: false,
+      }),
+    ])
+    // El registro no lleva el paciente (FR-003).
+    expect(JSON.stringify(registro)).not.toContain('Juan')
+  })
+
+  it('sin paciente (o solo espacios) no crea fila', async () => {
+    await registrarTratamiento(restauracion)
+    await registrarTratamiento(restauracion, { paciente: '   ' })
+    expect(pacientesT.all()).toHaveLength(0)
+  })
+
+  it('si el registro falla no queda el paciente', async () => {
+    await registrarTratamiento(restauracion, { cantidades: { res: 99 }, paciente: 'Juan' }).catch(
+      () => null,
+    )
+    expect(pacientesT.all()).toHaveLength(0)
+  })
+})

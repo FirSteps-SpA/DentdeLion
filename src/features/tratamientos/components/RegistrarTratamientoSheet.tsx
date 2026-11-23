@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { BottomSheet } from '../../../components/ui/BottomSheet'
 import { Stepper } from '../../../components/ui/Stepper'
+import { IconField } from '../../../components/ui/IconField'
+import { User } from '../../../components/icons'
+import { MAX_PACIENTE } from '../lib/pacientes'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { etiquetaUnidad, formatearCantidad, unidadAdmiteDecimales } from '../../../lib/unidades'
 import { useAvisosStore } from '../../../stores/avisosStore'
@@ -58,6 +61,8 @@ export function RegistrarTratamientoSheet({
     ),
   )
   const [error, setError] = useState<string | null>(null)
+  // Spec 028 (FR-001): opcional.
+  const [paciente, setPaciente] = useState('')
   const [isPending, setIsPending] = useState(false)
 
   const hoy = new Date()
@@ -106,7 +111,7 @@ export function RegistrarTratamientoSheet({
     setIsPending(true)
     setError(null)
     try {
-      const registro = await registrarTratamiento(tratamiento, { lugarId, cantidades })
+      const registro = await registrarTratamiento(tratamiento, { lugarId, cantidades, paciente })
       agregarAviso({
         tipo: 'tratamiento',
         movimientoId: registro.id,
@@ -187,6 +192,24 @@ export function RegistrarTratamientoSheet({
           </>
         )}
       </p>
+      {/* Spec 028 (FR-001): dato de salud, opcional; sin autocompletar del navegador. */}
+      <IconField
+        label="Paciente (nombre o N° de ficha)"
+        htmlFor="registro-paciente"
+        icon={<User size={18} />}
+        hint="Opcional. Solo lo ven tú y la administración."
+      >
+        <input
+          id="registro-paciente"
+          type="text"
+          maxLength={MAX_PACIENTE}
+          autoComplete="off"
+          data-sentry-mask
+          value={paciente}
+          onChange={(event) => setPaciente(event.target.value)}
+          className="h-full w-full border-none bg-transparent text-sm text-text outline-none"
+        />
+      </IconField>
       {error && (
         <p role="alert" className="text-sm text-danger">
           {error}

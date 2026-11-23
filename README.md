@@ -243,6 +243,15 @@ fondo, tarjetas con íconos de fondo, encabezados y estados vacíos comunes en t
 ya no tiene la tarjeta "¿Qué necesitas comprar?" (queda la KPI "Para comprar"). Nada cambia de lugar
 ni de comportamiento; avisar al equipo del cambio de apariencia.
 
+**Spec 028 (paciente en cada tratamiento realizado):** **con migración**
+(`20261124000000_pacientes_registro.sql`, va después de la de la 026). Orden: respaldo, ensayo,
+`supabase db push` **con visto bueno explícito**, y luego el front. El ensayo de las migraciones 026 y
+028 sobre el respaldo del 2026-11-23 dio 412 → 421 filas (las 9 categorías; `pacientes_registro`
+vacía). Es un **dato de salud**: antes de anunciarlo a la clienta, revisar con asesoría legal las
+obligaciones de la ley de protección de datos. Solo lo ven quien registró y la administración; al
+cerrar sesión se borran del dispositivo los ya subidos. Incluye además un arreglo de la 027: en el
+teléfono, la barra inferior tapaba el pie de las hojas.
+
 ## ¿Quedó bien configurado mi entorno?
 
 Checklist manual (sin script) — cada punto debe poder confirmarse a simple vista en menos de 2

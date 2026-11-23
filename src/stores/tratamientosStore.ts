@@ -3,6 +3,7 @@ import { liveQuery } from 'dexie'
 import type {
   CambioTratamiento,
   CategoriaTratamiento,
+  PacienteRegistro,
   Tratamiento,
   TratamientoRealizado,
 } from '../lib/db'
@@ -28,6 +29,11 @@ interface TratamientosState {
   porcentajesCategoria: Map<string, number>
   /** Spec 026 (R1): categorías no rechazadas, activas y desactivadas, por nombre. */
   categorias: CategoriaTratamiento[]
+  /**
+   * Spec 028: pacientes del dispositivo (los que el servidor deja leer más los
+   * pendientes). La UI muestra solo los visibles (`usePacientesVisibles`).
+   */
+  pacientesRegistro: PacienteRegistro[]
   cambiosTratamiento: CambioTratamiento[]
   realizados: TratamientoRealizado[]
   isReady: boolean
@@ -39,6 +45,7 @@ export const useTratamientosStore = create<TratamientosState>((set) => ({
   porcentajes: new Map(),
   porcentajesCategoria: new Map(),
   categorias: [],
+  pacientesRegistro: [],
   cambiosTratamiento: [],
   realizados: [],
   isReady: false,
@@ -76,10 +83,14 @@ export const useTratamientosStore = create<TratamientosState>((set) => ({
             .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
         }),
     })
+    const pacientesSub = liveQuery(() => delTenant('pacientesRegistro')).subscribe({
+      next: (pacientesRegistro) => set({ pacientesRegistro }),
+    })
     return () => {
       filasSub.unsubscribe()
       cambiosSub.unsubscribe()
       categoriasSub.unsubscribe()
+      pacientesSub.unsubscribe()
       realizadosSub.unsubscribe()
     }
   },

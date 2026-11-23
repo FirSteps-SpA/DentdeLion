@@ -25,4 +25,5 @@ export const tablasMemoria = [
   'proveedores',
   'marcas',
   'categoriasTratamiento',
+  'pacientesRegistro',
 ] as const

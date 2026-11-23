@@ -8,8 +8,12 @@
  */
 import { AsyncLocalStorage } from 'node:async_hooks'
 
-// `id`, o la clave compuesta `[insumoId+lugarId]` de `minimosLugar` (spec 014).
-type Row = { id?: string } | { insumoId: string; lugarId: string }
+// `id`, la clave compuesta `[insumoId+lugarId]` de `minimosLugar` (spec 014) o
+// `registroId` de `pacientesRegistro` (spec 028).
+type Row =
+  | { id?: string }
+  | { insumoId: string; lugarId: string }
+  | { registroId: string }
 type Clave = string | [string, string]
 
 function clone<T>(value: T): T {
@@ -18,6 +22,7 @@ function clone<T>(value: T): T {
 
 function claveDe(row: Row): string {
   if ('id' in row && row.id !== undefined) return row.id
+  if ('registroId' in row && !('insumoId' in row)) return row.registroId
   const { insumoId, lugarId } = row as { insumoId: string; lugarId: string }
   return `${insumoId}|${lugarId}`
 }

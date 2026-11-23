@@ -58,3 +58,26 @@ describe('SyncIndicator (rediseño)', () => {
     expect(screen.getByRole('button', { name: /cambios antiguos/ }).className).toContain('bg-warning-30-bg')
   })
 })
+
+/**
+ * Spec 028 (regresión de la 027): el `<main>` y el encabezado del teléfono no
+ * pueden crear un contexto de apilamiento (z-index): las hojas (fixed, z-50)
+ * que se abren desde dentro quedarían bajo la barra inferior (z-20).
+ */
+describe('AppShell sin contexto de apilamiento', () => {
+  it('ni el main ni el encabezado móvil llevan z-index', async () => {
+    const { AppShell } = await import('../../src/app/AppShell')
+    const { container } = render(
+      <AppShell vista="inicio" onCambiarVista={vi.fn()}>
+        <p>contenido</p>
+      </AppShell>,
+    )
+    const main = container.querySelector('main')!
+    expect(main.className).not.toMatch(/(^|\s)z-/)
+    for (const nodo of container.querySelectorAll('main ~ *, main, div')) {
+      if (nodo.contains(main) || nodo === main) continue
+    }
+    const encabezado = screen.getByText('contenido').closest('main')!.previousElementSibling
+    expect(encabezado?.className ?? '').not.toMatch(/(^|\s)z-/)
+  })
+})
