@@ -54,7 +54,7 @@ describe('Dexie v14 (spec 023)', () => {
     const { db } = await import('../../src/lib/db')
     await db.open()
 
-    expect(db.verno).toBe(15) // la v14 corre dentro de la cadena hasta la última versión
+    expect(db.verno).toBe(16) // la v14 corre dentro de la cadena hasta la última versión
     expect(await db.insumos.count()).toBe(2)
     expect(await db.insumos.get('i1')).toMatchObject({
       nombre: 'Composite Z350',

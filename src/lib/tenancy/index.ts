@@ -1,5 +1,6 @@
 import {
   type CategoriaTratamiento,
+  type PacienteRegistro,
   db,
   type CambioInsumo,
   type CambioLote,
@@ -39,6 +40,8 @@ interface TablasPorTenant {
   marcas: Marca
   /** Spec 026 (Dexie v15). */
   categoriasTratamiento: CategoriaTratamiento
+  /** Spec 028 (Dexie v16). */
+  pacientesRegistro: PacienteRegistro
 }
 
 /** Lo mínimo de una tabla Dexie indexada por `tenantId` que necesita `delTenant`. */
@@ -71,7 +74,8 @@ export async function delTenant<K extends keyof TablasPorTenant>(
  *
  * "Pendiente" según la tabla:
  * - `movimientos`, `cambiosInsumo`, `cambiosLote`, `categorias`, `lugares`,
- *   `minimosLugar`, `proveedores`, `marcas`: la bandera `sincronizado` (un proveedor
+ *   `minimosLugar`, `proveedores`, `marcas`, `categoriasTratamiento`,
+ *   `pacientesRegistro`: la bandera `sincronizado` (un proveedor
  *   pendiente se conserva, así los lotes pendientes que lo usan pueden subir);
  * - `insumos` y `lotes` no tienen bandera: se conservan los que referencia un
  *   pendiente que se conserva (sin ellos, ese pendiente no podría subir);
@@ -99,6 +103,8 @@ export async function aislarDatosLocales(tenantId: string): Promise<void> {
       db.configuracionAlertas,
       db.proveedores,
       db.marcas,
+      db.categoriasTratamiento,
+      db.pacientesRegistro,
     ],
     async () => {
       const ajeno = (fila: { tenantId?: string }) => fila.tenantId !== tenantId
@@ -135,8 +141,14 @@ export async function aislarDatosLocales(tenantId: string): Promise<void> {
       // Spec 016: se conservan los pendientes (registros, anulaciones y cambios
       // de catálogo) y los tratamientos que referencian.
       const realizadosAjenos = (await db.tratamientosRealizados.toArray()).filter(ajeno)
+      // Spec 028: un paciente pendiente conserva su registro (FK al subir).
+      const pacientesAjenos = (await db.pacientesRegistro.toArray()).filter(ajeno)
+      const registrosConPacientePendiente = new Set(
+        pacientesAjenos.filter((p) => !p.sincronizado).map((p) => p.registroId),
+      )
       const realizadosConservados = realizadosAjenos.filter(
-        (r) => !r.sincronizado || !r.anulacionSincronizada,
+        (r) =>
+          !r.sincronizado || !r.anulacionSincronizada || registrosConPacientePendiente.has(r.id),
       )
       const cambiosTratamientoAjenos = (await db.cambiosTratamiento.toArray()).filter(ajeno)
       const tratamientosConservados = new Set([
@@ -190,6 +202,13 @@ export async function aislarDatosLocales(tenantId: string): Promise<void> {
       )
       await db.marcas.bulkDelete(
         (await db.marcas.toArray()).filter(sincronizadoAjeno).map((m) => m.id),
+      )
+      // Specs 026 y 028.
+      await db.categoriasTratamiento.bulkDelete(
+        (await db.categoriasTratamiento.toArray()).filter(sincronizadoAjeno).map((c) => c.id),
+      )
+      await db.pacientesRegistro.bulkDelete(
+        pacientesAjenos.filter((p) => p.sincronizado).map((p) => p.registroId),
       )
       const config = await db.configuracionAlertas.get('global')
       if (config && ajeno(config)) await db.configuracionAlertas.delete('global')

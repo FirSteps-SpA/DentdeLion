@@ -21,6 +21,11 @@ vi.mock('../../../src/lib/db', () => ({
     borradores: {
       clear: vi.fn(async () => {}),
     },
+    // Spec 028: el cierre de sesión borra los pacientes ya subidos.
+    pacientesRegistro: {
+      toArray: vi.fn(async () => []),
+      bulkDelete: vi.fn(async () => {}),
+    },
   },
 }))
 

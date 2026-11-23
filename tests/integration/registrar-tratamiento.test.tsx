@@ -357,3 +357,27 @@ describe('registrar con % por categoría (spec 026)', () => {
     })
   })
 })
+
+/** Spec 028 T010 (US1; FR-001, FR-002). */
+describe('paciente al registrar (spec 028)', () => {
+  it('el campo es opcional y el paciente queda aparte del registro', async () => {
+    render(<Pantalla />)
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar Restauración clase II' }))
+    const panel = await screen.findByRole('dialog', { name: 'Registrar Restauración clase II' })
+    const campo = within(panel).getByLabelText('Paciente (nombre o N° de ficha)')
+    expect(campo).toHaveValue('')
+    expect(campo).toHaveAttribute('autocomplete', 'off')
+    fireEvent.change(campo, { target: { value: 'Juan Pérez' } })
+    fireEvent.click(within(panel).getByRole('button', { name: 'Registrar' }))
+
+    await waitFor(() => expect(realizadosT.all()).toHaveLength(1))
+    const pacientes = (db.pacientesRegistro as unknown as MemoryTable<{ registroId: string; paciente: string }>).all()
+    expect(pacientes).toEqual([
+      expect.objectContaining({ registroId: realizadosT.all()[0].id, paciente: 'Juan Pérez' }),
+    ])
+    expect(JSON.stringify(realizadosT.all()[0])).not.toContain('Juan')
+    // El aviso no lleva el paciente.
+    expect(await screen.findByText('Registrado: Restauración clase II')).toBeInTheDocument()
+    expect(screen.queryByText(/Juan Pérez/)).not.toBeInTheDocument()
+  })
+})

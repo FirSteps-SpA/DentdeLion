@@ -17,6 +17,7 @@ import {
   movimientosNormalizadosDeLote,
 } from '../../insumos/lib/stock'
 import { calcularGanancia, cantidadEfectiva } from './montos'
+import { filaPaciente, normalizarPaciente } from './pacientes'
 import {
   porcentajeAplicable,
   porcentajesPorCategoria,
@@ -62,6 +63,11 @@ export interface RegistroInput {
    * la cantidad estándar del tratamiento (FR-013).
    */
   cantidades?: Record<string, number>
+  /**
+   * Spec 028 (FR-001, FR-002): paciente opcional ("nombre o N° de ficha"). Se
+   * guarda aparte del registro, en la misma transacción.
+   */
+  paciente?: string
 }
 
 async function lotesConStockEnLugar(insumoId: string, lugarId: string): Promise<LoteConStock[]> {
@@ -107,6 +113,7 @@ export async function registrarTratamiento(
       db.cambiosTratamiento,
       db.tratamientosRealizados,
       db.categoriasTratamiento,
+      db.pacientesRegistro,
     ],
     async () => {
       const cambiosInsumo = await db.cambiosInsumo.toArray()
@@ -209,6 +216,10 @@ export async function registrarTratamiento(
         anulacionSincronizada: true,
       }
       await db.tratamientosRealizados.add(registro)
+      const paciente = normalizarPaciente(input.paciente ?? '')
+      if (paciente !== null) {
+        await db.pacientesRegistro.add(filaPaciente(registro, paciente, usuarioId, tenantId))
+      }
       for (const consumo of consumos) {
         await crearMovimiento({
           tipo: 'consumo',

@@ -2,7 +2,16 @@ import { useState } from 'react'
 import { Card } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { EstadoVacio } from '../../../components/ui/EstadoVacio'
-import { Calendar } from '../../../components/icons'
+import { Calendar, Pencil, Search } from '../../../components/icons'
+import { BottomSheet } from '../../../components/ui/BottomSheet'
+import { IconField } from '../../../components/ui/IconField'
+import {
+  filtrarPorPaciente,
+  guardarPaciente,
+  MAX_PACIENTE,
+  puedeEditarPaciente,
+} from '../lib/pacientes'
+import { usePacientesVisibles } from '../lib/usePacientes'
 import { useAuthStore } from '../../../stores/authStore'
 import { nombreLugar, useLugarStore } from '../../../stores/lugarStore'
 import { usePendientesStore } from '../../../stores/pendientesStore'
@@ -30,6 +39,9 @@ import { formatearConSigno } from '../lib/textos'
  * Spec 016 US5 (contracts/ui-contracts.md §6, FR-019): tratamientos
  * realizados del lugar activo (o de todos, con su lugar) del más reciente al
  * más antiguo, con totales del período sin anulados y "Deshacer".
+ *
+ * Spec 028 (US2, US3): "Paciente: …" solo para el autor del registro y la
+ * administración, edición desde el lápiz y buscador por paciente.
  */
 export function HistorialTratamientos() {
   const realizados = useTratamientosStore((s) => s.realizados)
@@ -42,6 +54,13 @@ export function HistorialTratamientos() {
   const [error, setError] = useState<string | null>(null)
   // Spec 026 (FR-014): '' = todas.
   const [filtroCategoria, setFiltroCategoria] = useState('')
+  // Spec 028 (FR-012).
+  const [busquedaPaciente, setBusquedaPaciente] = useState('')
+  const [editando, setEditando] = useState<{ id: string; nombre: string; texto: string } | null>(
+    null,
+  )
+  const [errorPaciente, setErrorPaciente] = useState<string | null>(null)
+  const pacientes = usePacientesVisibles()
 
   const esTodos = !lugarActivoId || lugarActivoId === 'todos'
   const delPeriodo = registrosDelPeriodo(realizados, periodo, esTodos ? null : lugarActivoId)
@@ -50,11 +69,28 @@ export function HistorialTratamientos() {
   const filtroEfectivo = opcionesCategoria.some((o) => o.valor === filtroCategoria)
     ? filtroCategoria
     : ''
-  const registros = filtrarPorCategoria(delPeriodo, filtroEfectivo)
+  const hayPacientes = delPeriodo.some((r) => pacientes.has(r.id))
+  const registros = filtrarPorPaciente(
+    filtrarPorCategoria(delPeriodo, filtroEfectivo),
+    pacientes,
+    hayPacientes ? busquedaPaciente : '',
+  )
   const totales = totalesHistorial(registros)
   const fecha = new Intl.DateTimeFormat('es-CL', { dateStyle: 'medium', timeStyle: 'short' })
   const autor = (id: string | null) =>
     !id ? '' : id === usuario?.id ? usuario.nombre : (conocidos.find((c) => c.id === id)?.nombre ?? 'otra persona')
+
+  async function guardarEdicion(texto: string) {
+    if (!editando) return
+    setErrorPaciente(null)
+    try {
+      await guardarPaciente(editando.id, texto)
+      setEditando(null)
+    } catch (e) {
+      // Mensajes fijos: nunca incluyen el texto del paciente (R6).
+      setErrorPaciente(e instanceof Error ? e.message : 'No se pudo guardar el paciente.')
+    }
+  }
 
   async function deshacer(id: string) {
     setError(null)
@@ -98,6 +134,20 @@ export function HistorialTratamientos() {
             ))}
           </select>
         </label>
+      )}
+
+      {hayPacientes && (
+        <IconField label="Buscar paciente" htmlFor="historial-buscar-paciente" icon={<Search size={18} />}>
+          <input
+            id="historial-buscar-paciente"
+            type="search"
+            autoComplete="off"
+            data-sentry-mask
+            value={busquedaPaciente}
+            onChange={(event) => setBusquedaPaciente(event.target.value)}
+            className="h-full w-full border-none bg-transparent text-sm text-text outline-none"
+          />
+        </IconField>
       )}
 
       <Card className="grid grid-cols-2 gap-2 p-3.5 text-sm text-text md:grid-cols-5">
@@ -151,6 +201,11 @@ export function HistorialTratamientos() {
                     <span className={`font-bold text-text ${anulado ? 'line-through' : ''}`}>
                       {registro.nombre}
                     </span>
+                    {pacientes.has(registro.id) && (
+                      <span className="text-xs font-semibold text-text">
+                        Paciente: {pacientes.get(registro.id)}
+                      </span>
+                    )}
                     <span className="text-xs text-text-muted">
                       {categoriaDeRegistro(registro)} ·{' '}
                       {fecha.format(new Date(registro.creadoEn))} · {autor(registro.usuarioId)}
@@ -178,6 +233,24 @@ export function HistorialTratamientos() {
                       </span>
                     )}
                   </div>
+                  {puedeEditarPaciente(registro, usuario) && (
+                    <TouchButton
+                      type="button"
+                      variant="ghost"
+                      aria-label={`Paciente de ${registro.nombre}`}
+                      onClick={() => {
+                        setErrorPaciente(null)
+                        setEditando({
+                          id: registro.id,
+                          nombre: registro.nombre,
+                          texto: pacientes.get(registro.id) ?? '',
+                        })
+                      }}
+                      className="shrink-0 px-3"
+                    >
+                      <Pencil size={16} />
+                    </TouchButton>
+                  )}
                   {!anulado && (
                     <TouchButton
                       type="button"
@@ -194,6 +267,51 @@ export function HistorialTratamientos() {
             )
           })}
         </ul>
+      )}
+
+      {editando && (
+        <BottomSheet titulo={`Paciente de ${editando.nombre}`} onClose={() => setEditando(null)}>
+          <form
+            noValidate
+            className="flex flex-col gap-3"
+            onSubmit={(event) => {
+              event.preventDefault()
+              void guardarEdicion(editando.texto)
+            }}
+          >
+            <IconField
+              label="Paciente (nombre o N° de ficha)"
+              htmlFor="editar-paciente"
+              hint="Solo lo ven quien registró y la administración."
+            >
+              <input
+                id="editar-paciente"
+                type="text"
+                maxLength={MAX_PACIENTE}
+                autoComplete="off"
+                data-sentry-mask
+                value={editando.texto}
+                onChange={(event) => setEditando({ ...editando, texto: event.target.value })}
+                className="h-full w-full border-none bg-transparent text-sm text-text outline-none"
+              />
+            </IconField>
+            {errorPaciente && (
+              <p role="alert" className="text-sm text-danger">
+                {errorPaciente}
+              </p>
+            )}
+            <TouchButton type="submit">Guardar</TouchButton>
+            {pacientes.has(editando.id) && (
+              <TouchButton
+                type="button"
+                variant="ghost"
+                onClick={() => void guardarEdicion('')}
+              >
+                Quitar paciente
+              </TouchButton>
+            )}
+          </form>
+        </BottomSheet>
       )}
     </div>
   )

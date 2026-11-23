@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import type { TratamientoRealizado, UsuarioActual } from '../../src/lib/db'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import type { PacienteRegistro, TratamientoRealizado, UsuarioActual } from '../../src/lib/db'
 import type { MemoryTable } from '../helpers/memoryDb'
 
 vi.mock('../../src/lib/db', async () => {
@@ -67,8 +67,14 @@ function registro(id: string, creadoEn: Date, extra: Partial<TratamientoRealizad
   }
 }
 
+const pacientesT = db.pacientesRegistro as unknown as MemoryTable<PacienteRegistro>
+
 function reflejar() {
-  useTratamientosStore.setState({ realizados: realizadosT.all(), isReady: true })
+  useTratamientosStore.setState({
+    realizados: realizadosT.all(),
+    pacientesRegistro: pacientesT.all(),
+    isReady: true,
+  })
 }
 
 beforeEach(() => {
@@ -152,5 +158,74 @@ describe('historial por categoría (spec 026)', () => {
     expect(screen.queryByText('Tratamiento f')).not.toBeInTheDocument()
     // $20.000 × 50 %.
     expect(screen.getAllByText('$10.000').length).toBeGreaterThan(0)
+  })
+})
+
+/** Spec 028 T014/T015 (US2, US3; FR-005, FR-010, FR-012). */
+describe('paciente en el historial (spec 028)', () => {
+  const fila = (registroId: string, paciente: string, autorId = 'p1'): PacienteRegistro => ({
+    registroId, tenantId: TENANT_1, autorId, paciente,
+    actualizadoPor: autorId, actualizadoEn: '2026-10-15T08:00:00.000Z', sincronizado: true,
+  })
+
+  beforeEach(() => {
+    realizadosT.seed([
+      registro('e', new Date(2026, 9, 15, 9)),
+      registro('f', new Date(2026, 9, 15, 10)),
+      registro('g', new Date(2026, 9, 15, 11), { usuarioId: 'p2' }),
+    ])
+    pacientesT.seed([fila('e', 'Juan Pérez'), fila('g', 'Ana Soto', 'p2')])
+    reflejar()
+  })
+
+  const tarjeta = (nombre: string) => screen.getByText(nombre).closest('li')!
+
+  it('el autor ve su paciente; el de otra persona no se ve ni se puede editar', () => {
+    render(<HistorialTratamientos />)
+    expect(within(tarjeta('Tratamiento e')).getByText('Paciente: Juan Pérez')).toBeInTheDocument()
+    expect(within(tarjeta('Tratamiento g')).queryByText(/Paciente:/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Ana Soto/)).not.toBeInTheDocument()
+    expect(
+      within(tarjeta('Tratamiento g')).queryByRole('button', { name: /Paciente de/ }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('la administración ve todos', () => {
+    useAuthStore.setState({ usuario: { ...usuario, id: 'adm', rol: 'administrador' }, isReady: true })
+    render(<HistorialTratamientos />)
+    expect(screen.getByText('Paciente: Ana Soto')).toBeInTheDocument()
+  })
+
+  it('corrige, quita y agrega el paciente desde el lápiz', async () => {
+    render(<HistorialTratamientos />)
+    fireEvent.click(within(tarjeta('Tratamiento e')).getByRole('button', { name: 'Paciente de Tratamiento e' }))
+    let hoja = screen.getByRole('dialog', { name: 'Paciente de Tratamiento e' })
+    fireEvent.change(within(hoja).getByLabelText(/Paciente \(nombre/), { target: { value: 'Juan Pérez Soto' } })
+    fireEvent.click(within(hoja).getByRole('button', { name: 'Guardar' }))
+    await screen.findByText('Paciente: Juan Pérez Soto')
+
+    fireEvent.click(within(tarjeta('Tratamiento e')).getByRole('button', { name: 'Paciente de Tratamiento e' }))
+    hoja = screen.getByRole('dialog', { name: 'Paciente de Tratamiento e' })
+    fireEvent.click(within(hoja).getByRole('button', { name: 'Quitar paciente' }))
+    await waitFor(() => expect(screen.queryByText(/Paciente: Juan/)).not.toBeInTheDocument())
+    expect(pacientesT.all().find((p) => p.registroId === 'e')).toMatchObject({ paciente: null, sincronizado: false })
+
+    fireEvent.click(within(tarjeta('Tratamiento f')).getByRole('button', { name: 'Paciente de Tratamiento f' }))
+    hoja = screen.getByRole('dialog', { name: 'Paciente de Tratamiento f' })
+    fireEvent.change(within(hoja).getByLabelText(/Paciente \(nombre/), { target: { value: 'Luis' } })
+    fireEvent.click(within(hoja).getByRole('button', { name: 'Guardar' }))
+    await screen.findByText('Paciente: Luis')
+  })
+
+  it('el buscador filtra los registros y los totales', () => {
+    render(<HistorialTratamientos />)
+    fireEvent.change(screen.getByLabelText('Buscar paciente'), { target: { value: 'PEREZ' } })
+    expect(screen.getByText('Tratamiento e')).toBeInTheDocument()
+    expect(screen.queryByText('Tratamiento f')).not.toBeInTheDocument()
+    expect(screen.queryByText('Tratamiento g')).not.toBeInTheDocument()
+    const totales = screen.getByText('Tratamientos').parentElement!
+    expect(totales).toHaveTextContent('1')
+    fireEvent.change(screen.getByLabelText('Buscar paciente'), { target: { value: '' } })
+    expect(screen.getByText('Tratamiento f')).toBeInTheDocument()
   })
 })

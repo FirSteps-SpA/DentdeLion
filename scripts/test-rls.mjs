@@ -1831,6 +1831,117 @@ check(
     snapshot026?.categoria_nombre === 'Evaluación',
 )
 
+// ---------------------------------------------------------------------------
+// Spec 028 — paciente de cada tratamiento realizado (contracts/supabase-schema.md)
+// ---------------------------------------------------------------------------
+
+const per2 = await crearUsuario('personal-2', 'personal')
+const filaPaciente = (usuario, registroId, paciente, extra = {}) => ({
+  registro_id: registroId,
+  autor_id: usuario.id,
+  paciente,
+  actualizado_por: usuario.id,
+  actualizado_en: new Date().toISOString(),
+  ...extra,
+})
+const pacienteDe = async (registroId) =>
+  (await leer(`pacientes_registro?registro_id=eq.${registroId}&select=paciente,autor_id`))[0]
+const leerComo = async (usuario, registroId) => {
+  const res = await http('GET', `/rest/v1/pacientes_registro?registro_id=eq.${registroId}&select=paciente`, {
+    token: usuario.token,
+  })
+  return Array.isArray(res.data) ? res.data : null
+}
+
+// 1. El autor (personal) anota y lee el paciente de su registro.
+r = await http('POST', '/rest/v1/pacientes_registro', {
+  token: per.token,
+  body: filaPaciente(per, registro026.id, `Juan Pérez ${run}`),
+})
+check('paciente: el autor lo anota en su registro', r.status === 201, `HTTP ${r.status}`)
+check(
+  'paciente: el autor lo lee',
+  (await leerComo(per, registro026.id))?.[0]?.paciente === `Juan Pérez ${run}`,
+)
+
+// 2. Otro personal del tenant no lo lee ni lo escribe.
+check('paciente: otro personal del tenant no lo lee', (await leerComo(per2, registro026.id))?.length === 0)
+await http('POST', '/rest/v1/pacientes_registro', {
+  token: per2.token,
+  body: filaPaciente(per2, registro026.id, 'Otro'),
+  prefer: 'resolution=merge-duplicates,return=minimal',
+})
+check('paciente: otro personal no lo cambia', (await pacienteDe(registro026.id))?.paciente === `Juan Pérez ${run}`)
+
+// 3. La administración lo lee y lo corrige.
+check('paciente: la administración lo lee', (await leerComo(adm, registro026.id))?.length === 1)
+r = await http('PATCH', `/rest/v1/pacientes_registro?registro_id=eq.${registro026.id}`, {
+  token: adm.token,
+  body: { paciente: `Juan Pérez Soto ${run}`, actualizado_por: adm.id, actualizado_en: new Date().toISOString() },
+})
+check(
+  'paciente: la administración lo corrige',
+  r.status < 300 && (await pacienteDe(registro026.id))?.paciente === `Juan Pérez Soto ${run}`,
+  `HTTP ${r.status}`,
+)
+
+// 4. Otro tenant no lo lee ni lo escribe.
+check('paciente: otro tenant no lo lee', (await leerComo(admB, registro026.id))?.length === 0)
+r = await http('PATCH', `/rest/v1/pacientes_registro?registro_id=eq.${registro026.id}`, {
+  token: admB.token,
+  body: { paciente: 'Ajeno', actualizado_por: admB.id, actualizado_en: new Date().toISOString() },
+})
+check('paciente: otro tenant no lo cambia', (await pacienteDe(registro026.id))?.paciente === `Juan Pérez Soto ${run}`)
+
+// 5. El autor sale del registro, no del cliente.
+const registro028 = realizado(per.id)
+await http('POST', '/rest/v1/tratamientos_realizados', { token: per.token, body: registro028 })
+r = await http('POST', '/rest/v1/pacientes_registro', {
+  token: adm.token,
+  body: filaPaciente(adm, registro028.id, 'Ana', { autor_id: adm.id }),
+})
+check(
+  'paciente: el autor queda el del registro aunque el cliente mande otro',
+  r.status === 201 && (await pacienteDe(registro028.id))?.autor_id === per.id,
+  `HTTP ${r.status}`,
+)
+
+// 6. Un cambio más antiguo no pisa al más reciente.
+await http('PATCH', `/rest/v1/pacientes_registro?registro_id=eq.${registro028.id}`, {
+  token: per.token,
+  body: { paciente: 'Antiguo', actualizado_por: per.id, actualizado_en: '2020-01-01T00:00:00Z' },
+})
+check('paciente: un cambio más antiguo no pisa al reciente', (await pacienteDe(registro028.id))?.paciente === 'Ana')
+
+// 7. Largo y vacío; null borra.
+for (const [caso, valor] of [['de 61 caracteres', 'x'.repeat(61)], ['solo espacios', '   ']]) {
+  r = await http('PATCH', `/rest/v1/pacientes_registro?registro_id=eq.${registro028.id}`, {
+    token: per.token,
+    body: { paciente: valor, actualizado_por: per.id, actualizado_en: new Date().toISOString() },
+  })
+  check(`paciente: un texto ${caso} se rechaza`, r.status >= 400, `HTTP ${r.status}`)
+}
+r = await http('PATCH', `/rest/v1/pacientes_registro?registro_id=eq.${registro028.id}`, {
+  token: per.token,
+  body: { paciente: null, actualizado_por: per.id, actualizado_en: new Date().toISOString() },
+})
+check(
+  'paciente: null lo quita',
+  r.status < 300 && (await pacienteDe(registro028.id))?.paciente === null,
+  `HTTP ${r.status}`,
+)
+
+// 8. Sobre un registro anulado, no.
+r = await http('POST', '/rest/v1/pacientes_registro', {
+  token: per.token,
+  body: filaPaciente(per, registro016.id, 'Anulado'),
+})
+check('paciente: no se anota en un registro anulado', r.status >= 400, `HTTP ${r.status}`)
+
+// 9. Nadie borra filas.
+await http('DELETE', `/rest/v1/pacientes_registro?registro_id=eq.${registro026.id}`, { token: adm.token })
+check('paciente: nadie borra la fila', (await pacienteDe(registro026.id)) !== undefined)
+
 r = await http('GET', '/rest/v1/insumos?select=id')
 check(
   'sin sesión no se lee el inventario',

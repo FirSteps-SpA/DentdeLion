@@ -56,15 +56,18 @@ export function AppShell({
         />
       )}
       <div className="relative flex min-w-0 flex-1 flex-col overflow-x-clip">
-        <OndasFondo className="z-0" />
+        <OndasFondo />
         {movil ? (
-          <div className="relative z-10 mx-auto w-full max-w-[480px] px-4 pt-4">
+          <div className="relative mx-auto w-full max-w-[480px] px-4 pt-4">
             <AppHeader />
           </div>
         ) : (
           <TopBar />
         )}
-        <main className={`relative z-10 flex flex-col ${ANCHO_CONTENIDO[disposicion]}`}>
+        {/* Sin z-index propio: un contexto de apilamiento aquí dejaría las hojas
+            (fixed, z-50) por debajo de la barra inferior (z-20). Las ondas van
+            antes en el DOM, así que el contenido ya se pinta encima. */}
+        <main className={`relative flex flex-col ${ANCHO_CONTENIDO[disposicion]}`}>
           {children}
         </main>
       </div>

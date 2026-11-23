@@ -60,7 +60,7 @@ describe('Dexie v15 (spec 026)', () => {
     const { db } = await import('../../src/lib/db')
     await db.open()
 
-    expect(db.verno).toBe(15)
+    expect(db.verno).toBe(16) // la v15 corre dentro de la cadena hasta la última versión
     expect(await db.cambiosTratamiento.count()).toBe(2)
     expect(await db.cambiosTratamiento.get('c1')).toMatchObject({ valorNuevo: 40, categoriaId: null })
     expect(await db.cambiosTratamiento.get('c2')).toMatchObject({ categoriaId: null })
