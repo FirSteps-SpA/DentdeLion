@@ -19,7 +19,7 @@ import {
 import { calcularGanancia, cantidadEfectiva } from './montos'
 import { porcentajesPorLugar, type TratamientoProyectado } from './proyeccion'
 
-/** Mismo criterio que "Consumir 1" y las alertas: vence hoy = todavía vigente. */
+/** Mismo criterio que la hoja de consumo y las alertas: vence hoy = todavía vigente. */
 export function esLoteVigente(lote: Lote, hoy: Date = new Date()): boolean {
   return lote.fechaCaducidad === null || diasEntre(lote.fechaCaducidad, hoy) >= 0
 }

@@ -1,4 +1,5 @@
 import type { Lote } from '../../../lib/db'
+import { estaVencido } from '../../alertas/lib/caducidad'
 
 export interface LoteConStock {
   lote: Lote
@@ -44,6 +45,23 @@ export function selectFefoLot(
   )
 }
 
+/**
+ * Spec 025 (research.md R1) — lote por defecto de la hoja de consumo. A
+ * diferencia de `selectFefoLot`, prefiere siempre los **vigentes** (vence hoy
+ * = vigente, como las alertas): el que cubre `cantidad` en orden FEFO o, si
+ * ninguno, el primer vigente. Solo sin stock vigente cae a los vencidos, con
+ * la misma regla (la hoja lo marca "Lote vencido"). `null` sin stock.
+ */
+export function selectLoteConsumo(
+  lotesConStock: LoteConStock[],
+  cantidad: number,
+  hoy: Date = new Date(),
+): LoteConStock | null {
+  const conStock = lotesConStock.filter((entry) => entry.stockDisponible > 0)
+  const vigentes = conStock.filter((entry) => !estaVencido(entry.lote, hoy))
+  return selectFefoLot(vigentes.length > 0 ? vigentes : conStock, cantidad)
+}
+
 export interface RepartoFefo {
   partes: { lote: Lote; cantidad: number }[]
   /** Lo que no alcanzó a cubrirse con lotes vigentes (0 si alcanza). */
@@ -55,7 +73,7 @@ export interface RepartoFefo {
 /**
  * Spec 016 (research.md R4) — reparte `cantidad` entre los lotes **vigentes**
  * en orden FEFO, completando con el siguiente si uno no alcanza. Los
- * caducados nunca se usan (Constitución IV, mismo criterio que "Consumir 1");
+ * caducados nunca se usan (Constitución IV, mismo criterio que la hoja de consumo);
  * `vigente` decide cuáles lo están.
  */
 export function repartirFefo(

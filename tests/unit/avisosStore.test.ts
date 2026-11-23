@@ -5,7 +5,7 @@ const deshacerConsumo = vi.fn(async (id: string) => {
   return null
 })
 
-vi.mock('../../src/features/insumos/lib/consumoRapido', () => ({
+vi.mock('../../src/features/insumos/lib/consumo', () => ({
   deshacerConsumo: (id: string) => deshacerConsumo(id),
 }))
 

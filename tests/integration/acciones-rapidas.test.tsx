@@ -232,8 +232,28 @@ afterEach(() => {
 // Spec 014: un tenant de un solo lugar, como la clínica original.
 beforeEach(usarLugar1)
 
-describe('Consumir 1 (User Story 1)', () => {
-  it('consumes 1 from the earliest vigente lot, attributed, with vibration and a notice', async () => {
+/** Spec 025: "Consumir" abre la hoja; devuelve el panel cuando el lote ya cargó. */
+async function abrirConsumo(nombre: string): Promise<HTMLElement> {
+  fireEvent.click(
+    within(tarjeta(nombre)).getByRole('button', { name: `Consumir ${nombre}` }),
+  )
+  const panel = screen.getByRole('dialog', { name: `Consumir ${nombre}` })
+  await within(panel).findByLabelText(/Lote/)
+  return panel
+}
+
+async function confirmarConsumo(panel: HTMLElement, cantidad?: string) {
+  if (cantidad !== undefined) {
+    fireEvent.change(within(panel).getByLabelText(/Cantidad a consumir/), {
+      target: { value: cantidad },
+    })
+  }
+  fireEvent.click(within(panel).getByRole('button', { name: 'Confirmar consumo' }))
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+}
+
+describe('Consumir (spec 025 User Story 1)', () => {
+  it('abre la hoja con cantidad 1 sin registrar nada; confirmar consume 1 del vigente más próximo', async () => {
     const vibrate = vi.fn()
     Object.defineProperty(navigator, 'vibrate', {
       value: vibrate,
@@ -241,11 +261,15 @@ describe('Consumir 1 (User Story 1)', () => {
     })
     render(<Harness />)
 
-    fireEvent.click(
-      within(tarjeta('Anestesia')).getByRole('button', {
-        name: /Consumir 1 caja de Anestesia/,
-      }),
-    )
+    const panel = await abrirConsumo('Anestesia')
+    expect(movimientosT.all().filter((m) => m.tipo === 'consumo')).toHaveLength(0)
+    expect(
+      within(panel).queryByPlaceholderText('Nombre del insumo'),
+    ).not.toBeInTheDocument()
+    expect(within(panel).getByLabelText(/Cantidad a consumir/)).toHaveValue(1)
+    expect(within(panel).getByLabelText(/Lote/)).toHaveValue('a1')
+
+    await confirmarConsumo(panel)
 
     await screen.findByText('Consumido 1 caja de Anestesia')
     expect(stock('a1')).toBe(4)
@@ -257,57 +281,116 @@ describe('Consumir 1 (User Story 1)', () => {
     expect(vibrate).toHaveBeenCalled()
   })
 
-  it('never consumes from an expired lot', async () => {
+  it('consume otra cantidad y el aviso la muestra', async () => {
     render(<Harness />)
 
-    fireEvent.click(
-      within(tarjeta('Bisturí')).getByRole('button', { name: /Consumir 1/ }),
-    )
+    await confirmarConsumo(await abrirConsumo('Anestesia'), '4')
 
-    await screen.findByText('Consumido 1 caja de Bisturí')
+    await screen.findByText('Consumido 4 cajas de Anestesia')
+    expect(stock('a1')).toBe(1)
+  })
+
+  it('cerrar la hoja sin confirmar no registra nada', async () => {
+    render(<Harness />)
+
+    const panel = await abrirConsumo('Anestesia')
+    fireEvent.click(within(panel).getByRole('button', { name: 'Cerrar' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(movimientosT.all().filter((m) => m.tipo === 'consumo')).toHaveLength(0)
+  })
+
+  it('con un lote vencido y otro vigente propone el vigente (FR-005)', async () => {
+    render(<Harness />)
+
+    const panel = await abrirConsumo('Bisturí')
+    expect(within(panel).getByLabelText(/Lote/)).toHaveValue('b-vig')
+    expect(within(panel).queryByText('Lote vencido')).not.toBeInTheDocument()
+    await confirmarConsumo(panel)
+
     expect(stock('b-cad')).toBe(2)
     expect(stock('b-vig')).toBe(3)
   })
 
-  it('disables the button with the reason for expired-only and empty stock', () => {
+  it('elegir a mano el lote vencido lo marca y lo consume', async () => {
     render(<Harness />)
 
-    const c = within(tarjeta('Composite Viejo')).getByRole('button', {
-      name: /Solo stock caducado/,
+    const panel = await abrirConsumo('Bisturí')
+    fireEvent.change(within(panel).getByLabelText(/Lote/), { target: { value: 'b-cad' } })
+    expect(within(panel).getByText('Lote vencido')).toBeInTheDocument()
+    await confirmarConsumo(panel)
+
+    expect(stock('b-cad')).toBe(1)
+  })
+
+  it('con solo stock vencido, "Consumir" se habilita y la hoja dice "Lote vencido" (Clarifications)', async () => {
+    render(<Harness />)
+
+    const boton = within(tarjeta('Composite Viejo')).getByRole('button', {
+      name: 'Consumir Composite Viejo',
     })
+    expect(boton).toBeEnabled()
+    const panel = await abrirConsumo('Composite Viejo')
+    expect(within(panel).getByLabelText(/Lote/)).toHaveValue('c-cad')
+    expect(within(panel).getByText('Lote vencido')).toBeInTheDocument()
+  })
+
+  it('sin stock, el botón queda deshabilitado con "Sin stock" (FR-008)', () => {
+    render(<Harness />)
+
     const d = within(tarjeta('Dique de Goma')).getByRole('button', {
       name: /Sin stock/,
     })
-    expect(c).toBeDisabled()
-    expect(c).toHaveTextContent('Solo stock caducado')
     expect(d).toBeDisabled()
     expect(d).toHaveTextContent('Sin stock')
   })
 
-  it('two rapid taps on a 1-unit lot write a single consumo (never below 0)', async () => {
+  it('con stock fraccionario menor que 1 se habilita y deja consumirlo (FR-009)', async () => {
+    insumosT.seed([
+      ...insumosT.all(),
+      insumo('g', 'Gel', { unidadMedida: 'mL', unidadCompra: 'mL', permiteDecimales: true }),
+    ])
+    lotesT.seed([...lotesT.all(), lote('g1', 'g', 90)])
+    movimientosT.seed([...movimientosT.all(), { ...ingreso('g1', 0.5), unidad: 'mL' }])
+    reflejarStore()
     render(<Harness />)
-    const boton = within(tarjeta('Aguja Única')).getByRole('button', {
-      name: /Consumir 1/,
-    })
 
-    fireEvent.click(boton)
-    fireEvent.click(boton)
+    await confirmarConsumo(await abrirConsumo('Gel'), '0.5')
 
-    await screen.findByText('Consumido 1 caja de Aguja Única')
+    expect(stock('g1')).toBe(0)
     await waitFor(() =>
       expect(
-        within(tarjeta('Aguja Única')).getByRole('button', {
-          name: /Sin stock/,
-        }),
+        within(tarjeta('Gel')).getByRole('button', { name: /Sin stock/ }),
       ).toBeDisabled(),
     )
-    expect(movimientosT.all().filter((m) => m.tipo === 'consumo')).toHaveLength(
-      1,
-    )
-    expect(stock('u1')).toBe(0)
   })
 
-  it('updates the summary counts after a consume (FR-005)', async () => {
+  it('rechaza una cantidad mayor que el lote sin registrar y la hoja sigue abierta', async () => {
+    render(<Harness />)
+
+    const panel = await abrirConsumo('Aguja Única')
+    fireEvent.change(within(panel).getByLabelText(/Cantidad a consumir/), {
+      target: { value: '2' },
+    })
+    fireEvent.click(within(panel).getByRole('button', { name: 'Confirmar consumo' }))
+
+    expect(await within(panel).findByRole('alert')).toHaveTextContent(/Stock insuficiente/)
+    expect(movimientosT.all().filter((m) => m.tipo === 'consumo')).toHaveLength(0)
+  })
+
+  it('conserva la búsqueda al volver al listado (FR-006)', async () => {
+    render(<Harness />)
+    fireEvent.change(screen.getByPlaceholderText('Nombre del insumo'), {
+      target: { value: 'Anes' },
+    })
+
+    await confirmarConsumo(await abrirConsumo('Anestesia'))
+
+    expect(screen.getByPlaceholderText('Nombre del insumo')).toHaveValue('Anes')
+    expect(screen.queryByText('Bisturí')).not.toBeInTheDocument()
+  })
+
+  it('updates the summary counts after a consume (FR-005 spec 007)', async () => {
     const insumoMin = insumo('m', 'Mascarilla', { stockMinimo: 2 })
     insumosT.seed([...insumosT.all(), insumoMin])
     lotesT.seed([...lotesT.all(), lote('m1', 'm', 90)])
@@ -321,9 +404,7 @@ describe('Consumir 1 (User Story 1)', () => {
         .closest('button')!
 
     const antes = resumenStock().textContent
-    fireEvent.click(
-      within(tarjeta('Mascarilla')).getByRole('button', { name: /Consumir 1/ }),
-    )
+    await confirmarConsumo(await abrirConsumo('Mascarilla'))
     await screen.findByText('Consumido 1 caja de Mascarilla')
 
     expect(resumenStock().textContent).not.toBe(antes)
@@ -333,15 +414,13 @@ describe('Consumir 1 (User Story 1)', () => {
   })
 })
 
-describe('Deshacer (User Story 2)', () => {
-  it('undoes exactly one unit per notice, survives navigation, and expires at 8 s', async () => {
+describe('Deshacer (spec 025 User Story 2)', () => {
+  it('undoes exactly one consume per notice, survives navigation, and expires at 8 s', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     render(<Harness />)
-    const boton = () =>
-      within(tarjeta('Anestesia')).getByRole('button', { name: /Consumir 1/ })
 
     for (let n = 0; n < 3; n++) {
-      fireEvent.click(boton())
+      await confirmarConsumo(await abrirConsumo('Anestesia'))
       await waitFor(() =>
         expect(useAvisosStore.getState().avisos).toHaveLength(n + 1),
       )
@@ -375,7 +454,7 @@ describe('Deshacer (User Story 2)', () => {
 })
 
 describe('Menú y edición (User Story 3)', () => {
-  it('shows only Ver detalle / Consumir otra cantidad to personal, via ⋮ or long press', () => {
+  it('personal solo ve "Ver detalle", sin "Consumir otra cantidad" (spec 025), via ⋮ or long press', () => {
     vi.useFakeTimers()
     render(<Harness />)
 
@@ -384,7 +463,7 @@ describe('Menú y edición (User Story 3)', () => {
     )
     let menu = screen.getByRole('dialog', { name: 'Bisturí' })
     expect(within(menu).getByText('Ver detalle')).toBeInTheDocument()
-    expect(within(menu).getByText('Consumir otra cantidad')).toBeInTheDocument()
+    expect(within(menu).queryByText('Consumir otra cantidad')).not.toBeInTheDocument()
     expect(within(menu).queryByText('Editar')).not.toBeInTheDocument()
     expect(within(menu).queryByText('Eliminar')).not.toBeInTheDocument()
     fireEvent.click(within(menu).getByRole('button', { name: 'Cerrar' }))
@@ -394,33 +473,8 @@ describe('Menú y edición (User Story 3)', () => {
     act(() => vi.advanceTimersByTime(500))
     fireEvent.pointerUp(area)
     menu = screen.getByRole('dialog', { name: 'Bisturí' })
+    expect(within(menu).queryByText('Consumir otra cantidad')).not.toBeInTheDocument()
     expect(within(menu).queryByText('Editar')).not.toBeInTheDocument()
-  })
-
-  it('Consumir otra cantidad opens the full form preselected and closes after consuming', async () => {
-    render(<Harness />)
-
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Más opciones de Bisturí' }),
-    )
-    fireEvent.click(screen.getByText('Consumir otra cantidad'))
-    const panel = screen.getByRole('dialog', { name: 'Consumir Bisturí' })
-    const select = await within(panel).findByLabelText(/Lote/)
-    expect(
-      within(panel).queryByPlaceholderText('Nombre del insumo'),
-    ).not.toBeInTheDocument()
-    fireEvent.change(select, { target: { value: 'b-cad' } })
-    fireEvent.change(within(panel).getByLabelText(/Cantidad a consumir/), {
-      target: { value: '1' },
-    })
-    fireEvent.click(
-      within(panel).getByRole('button', { name: 'Confirmar consumo' }),
-    )
-
-    await waitFor(() =>
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
-    )
-    expect(stock('b-cad')).toBe(1)
   })
 
   it('admin edits stock mínimo, sees Bajo Stock, and field errors keep filters and input', async () => {

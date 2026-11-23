@@ -31,8 +31,8 @@ interface ConsumoFormProps {
 }
 ```
 
-- Cantidad parte en `cantidadInicial`; al enfocar se selecciona el contenido; `autoFocus` solo en
-  desktop.
+- Cantidad parte en `cantidadInicial`; al enfocar se selecciona el contenido; en desktop el campo
+  lleva `data-autofocus`, que `BottomSheet` prioriza al abrir.
 - Lote por defecto según `selectLoteConsumo`. Opciones del selector: `<lote> — vence <fecha>[ —
   vencido] — disponible <cantidad>`.
 - Si el lote elegido está vencido: badge "Lote vencido" (tono urgente, ícono + texto) en lugar de

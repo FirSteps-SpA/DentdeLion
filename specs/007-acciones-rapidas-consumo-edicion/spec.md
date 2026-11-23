@@ -6,6 +6,11 @@
 
 **Status**: Draft
 
+> **Spec 025 (2026-11-23)**: FR-001 a FR-003 y FR-007 ("Consumir 1" de un toque) quedaron
+> reemplazados por "Consumir", que abre la hoja de consumo con cantidad 1
+> (`specs/025-consumir-sin-atajo/`). El aviso, la vibración y "Deshacer" (FR-005, FR-006, FR-008,
+> FR-009) se mantienen para ese consumo. "Consumir otra cantidad" ya no está en el menú.
+
 **Input**: User description: "Continuar el roadmap con la siguiente spec (007): Implementación de acciones directas desde la lista principal para consumir la unidad/insumo completo con un solo toque (swipe o botón dedicado) para el caso de uso más frecuente, además de modales/pantallas para editar datos del producto y eliminación (soft delete o baja)."
 
 ## Clarifications

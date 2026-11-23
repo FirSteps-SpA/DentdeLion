@@ -25,7 +25,8 @@ const FOCUSABLE =
  * primitivo de overlay para el menú de opciones, los formularios y la
  * confirmación de baja. Replica la semántica de `<dialog>` con ARIA (el
  * soporte de `showModal` en jsdom es incompleto, research.md R7): cierra
- * con fondo/Escape/"Cerrar", enfoca el primer control al abrir y devuelve el
+ * con fondo/Escape/"Cerrar", enfoca el primer control al abrir (o el marcado
+ * `data-autofocus`, spec 025) y devuelve el
  * foco al control que lo abrió al cerrar.
  */
 export function BottomSheet({ titulo, onClose, children }: BottomSheetProps) {
@@ -39,9 +40,11 @@ export function BottomSheet({ titulo, onClose, children }: BottomSheetProps) {
 
   useEffect(() => {
     const previo = document.activeElement as HTMLElement | null
-    const contenido = panelRef.current?.querySelector<HTMLElement>(
-      `[data-sheet-body] :is(${FOCUSABLE})`,
-    )
+    // Spec 025 (R4): un control marcado `data-autofocus` tiene prioridad
+    // (el `autoFocus` de React no sirve: este efecto corre después y lo pisaría).
+    const contenido =
+      panelRef.current?.querySelector<HTMLElement>('[data-sheet-body] [data-autofocus]') ??
+      panelRef.current?.querySelector<HTMLElement>(`[data-sheet-body] :is(${FOCUSABLE})`)
     const cerrar = panelRef.current?.querySelector<HTMLElement>(FOCUSABLE)
     ;(contenido ?? cerrar)?.focus()
 

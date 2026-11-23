@@ -218,6 +218,15 @@ adicional. En Inicio, "Próximos vencimientos" ya no repite los lotes caducados 
 `main` y comprobar en un dispositivo el detalle de un tratamiento y la tarjeta de Reportes. Si el
 front falla, se revierte sin tocar el servidor.
 
+**Spec 025 ("Consumir" sin atajo):** solo front, sin `db push` ni cambios de datos. El botón
+"Consumir 1" de Inventario pasa a "Consumir" y abre la hoja de consumo con cantidad 1; ya no hay
+consumo de un toque ni "Consumir otra cantidad" en el menú. La hoja propone el lote vigente más
+próximo a vencer (antes podía proponer uno vencido) y marca "Lote vencido" si solo queda stock
+vencido. El aviso con "Deshacer" muestra la cantidad real. Avisar al equipo del cambio. Una 2.8.0 en
+caché sigue mostrando "Consumir 1" y escribe los mismos movimientos, así que conviven. Comprobar en
+un teléfono que al abrir la hoja "Confirmar consumo" queda a la vista (sin teclado) y que consumir 1
+toma 2 toques. Si el front falla, se revierte sin tocar el servidor.
+
 ## ¿Quedó bien configurado mi entorno?
 
 Checklist manual (sin script) — cada punto debe poder confirmarse a simple vista en menos de 2

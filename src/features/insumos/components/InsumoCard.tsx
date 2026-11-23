@@ -1,6 +1,6 @@
 import { estadoVisual, type EstadoInsumo } from '../lib/estado'
 import { ICONO_ESTADO } from '../lib/estadoIconos'
-import type { DisponibilidadConsumoRapido } from '../lib/consumoRapido'
+import type { DisponibilidadConsumo } from '../lib/consumo'
 import { useLongPress } from '../lib/useLongPress'
 import { MoreVertical } from '../../../components/icons'
 import { Badge } from '../../../components/ui/Badge'
@@ -14,32 +14,28 @@ import { NombreConMarca } from '../../marcas/components/NombreConMarca'
 
 export interface InsumoCardProps {
   estadoInsumo: EstadoInsumo
-  disponibilidad: DisponibilidadConsumoRapido
+  disponibilidad: DisponibilidadConsumo
   /** Spec 008 FR-026/R9 — solo lo pasa `InventarioView` cuando el usuario es administrador. */
   posibleDuplicado?: boolean
   /** Spec 014 — en "Todos", el stock de cada lugar ("Providencia 4 · Las Condes 2"). */
   desglose?: string
   onOpen: (insumoId: string) => void
-  onConsumirUno: (insumoId: string) => void
+  onConsumir: (insumoId: string) => void
   onAbrirMenu: (insumoId: string) => void
 }
 
 // eslint-disable-next-line react-refresh/only-export-components -- compartido con InventarioTabla
-export const MOTIVO_DESHABILITADO: Record<
-  'sin-stock' | 'solo-caducado',
-  string
-> = {
+export const MOTIVO_DESHABILITADO: Record<'sin-stock', string> = {
   'sin-stock': 'Sin stock',
-  'solo-caducado': 'Solo stock caducado',
 }
 
 /**
  * Tarjeta de listado (spec 006 FR-009) con acciones rápidas (spec 007): el
- * área principal abre el detalle, "Consumir 1" consume con un toque, y "⋮"
- * o un toque largo abren el menú de opciones. Tres controles hermanos, no
- * un único botón — HTML no permite botones anidados (research.md R5). El
- * estado de salud y el motivo de un "Consumir 1" deshabilitado siempre son
- * texto, nunca solo color.
+ * área principal abre el detalle, "Consumir" abre la hoja de consumo (spec
+ * 025), y "⋮" o un toque largo abren el menú de opciones. Tres controles
+ * hermanos, no un único botón — HTML no permite botones anidados (research.md
+ * R5). El estado de salud y el motivo de un "Consumir" deshabilitado siempre
+ * son texto, nunca solo color.
  */
 export function InsumoCard({
   estadoInsumo,
@@ -47,7 +43,7 @@ export function InsumoCard({
   posibleDuplicado = false,
   desglose,
   onOpen,
-  onConsumirUno,
+  onConsumir,
   onAbrirMenu,
 }: InsumoCardProps) {
   const { insumo, stockTotal, loteMasProximoAVencer } = estadoInsumo
@@ -108,16 +104,16 @@ export function InsumoCard({
         type="button"
         variant={disponibilidad.ok ? 'secondary' : 'ghost'}
         disabled={!disponibilidad.ok}
-        onClick={() => onConsumirUno(insumo.id)}
+        onClick={() => onConsumir(insumo.id)}
         aria-label={
           disponibilidad.ok
-            ? `Consumir 1 ${insumo.unidadMedida} de ${insumo.nombre}`
+            ? `Consumir ${insumo.nombre}`
             : `${MOTIVO_DESHABILITADO[disponibilidad.motivo]}: ${insumo.nombre}`
         }
         className="shrink-0 px-3 text-sm disabled:text-text-muted"
       >
         {disponibilidad.ok
-          ? 'Consumir 1'
+          ? 'Consumir'
           : MOTIVO_DESHABILITADO[disponibilidad.motivo]}
       </TouchButton>
 

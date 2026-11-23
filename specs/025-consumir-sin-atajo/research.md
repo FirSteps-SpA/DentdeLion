@@ -51,7 +51,9 @@
 
 - **Decision**: `ConsumoForm` recibe `cantidadInicial?: number` (Inventario pasa 1). El campo
   selecciona su contenido en `onFocus` (`event.currentTarget.select()`, válido en `type="number"`).
-  `autoFocus` solo cuando `useDisposicion() === 'desktop'`.
+  Foco al abrir solo cuando `useDisposicion() === 'desktop'`, con `data-autofocus` (al implementar:
+  `BottomSheet` enfoca el primer control después del `autoFocus` de React, así que ahora prioriza un
+  control marcado `data-autofocus`).
 - **Rationale**: en teléfono, el foco automático abre el teclado y tapa "Confirmar consumo" dentro de
   la hoja, lo que rompería el caso de 1 unidad en 2 toques (SC-001). En desktop no hay ese problema y
   se escribe directo.
