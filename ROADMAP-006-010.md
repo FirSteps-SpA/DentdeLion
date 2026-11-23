@@ -71,7 +71,7 @@ Esta pantalla pasa a ser el centro neurálgico del trabajo diario en el gabinete
    - **Nombre Comercial y Lote Primario** (próximo a vencer).
    - **Indicador de Stock Grande**: Ej. `8 cajas` o `2/5 un.`.
    - **Acciones Directas en Tarjeta**:
-     - **Botón Principal de Un Solo Tap `[⚡ Consumir 1]`**: Consume la unidad estándar completa de forma inmediata con *Haptic Feedback* (vibración leve) y un aviso temporal tipo *Toast* con Deshacer (Undo).
+     - **Botón Principal de Un Solo Tap `[⚡ Consumir 1]`**: Consume la unidad estándar completa de forma inmediata con *Haptic Feedback* (vibración leve) y un aviso temporal tipo *Toast* con Deshacer (Undo). *(Reemplazado por la spec 025: "Consumir" abre la hoja de consumo con cantidad 1.)*
      - **Menú de tres puntos `⋮` o Tap Largo**: Despliega opciones: *Ver Detalle / Lotes*, *Editar*, *Agregar a Compras*, *Eliminar*.
 
 ---

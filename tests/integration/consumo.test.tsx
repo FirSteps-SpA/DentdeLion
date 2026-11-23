@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { Insumo, Lote, Movimiento } from '../../src/lib/db'
 
 let movimientosPorLote: Record<string, Movimiento[]> = {}
+let lotesPorId: Record<string, Lote> = {}
 const movimientosAdd = vi.fn(async (movimiento: Movimiento) => {
   const lista = movimientosPorLote[movimiento.loteId] ?? []
   movimientosPorLote[movimiento.loteId] = [...lista, movimiento]
@@ -18,8 +19,11 @@ vi.mock('../../src/lib/db', () => ({
       }),
       add: (...args: [Movimiento]) => movimientosAdd(...args),
     },
-    // Spec 015: sin lote conocido, los movimientos se leen sin convertir.
-    lotes: { get: async () => undefined },
+    // Spec 025: `registrarConsumo` relee el lote dentro de una transacción.
+    lotes: { get: async (id: string) => lotesPorId[id] },
+    // Spec 015: sin insumo conocido, los movimientos se leen sin convertir.
+    insumos: { get: async () => undefined },
+    transaction: async (...args: unknown[]) => (args[args.length - 1] as () => unknown)(),
   },
 }))
 
@@ -29,6 +33,7 @@ vi.mock('../../src/stores/authStore', () => ({
 }))
 
 import { ConsumoForm } from '../../src/features/insumos/components/ConsumoForm'
+import { useAvisosStore } from '../../src/stores/avisosStore'
 import { useInventoryStore } from '../../src/stores/inventoryStore'
 import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
 import { usarLugar1 } from '../helpers/lugarFalso'
@@ -109,7 +114,13 @@ function ingreso(loteId: string, cantidad: number): Movimiento {
   }
 }
 
+beforeEach(() => {
+  lotesPorId = { [loteProximo.id]: loteProximo, [loteLejano.id]: loteLejano }
+  useAvisosStore.setState({ avisos: [] })
+})
+
 afterEach(() => {
+  for (const a of useAvisosStore.getState().avisos) useAvisosStore.getState().descartar(a.id)
   vi.clearAllMocks()
   movimientosPorLote = {}
   useInventoryStore.setState({ insumos: [], lotes: [], isReady: true })
@@ -153,7 +164,11 @@ describe('ConsumoForm (User Story 2, quickstart Scenarios 2-3)', () => {
       cantidad: 3,
       usuarioId: 'user-1',
     })
-    expect(await screen.findByText(/registrado/)).toBeInTheDocument()
+    // Spec 025: el éxito lo anuncia el aviso con "Deshacer" (R3).
+    expect(useAvisosStore.getState().avisos[0]).toMatchObject({
+      tipo: 'consumo',
+      detalle: 'Consumido 3 mL de Anestesia local',
+    })
   })
 
   it('rechaza el sobreconsumo sin escribir movimiento y sin cambiar el stock (FR-007, SC-003)', async () => {

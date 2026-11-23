@@ -40,7 +40,7 @@ import { useAuthStore } from '../../src/stores/authStore'
 import { useInventoryStore } from '../../src/stores/inventoryStore'
 import { EditarInsumoForm } from '../../src/features/insumos/components/EditarInsumoForm'
 import { InsumoDetalle } from '../../src/features/insumos/components/InsumoDetalle'
-import { consumirUno } from '../../src/features/insumos/lib/consumoRapido'
+import { registrarConsumo } from '../../src/features/insumos/lib/consumo'
 import { trasladar } from '../../src/features/insumos/lib/traslado'
 import {
   computeStockLote,
@@ -232,8 +232,8 @@ describe('stock tras convertir (R4)', () => {
     await convertirUnidadConsumo('g', { hasta: 'unidad', factor: 100, actualizarPresentacion: true })
   })
 
-  it('"Consumir 1" descuenta una unidad, no una caja', async () => {
-    await consumirUno(insumosT.all()[0])
+  it('consumir 1 descuenta una unidad, no una caja (spec 025: por la hoja)', async () => {
+    await registrarConsumo({ insumo: insumosT.all()[0], loteId: 'l1', cantidad: 1 })
     const consumo = movimientosT.all().find((m) => m.tipo === 'consumo')
     expect(consumo).toMatchObject({ cantidad: 1, unidad: 'unidad' })
     expect(computeStockLote(await movimientosNormalizadosDeLote('l1'))).toBe(299)

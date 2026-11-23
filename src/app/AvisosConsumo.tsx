@@ -35,9 +35,11 @@ function textoAviso(aviso: Aviso): string {
       : `Registrado: ${aviso.insumoNombre}`
   }
   if (aviso.estado === 'revertido') return 'Consumo revertido'
-  return `Consumido 1 ${aviso.unidadMedida ?? ''} de ${aviso.insumoNombre}`.replace(
-    '  ',
-    ' ',
+  // Spec 025: el consumo trae su cantidad real en `detalle`
+  // ("Consumido 4 cartuchos de Anestesia").
+  return (
+    aviso.detalle ??
+    `Consumido ${aviso.unidadMedida ?? ''} de ${aviso.insumoNombre}`.replace('  ', ' ')
   )
 }
 

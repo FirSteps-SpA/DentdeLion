@@ -30,10 +30,11 @@ vi.mock('../../../src/stores/authStore', () => ({
 
 import { db } from '../../../src/lib/db'
 import {
-  consumirUno,
   deshacerConsumo,
-  selectLoteConsumoRapido,
-} from '../../../src/features/insumos/lib/consumoRapido'
+  disponibilidadConsumo,
+  registrarConsumo,
+  StockInsuficienteConsumoError,
+} from '../../../src/features/insumos/lib/consumo'
 import { computeStockLote } from '../../../src/features/insumos/lib/stock'
 import { useAvisosStore } from '../../../src/stores/avisosStore'
 import { LUGAR_1, TENANT_1 } from '../../helpers/tenancy'
@@ -119,85 +120,30 @@ const insumo: Insumo = {
 // Spec 014: un tenant de un solo lugar, como la clínica original.
 beforeEach(usarLugar1)
 
-describe('selectLoteConsumoRapido (FR-002/FR-003)', () => {
-  it('picks the earliest-expiring vigente lot', () => {
-    const r = selectLoteConsumoRapido(
-      [
-        { lote: lote('tarde', fecha(90, HOY)), stockDisponible: 5 },
-        { lote: lote('pronto', fecha(10, HOY)), stockDisponible: 3 },
-      ],
-      HOY,
-    )
-    expect(r).toEqual({
-      ok: true,
-      lote: expect.objectContaining({ id: 'pronto' }),
-    })
-  })
-
-  it('skips an expired lot even though it expires first (Clarification Q1)', () => {
-    const r = selectLoteConsumoRapido(
-      [
-        { lote: lote('caducado', fecha(-3, HOY)), stockDisponible: 2 },
-        { lote: lote('vigente', fecha(30, HOY)), stockDisponible: 4 },
-      ],
-      HOY,
-    )
-    expect(r.ok && r.lote.id).toBe('vigente')
-  })
-
-  it('treats a lot expiring today as vigente', () => {
-    const r = selectLoteConsumoRapido(
-      [{ lote: lote('hoy', fecha(0, HOY)), stockDisponible: 1 }],
-      HOY,
-    )
-    expect(r.ok && r.lote.id).toBe('hoy')
-  })
-
-  it('uses undated lots only after dated ones', () => {
-    const r = selectLoteConsumoRapido(
-      [
-        { lote: lote('sin-fecha', null), stockDisponible: 9 },
-        { lote: lote('con-fecha', fecha(200, HOY)), stockDisponible: 1 },
-      ],
-      HOY,
-    )
-    expect(r.ok && r.lote.id).toBe('con-fecha')
-  })
-
-  it('skips a lot with less than one unit for the next one that covers it', () => {
-    const r = selectLoteConsumoRapido(
-      [
-        { lote: lote('medio', fecha(5, HOY)), stockDisponible: 0.5 },
-        { lote: lote('entero', fecha(50, HOY)), stockDisponible: 2 },
-      ],
-      HOY,
-    )
-    expect(r.ok && r.lote.id).toBe('entero')
-  })
-
-  it("returns 'solo-caducado' when only expired lots have stock", () => {
-    const r = selectLoteConsumoRapido(
-      [{ lote: lote('caducado', fecha(-1, HOY)), stockDisponible: 4 }],
-      HOY,
-    )
-    expect(r).toEqual({ ok: false, motivo: 'solo-caducado' })
-  })
-
-  it("returns 'sin-stock' when no lot has at least one unit", () => {
-    expect(selectLoteConsumoRapido([], HOY)).toEqual({
-      ok: false,
-      motivo: 'sin-stock',
-    })
+// Spec 025 (research.md R2): el botón "Consumir" se habilita con cualquier
+// stock > 0, incluso fraccionario o solo vencido (Clarifications).
+describe('disponibilidadConsumo (FR-008, FR-009)', () => {
+  it('habilita con stock fraccionario menor que 1', () => {
     expect(
-      selectLoteConsumoRapido(
-        [{ lote: lote('medio', fecha(5, HOY)), stockDisponible: 0.4 }],
-        HOY,
-      ),
+      disponibilidadConsumo([{ lote: lote('a', fecha(10, HOY)), stockDisponible: 0.5 }]),
+    ).toEqual({ ok: true })
+  })
+
+  it('habilita con solo stock vencido', () => {
+    expect(
+      disponibilidadConsumo([{ lote: lote('a', fecha(-3, HOY)), stockDisponible: 2 }]),
+    ).toEqual({ ok: true })
+  })
+
+  it("'sin-stock' cuando ningún lote tiene stock", () => {
+    expect(
+      disponibilidadConsumo([{ lote: lote('a', fecha(10, HOY)), stockDisponible: 0 }]),
     ).toEqual({ ok: false, motivo: 'sin-stock' })
+    expect(disponibilidadConsumo([])).toEqual({ ok: false, motivo: 'sin-stock' })
   })
 })
 
-describe('consumirUno / deshacerConsumo (FR-004, FR-008)', () => {
+describe('registrarConsumo / deshacerConsumo (FR-007)', () => {
   beforeEach(() => {
     lotesTable.seed([])
     movimientosTable.seed([])
@@ -216,67 +162,84 @@ describe('consumirUno / deshacerConsumo (FR-004, FR-008)', () => {
     )
   }
 
-  it('writes one consumo of 1 on the right lot, vibrates and adds a notice', async () => {
+  it('escribe un consumo por la cantidad, vibra y agrega un aviso con la cantidad real', async () => {
     const vibrate = vi.fn()
     Object.defineProperty(navigator, 'vibrate', {
       value: vibrate,
       configurable: true,
     })
     lotesTable.seed([lote('a', fecha(10)), lote('b', fecha(60))])
-    movimientosTable.seed([ingreso('a', 3), ingreso('b', 5)])
+    movimientosTable.seed([ingreso('a', 5), ingreso('b', 5)])
 
-    const movimiento = await consumirUno(insumo)
+    const movimiento = await registrarConsumo({ insumo, loteId: 'a', cantidad: 4 })
 
     expect(movimiento).toMatchObject({
       tipo: 'consumo',
       loteId: 'a',
-      cantidad: 1,
+      cantidad: 4,
+      unidad: 'caja',
+      lugarId: LUGAR_1,
       usuarioId: 'user-1',
     })
-    expect(stock('a')).toBe(2)
+    expect(stock('a')).toBe(1)
     expect(vibrate).toHaveBeenCalledOnce()
-    expect(useAvisosStore.getState().avisos).toHaveLength(1)
+    const avisos = useAvisosStore.getState().avisos
+    expect(avisos).toHaveLength(1)
+    expect(avisos[0]).toMatchObject({
+      tipo: 'consumo',
+      movimientoId: movimiento.id,
+      detalle: 'Consumido 4 cajas de Anestesia',
+    })
   })
 
-  it('never overdraws a 1-unit lot on two concurrent taps (spec Edge Cases)', async () => {
+  it('rechaza sin escribir si el stock del lote no alcanza', async () => {
     lotesTable.seed([lote('a', fecha(10))])
-    movimientosTable.seed([ingreso('a', 1)])
+    movimientosTable.seed([ingreso('a', 2)])
 
-    const [primero, segundo] = await Promise.all([
-      consumirUno(insumo),
-      consumirUno(insumo),
-    ])
-
-    expect([primero, segundo].filter(Boolean)).toHaveLength(1)
-    expect(stock('a')).toBe(0)
+    await expect(
+      registrarConsumo({ insumo, loteId: 'a', cantidad: 3 }),
+    ).rejects.toBeInstanceOf(StockInsuficienteConsumoError)
+    expect(movimientosTable.all()).toHaveLength(1)
+    expect(useAvisosStore.getState().avisos).toHaveLength(0)
   })
 
-  it('returns null and writes nothing when only expired stock remains', async () => {
+  it('permite consumir un lote vencido elegido explícitamente', async () => {
     lotesTable.seed([lote('viejo', fecha(-5))])
     movimientosTable.seed([ingreso('viejo', 3)])
 
-    expect(await consumirUno(insumo)).toBeNull()
-    expect(movimientosTable.all()).toHaveLength(1)
+    await registrarConsumo({ insumo, loteId: 'viejo', cantidad: 1 })
+
+    expect(stock('viejo')).toBe(2)
   })
 
-  it('undo writes one linked ajuste and restores the stock; a second undo does nothing', async () => {
+  it('dos registros simultáneos no sobregiran un lote de 1 (spec Edge Cases)', async () => {
+    lotesTable.seed([lote('a', fecha(10))])
+    movimientosTable.seed([ingreso('a', 1)])
+
+    const resultados = await Promise.allSettled([
+      registrarConsumo({ insumo, loteId: 'a', cantidad: 1 }),
+      registrarConsumo({ insumo, loteId: 'a', cantidad: 1 }),
+    ])
+
+    expect(resultados.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
+    expect(stock('a')).toBe(0)
+  })
+
+  it('deshacer escribe un ajuste vinculado y restaura el stock; un segundo deshacer no hace nada', async () => {
     lotesTable.seed([lote('a', fecha(10))])
     movimientosTable.seed([ingreso('a', 4)])
-    const consumo = (await consumirUno(insumo))!
+    const consumo = await registrarConsumo({ insumo, loteId: 'a', cantidad: 3 })
 
     const reversion = await deshacerConsumo(consumo.id)
     const otra = await deshacerConsumo(consumo.id)
 
     expect(reversion).toMatchObject({
       tipo: 'ajuste',
-      cantidad: 1,
+      cantidad: 3,
       loteId: 'a',
       movimientoOrigenId: consumo.id,
     })
     expect(otra).toBeNull()
     expect(stock('a')).toBe(4)
-    expect(
-      movimientosTable.all().filter((m) => m.tipo === 'consumo'),
-    ).toHaveLength(1)
   })
 })

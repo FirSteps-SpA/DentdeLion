@@ -1,13 +1,12 @@
 import type { ReactNode } from 'react'
 import type { Insumo, UsuarioActual } from '../../../lib/db'
-import { ChevronRight, PackageMinus, Pencil, Trash, Traslado } from '../../../components/icons'
+import { ChevronRight, Pencil, Trash, Traslado } from '../../../components/icons'
 import { BottomSheet } from '../../../components/ui/BottomSheet'
 
 export interface InsumoAccionesMenuProps {
   insumo: Insumo
   rol: UsuarioActual['rol'] | undefined
   onVerDetalle: () => void
-  onConsumirOtraCantidad: () => void
   /** Spec 014 US6 — solo con 2 o más lugares activos (US6-5). */
   onTrasladar?: () => void
   onEditar: () => void
@@ -49,7 +48,6 @@ export function InsumoAccionesMenu({
   insumo,
   rol,
   onVerDetalle,
-  onConsumirOtraCantidad,
   onTrasladar,
   onEditar,
   onEliminar,
@@ -64,12 +62,6 @@ export function InsumoAccionesMenu({
         icono={<ChevronRight size={18} className="text-primary" />}
       >
         Ver detalle
-      </Opcion>
-      <Opcion
-        onClick={onConsumirOtraCantidad}
-        icono={<PackageMinus size={18} className="text-primary" />}
-      >
-        Consumir otra cantidad
       </Opcion>
       {onTrasladar && (
         <Opcion onClick={onTrasladar} icono={<Traslado size={18} className="text-primary" />}>

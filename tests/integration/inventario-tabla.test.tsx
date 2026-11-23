@@ -194,14 +194,21 @@ describe('inventario en tabla (spec 013 US5)', () => {
     expect(fila('Eyectores')).toBeInTheDocument()
   })
 
-  it('"Consumir 1" registra el consumo y queda deshabilitado sin stock', async () => {
+  it('"Consumir" abre la hoja con el campo enfocado y queda deshabilitado sin stock (spec 025)', async () => {
     render(<InventarioView />)
 
     fireEvent.click(
       within(fila('Guantes')).getByRole('button', {
-        name: 'Consumir 1 caja de Guantes nitrilo M',
+        name: 'Consumir Guantes nitrilo M',
       }),
     )
+    const panel = screen.getByRole('dialog', { name: 'Consumir Guantes nitrilo M' })
+    // R4: en desktop la cantidad abre enfocada (con el 1 listo para reemplazar).
+    const cantidad = within(panel).getByLabelText(/Cantidad a consumir/)
+    expect(cantidad).toHaveFocus()
+    expect(cantidad).toHaveValue(1)
+    await within(panel).findByLabelText(/Lote/)
+    fireEvent.click(within(panel).getByRole('button', { name: 'Confirmar consumo' }))
 
     await waitFor(() =>
       expect(movimientosT.all().some((m) => m.tipo === 'consumo')).toBe(true),
@@ -241,7 +248,7 @@ describe('inventario en tabla (spec 013 US5)', () => {
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
     expect(
       screen.getByRole('button', {
-        name: 'Consumir 1 caja de Guantes nitrilo M',
+        name: 'Consumir Guantes nitrilo M',
       }),
     ).toBeInTheDocument()
   })

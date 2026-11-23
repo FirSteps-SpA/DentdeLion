@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { deshacerConsumo } from '../features/insumos/lib/consumoRapido'
+import { deshacerConsumo } from '../features/insumos/lib/consumo'
 import { deshacerTraslado } from '../features/insumos/lib/traslado'
 import { anularTratamiento } from '../features/tratamientos/lib/registro'
 
@@ -36,7 +36,7 @@ export interface Aviso {
   loteId: string | null
   insumoNombre: string
   unidadMedida: string | null
-  /** Spec 014 — texto del aviso de traslado ("Trasladado 4 cajas a Las Condes"). */
+  /** Spec 014 — texto del aviso de traslado ("Trasladado 4 cajas a Las Condes"); spec 025, del consumo ("Consumido 4 cartuchos de Anestesia"). */
   detalle?: string
   estado: 'pendiente' | 'revertido'
   expiraEn: number
