@@ -422,3 +422,7 @@ verify_jwt = false
 # Spec 029: estimación de materiales con IA (solo administración, con sesión).
 [functions.estimar-materiales]
 verify_jwt = true
+
+# Spec 031: administración de la plataforma (solo operadores, con sesión).
+[functions.plataforma]
+verify_jwt = true
