@@ -95,7 +95,7 @@ describe('KPIs del período (US1)', () => {
     expect(screen.getByRole('heading', { name: 'Reportes' })).toBeInTheDocument()
     expect(screen.getByText('Clínica Providencia')).toBeInTheDocument()
     expect(within(tarjeta('Producción')).getByText('$120.000')).toBeInTheDocument()
-    expect(within(tarjeta('Producción')).getByText('↑ 167 % vs. mes anterior completo')).toBeInTheDocument()
+    expect(within(tarjeta('Producción')).getByText('↑ 167 % vs. mismos días del mes anterior')).toBeInTheDocument()
     // 2 × $650 + 2 g × $1.200; el consumo deshecho no suma.
     expect(within(tarjeta('Gasto en materiales')).getByText('$3.700')).toBeInTheDocument()
     // 40 % de $120.000; el neto tras materiales va como dato adicional.

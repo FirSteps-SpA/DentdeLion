@@ -24,7 +24,7 @@ export interface RangoPeriodo extends Rango {
   /** Período de comparación (FR-005); `null` si empieza antes de la ventana. */
   anterior: Rango | null
   etiqueta: string
-  /** "vs. mes anterior completo", … — texto de la variación. */
+  /** "vs. mismos días del mes anterior", … — texto de la variación. */
   etiquetaComparacion: string
   /** Meses de la serie Gastos mensuales (6, o 12 en "Este año"), recortados a la ventana. */
   meses: MesCalendario[]
@@ -82,9 +82,16 @@ export function rangoPeriodo(periodo: Periodo, ahora: Date): RangoPeriodo {
     case 'esteMes':
       desde = inicioMes(anio, mes)
       hasta = inicioMes(anio, mes + 1)
-      anterior = { desde: inicioMes(anio, mes - 1), hasta: desde }
+      // Lo que va del mes contra los mismos días del mes anterior (pedido
+      // 2026-11-23): contra el mes completo, cada inicio de mes salía a la
+      // baja. Del día 1 al día de hoy inclusive; si el mes anterior es más
+      // corto, hasta su último día.
+      anterior = {
+        desde: inicioMes(anio, mes - 1),
+        hasta: new Date(Math.min(new Date(anio, mes - 1, ahora.getDate() + 1).getTime(), desde.getTime())),
+      }
       etiqueta = 'Este mes'
-      etiquetaComparacion = 'vs. mes anterior completo'
+      etiquetaComparacion = 'vs. mismos días del mes anterior'
       ultimoMes = desde
       break
     case 'mesAnterior':

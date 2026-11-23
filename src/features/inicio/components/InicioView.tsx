@@ -22,9 +22,11 @@ import { useAuthStore } from '../../../stores/authStore'
 import { resumenInicioPorLugares, type AlertaInicio } from '../lib/resumenInicio'
 import { useVistasDeLugar } from '../../insumos/lib/vistaLugar'
 import { ChipLugar } from '../../../app/ChipLugar'
-import { useValorInventario } from '../../reportes/useReportes'
-import { formatearMonto, textoVariacion } from '../../reportes/lib/formato'
-import type { ValorInventario } from '../../reportes/lib/valorInventario'
+import { useReportes } from '../../reportes/useReportes'
+import { montoKpi, notasIncompleto, variacionKpi } from '../../reportes/lib/formato'
+import type { ResumenReportes } from '../../reportes/lib/kpis'
+import type { Periodo } from '../../reportes/lib/periodos'
+import { ETIQUETA_GANANCIA_PROFESIONAL, ETIQUETA_NETO } from '../../tratamientos/lib/montos'
 import { etiquetaStockBajo } from '../../alertas/lib/etiquetaStock'
 import { formatearFechaCaducidad, textoTiempoCaducidad } from '../../alertas/lib/textoCaducidad'
 import { RenglonAlerta } from '../../alertas/components/RenglonAlerta'
@@ -141,10 +143,13 @@ function VerTodas({ texto, onClick }: { texto: string; onClick: () => void }) {
  * un vencimiento, de solo lectura.
  *
  * Spec 027 (US2, FR-006..FR-010): encabezado con el diente y destellos,
- * KPI con tinte, ícono de fondo y "Ver detalle", "Valor de inventario"
- * destacada, secciones con ícono, vencimientos en línea de tiempo y sin la
+ * KPI con tinte, ícono de fondo y "Ver detalle", la tarjeta destacada
+ * (hoy, la ganancia del mes), secciones con ícono, vencimientos en línea de tiempo y sin la
  * tarjeta "¿Qué necesitas comprar?".
  */
+/** Constante: `useReportes` memoriza por la clave del período. */
+const ESTE_MES: Periodo = { tipo: 'esteMes' }
+
 export function InicioView({ onNavegar }: InicioViewProps) {
   const usuario = useAuthStore((s) => s.usuario)
   // Spec 014: el lugar activo; en "Todos", la suma de los lugares (FR-013).
@@ -163,7 +168,7 @@ export function InicioView({ onNavegar }: InicioViewProps) {
   const primerNombre = usuario?.nombre.trim().split(/\s+/)[0] ?? ''
   const hoy = fecha.format(new Date())
 
-  const valorInventario = useValorInventario()
+  const gananciaMes = useReportes(ESTE_MES)
 
   const [detalle, setDetalle] = useState<DetalleAbierto | null>(null)
   const cerrarDetalle = useCallback(() => setDetalle(null), [])
@@ -218,12 +223,9 @@ export function InicioView({ onNavegar }: InicioViewProps) {
         aria-label="Resumen"
         className="grid grid-cols-2 gap-3 desk:grid-cols-5 desk:gap-6"
       >
-        {valorInventario && (
+        {gananciaMes && (
           <div className="col-span-2 grid desk:col-span-1">
-            <TarjetaValorInventario
-              valor={valorInventario}
-              onClick={() => onNavegar('reportes')}
-            />
+            <TarjetaGananciaMes resumen={gananciaMes} onClick={() => onNavegar('reportes')} />
           </div>
         )}
         {kpis.map(({ titulo, valor, Icono, tono, destino, seccion }) => (
@@ -325,39 +327,41 @@ export function InicioView({ onNavegar }: InicioViewProps) {
 }
 
 /**
- * Spec 017 (US4, FR-015, UI §4) — Valor de inventario (DS §20): Σ stock ×
- * costo de los lotes no caducados del lugar activo, con su variación frente al
- * cierre del mes anterior en tono neutro (subir o bajar no es bueno ni malo
- * por sí mismo). Lleva a Reportes.
+ * Inicio muestra la ganancia del profesional del mes en curso (pedido
+ * 2026-11-23, en lugar del valor de inventario, que pasó a Reportes). Es la
+ * misma cifra que la tarjeta de Reportes con "Este mes", con su variación y
+ * el neto tras materiales. Lleva a Reportes.
  */
-function TarjetaValorInventario({
-  valor,
+function TarjetaGananciaMes({
+  resumen,
   onClick,
 }: {
-  valor: ValorInventario
+  resumen: ResumenReportes
   onClick: () => void
 }) {
-  const sinPrecios = valor.lotesSinPrecio > 0 && valor.valor === 0
-  const monto = sinPrecios
-    ? 'Sin precios'
-    : valor.lotesSinPrecio > 0
-      ? `desde ${formatearMonto(valor.valor)}`
-      : formatearMonto(valor.valor)
-  const nota = sinPrecios
-    ? 'Ingresa el precio al recibir compras'
-    : valor.lotesSinPrecio > 0
-      ? `${valor.lotesSinPrecio} ${valor.lotesSinPrecio === 1 ? 'lote sin precio' : 'lotes sin precio'}`
-      : undefined
-  const variacion = sinPrecios ? null : textoVariacion(valor.variacion, 'vs. mes anterior')
+  const kpi = resumen.gananciaProfesional
+  const monto = montoKpi(kpi.valor, kpi.incompleto)
+  const variacion = variacionKpi(kpi, resumen.rango.etiquetaComparacion)
+  const notas = [
+    `Este mes · ${ETIQUETA_NETO}: ${montoKpi(resumen.ganancia.valor, resumen.ganancia.incompleto)}`,
+    ...notasIncompleto(kpi.incompleto),
+  ]
   return (
     <KpiCard
-      titulo="Valor de inventario"
+      titulo={ETIQUETA_GANANCIA_PROFESIONAL}
       valor={monto}
       Icono={Wallet}
       variante="destacada"
-      variacion={variacion ? { texto: variacion, tono: 'muted' } : undefined}
-      nota={nota}
-      ariaLabel={[`Valor de inventario: ${monto}`, variacion, nota, 'Ver Reportes']
+      tono={kpi.valor < 0 ? 'danger' : 'neutro'}
+      variacion={variacion}
+      nota={
+        <span className="flex flex-col">
+          {notas.map((nota) => (
+            <span key={nota}>{nota}</span>
+          ))}
+        </span>
+      }
+      ariaLabel={[`${ETIQUETA_GANANCIA_PROFESIONAL} este mes: ${monto}`, variacion?.texto, ...notas, 'Ver Reportes']
         .filter(Boolean)
         .join('. ')}
       onClick={onClick}

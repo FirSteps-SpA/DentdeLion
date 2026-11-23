@@ -28,7 +28,7 @@ export function Card({ as: Component = 'div', className = '', ...props }: CardPr
 }
 
 export interface KpiVariacion {
-  /** "↑ 8 % vs. mes anterior completo", "Nuevo", "Sin datos del período anterior"… */
+  /** "↑ 8 % vs. mismos días del mes anterior", "Nuevo", "Sin datos del período anterior"… */
   texto: string
   /** `success`/`danger` cuando subir o bajar es bueno o malo; `muted` si es solo informativo. */
   tono: 'success' | 'danger' | 'muted'
