@@ -47,7 +47,7 @@ export const AYUDAS: Record<IdAyuda, Ayuda> = {
   inicio: {
     titulo: 'Inicio',
     paraQue:
-      'Un resumen del lugar de trabajo activo: qué hay que comprar, qué está por vencer, las alertas y el valor del inventario.',
+      'Un resumen del lugar de trabajo activo: la ganancia del profesional en el mes, qué hay que comprar, qué está por vencer y las alertas.',
     tareas: [
       {
         nombre: 'Ver el detalle de un número',
@@ -67,7 +67,7 @@ export const AYUDAS: Record<IdAyuda, Ayuda> = {
     consejos: [
       {
         texto:
-          'Si "Valor de inventario" dice "Sin precios", ingresa el precio al recibir compras: el valor solo suma los lotes con precio.',
+          'La ganancia del mes es la misma de Reportes con "Este mes"; toca la tarjeta para ver el detalle y el valor del inventario.',
       },
       {
         texto: 'Todo lo que ves funciona sin conexión; se sincroniza cuando vuelve la red.',
@@ -222,7 +222,7 @@ export const AYUDAS: Record<IdAyuda, Ayuda> = {
   reportes: {
     titulo: 'Reportes',
     paraQue:
-      'Indicadores y gráficos del período elegido: gasto en materiales, producción, ganancia del profesional y consumo.',
+      'Indicadores y gráficos del período elegido (producción, gasto en materiales, ganancia del profesional y consumo) y el valor del inventario de hoy.',
     tareas: [
       {
         nombre: 'Cambiar el período',
@@ -235,6 +235,10 @@ export const AYUDAS: Record<IdAyuda, Ayuda> = {
     ],
     consejos: [
       { texto: 'Los reportes respetan el lugar activo; elige "Todos" para ver el total.' },
+      {
+        texto:
+          'Si "Valor de inventario" dice "Sin precios", ingresa el precio al recibir compras: solo suma los lotes con precio.',
+      },
       {
         texto: '"Por categoría de tratamiento" agrupa la producción por las categorías del catálogo.',
       },
