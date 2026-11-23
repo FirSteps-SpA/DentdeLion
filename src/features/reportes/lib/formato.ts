@@ -11,7 +11,7 @@ export function formatearMonto(monto: number): string {
   return monto < 0 ? `−${formatearCLP(-monto)}` : formatearCLP(monto)
 }
 
-/** "↑ 8 % vs. mes anterior completo", "Nuevo", "Sin datos del período anterior". */
+/** "↑ 8 % vs. mismos días del mes anterior", "Nuevo", "Sin datos del período anterior". */
 export function textoVariacion(v: Variacion, comparacion: string): string | null {
   if (v === null) return null
   if (v.tipo === 'sin-datos') return 'Sin datos del período anterior'

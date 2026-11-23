@@ -63,7 +63,9 @@ describe('KPIs del período (US1)', () => {
         realizado(45000, 14520, iso(2026, 9, 5)),
         realizado(30000, 9000, iso(2026, 9, 7)),
         realizado(99999, 99999, iso(2026, 9, 8), { anuladoEn: iso(2026, 9, 9) }),
-        realizado(45000, 14520, iso(2026, 8, 20)),
+        realizado(45000, 14520, iso(2026, 8, 12)),
+        // Después del 15 de septiembre: fuera de los mismos días del mes anterior.
+        realizado(80000, 20000, iso(2026, 8, 20)),
       ]),
       ESTE_MES,
       LUGAR_1,

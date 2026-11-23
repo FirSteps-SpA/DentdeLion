@@ -72,7 +72,8 @@ describe('ganancia del mes en Inicio', () => {
       // Octubre (mes en curso): 2 × $100.000 al 40 %.
       realizado(100000, 30000, iso(2026, 9, 3)),
       realizado(100000, 30000, iso(2026, 9, 14)),
-      // Septiembre: $100.000 al 40 %.
+      // Septiembre hasta el 15 (mismos días): $100.000 al 40 %; el del 20 no compara.
+      realizado(100000, 30000, iso(2026, 8, 10)),
       realizado(100000, 30000, iso(2026, 8, 20)),
     ])
     const onNavegar = vi.fn()

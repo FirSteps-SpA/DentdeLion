@@ -230,7 +230,10 @@ export const AYUDAS: Record<IdAyuda, Ayuda> = {
       },
       {
         nombre: 'Comparar con el mes anterior',
-        pasos: ['Cada indicador muestra la variación respecto del período anterior.'],
+        pasos: [
+          'Cada indicador muestra la variación respecto del período anterior.',
+          'En "Este mes", se compara con los mismos días del mes anterior.',
+        ],
       },
     ],
     consejos: [
