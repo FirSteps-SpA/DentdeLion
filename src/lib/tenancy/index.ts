@@ -1,4 +1,5 @@
 import {
+  type CategoriaTratamiento,
   db,
   type CambioInsumo,
   type CambioLote,
@@ -36,6 +37,8 @@ interface TablasPorTenant {
   proveedores: Proveedor
   /** Spec 023 (Dexie v14). */
   marcas: Marca
+  /** Spec 026 (Dexie v15). */
+  categoriasTratamiento: CategoriaTratamiento
 }
 
 /** Lo mínimo de una tabla Dexie indexada por `tenantId` que necesita `delTenant`. */

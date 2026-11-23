@@ -1,16 +1,23 @@
-import { formatearCantidad } from '../../../../lib/unidades'
 import { formatearMonto } from '../../lib/formato'
-import type { MaterialMasUsado } from '../../lib/kpis'
 import { COLOR_SERIE } from './colores'
 import { Detalle } from './Detalle'
 import { useSeleccion } from './seleccion'
 
+/** Una fila del gráfico: nombre, monto y, opcionalmente, un detalle ("3 cajas"). */
+export interface BarraHorizontal {
+  id: string
+  nombre: string
+  monto: number
+  detalle?: string
+  dadoDeBaja?: boolean
+}
+
 /**
  * Spec 017 (FR-011, UI §3) — Materiales más utilizados: cada fila (nombre ·
  * cantidad, barra y monto) es un botón ≥ 48 px que la resalta; los dados de
- * baja llevan su chip.
+ * baja llevan su chip. Spec 026: también "Por categoría de tratamiento".
  */
-export function HorizontalBarChart({ datos }: { datos: MaterialMasUsado[] }) {
+export function HorizontalBarChart({ datos }: { datos: BarraHorizontal[] }) {
   const { seleccion, alternar, atenuado } = useSeleccion()
   const maximo = Math.max(...datos.map((d) => d.monto), 1)
   const elegido = seleccion === null ? null : datos[seleccion]
@@ -18,7 +25,7 @@ export function HorizontalBarChart({ datos }: { datos: MaterialMasUsado[] }) {
     <div className="flex flex-col gap-1">
       <ul className="flex flex-col gap-1">
         {datos.map((d, i) => (
-          <li key={d.insumoId}>
+          <li key={d.id}>
             <button
               type="button"
               aria-pressed={seleccion === i}
@@ -29,7 +36,7 @@ export function HorizontalBarChart({ datos }: { datos: MaterialMasUsado[] }) {
               <span className="flex w-full items-baseline justify-between gap-2 text-body">
                 <span className="text-text">
                   {d.nombre}
-                  <span className="text-text-muted"> · {formatearCantidad(d.cantidad, d.unidad)}</span>
+                  {d.detalle && <span className="text-text-muted"> · {d.detalle}</span>}
                   {d.dadoDeBaja && (
                     <span className="ml-2 rounded-pill bg-warning-30-bg px-2 py-0.5 text-caption text-warning-30-text">
                       Dado de baja
@@ -51,7 +58,7 @@ export function HorizontalBarChart({ datos }: { datos: MaterialMasUsado[] }) {
       <Detalle
         texto={
           elegido
-            ? `${elegido.nombre}: ${formatearMonto(elegido.monto)} · ${formatearCantidad(elegido.cantidad, elegido.unidad)}`
+            ? `${elegido.nombre}: ${formatearMonto(elegido.monto)}${elegido.detalle ? ` · ${elegido.detalle}` : ''}`
             : null
         }
       />

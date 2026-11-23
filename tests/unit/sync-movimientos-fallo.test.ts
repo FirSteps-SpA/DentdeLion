@@ -17,6 +17,8 @@ vi.mock('../../src/lib/db', async () => {
       configuracionAlertas: new MemoryTable(),
       proveedores: new MemoryTable(),
       marcas: new MemoryTable(),
+      // Spec 026: el ciclo de sync sube y baja las categorías de tratamientos.
+      categoriasTratamiento: new MemoryTable(),
       cambiosInsumo: new MemoryTable(),
       cambiosLote: new MemoryTable(),
       tratamientos: new MemoryTable(),

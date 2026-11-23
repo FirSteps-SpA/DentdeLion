@@ -16,6 +16,8 @@ export interface TratamientoProyectado {
   materiales: MaterialTratamiento[]
   /** Precio por lugar; sin entrada = sin precio en ese lugar (Clarifications Q1). */
   precios: Map<string, number>
+  /** Spec 026 (R3): categoría del catálogo, o `null` ("Sin categoría"). */
+  categoriaId: string | null
   creadoEn: string
   creadoPor: string
 }
@@ -49,6 +51,7 @@ export function proyectarTratamientos(
     let nombre: string | null = null
     let activo = true
     let materiales: MaterialTratamiento[] = []
+    let categoriaId: string | null = null
     const precios = new Map<string, number>()
     for (const cambio of porTratamiento.get(fila.id) ?? []) {
       switch (cambio.campo) {
@@ -60,6 +63,9 @@ export function proyectarTratamientos(
           break
         case 'materiales':
           materiales = Array.isArray(cambio.valorNuevo) ? cambio.valorNuevo : []
+          break
+        case 'categoria':
+          categoriaId = typeof cambio.valorNuevo === 'string' ? cambio.valorNuevo : null
           break
         case 'precio':
           if (!cambio.lugarId) break
@@ -77,6 +83,7 @@ export function proyectarTratamientos(
       activo,
       materiales,
       precios,
+      categoriaId,
       creadoEn: fila.creadoEn,
       creadoPor: fila.creadoPor,
     })
@@ -96,4 +103,55 @@ export function porcentajesPorLugar(cambios: CambioTratamiento[]): Map<string, n
     else porcentajes.delete(cambio.lugarId)
   }
   return porcentajes
+}
+
+/** Clave de `porcentajesPorCategoria`. */
+export function claveCategoriaLugar(categoriaId: string, lugarId: string): string {
+  return `${categoriaId}|${lugarId}`
+}
+
+/**
+ * Spec 026 (R4, FR-009) — % propio de cada categoría en cada lugar: el último
+ * cambio `porcentajeCategoria` del par; `null` lo borra (vuelve al general).
+ */
+export function porcentajesPorCategoria(cambios: CambioTratamiento[]): Map<string, number> {
+  const porcentajes = new Map<string, number>()
+  for (const cambio of vigentesOrdenados(cambios)) {
+    if (cambio.campo !== 'porcentajeCategoria' || !cambio.lugarId || !cambio.categoriaId) continue
+    const clave = claveCategoriaLugar(cambio.categoriaId, cambio.lugarId)
+    if (typeof cambio.valorNuevo === 'number') porcentajes.set(clave, cambio.valorNuevo)
+    else porcentajes.delete(clave)
+  }
+  return porcentajes
+}
+
+export interface PorcentajeAplicable {
+  valor: number | null
+  /** De dónde viene (FR-012): la categoría en el lugar, el general del lugar o ninguno. */
+  origen: 'categoria' | 'lugar' | null
+}
+
+/**
+ * Spec 026 (R5, FR-010) — % que aplica a un tratamiento en un lugar: el de su
+ * categoría en ese lugar; si no, el general del lugar; si tampoco, ninguno.
+ * Una categoría desactivada sigue aplicando (Edge Cases). Única regla para lo
+ * que se muestra y lo que se guarda en el registro.
+ */
+export function porcentajeAplicable({
+  categoriaId,
+  lugarId,
+  porcentajesLugar,
+  porcentajesCategoria,
+}: {
+  categoriaId: string | null
+  lugarId: string
+  porcentajesLugar: Map<string, number>
+  porcentajesCategoria: Map<string, number>
+}): PorcentajeAplicable {
+  if (categoriaId) {
+    const propio = porcentajesCategoria.get(claveCategoriaLugar(categoriaId, lugarId))
+    if (propio !== undefined) return { valor: propio, origen: 'categoria' }
+  }
+  const general = porcentajesLugar.get(lugarId)
+  return general !== undefined ? { valor: general, origen: 'lugar' } : { valor: null, origen: null }
 }

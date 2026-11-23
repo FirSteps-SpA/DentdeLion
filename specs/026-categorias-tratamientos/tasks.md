@@ -14,6 +14,39 @@ description: "Task list for 026-categorias-tratamientos"
 `tests/helpers/`. Las pruebas de cada historia se escriben primero y deben fallar antes de
 implementar.
 
+**Desvíos al implementar**:
+
+- **Línea base** (T001): la de la spec 025 (1140 pruebas; ~10–17 fallan por timeout de 5 s con la
+  máquina cargada, distintas en cada corrida). `test:rls` se corrió recién con la migración aplicada,
+  porque la pila local de VetApp ocupaba los puertos; se detuvo con permiso.
+- **Ajustes**: la sección existente "Categorías" pasa a "Categorías de insumos" para no confundirla
+  con la nueva (pruebas de `ajustes`, `navegacion-responsiva` y `secciones` ajustadas). La nueva va
+  después de "Lugares de trabajo", con ícono `Stethoscope`.
+- **Interruptor "Activa"**: el `Switch` solo tiene `aria-label`; en el recorrido no se veía texto, así
+  que la hoja muestra "Activa: se ofrece al asignar" / "Desactivada: …" junto a él (FR-018).
+- **Reportes**: `HorizontalBarChart` pasó a recibir filas genéricas (`id`, `nombre`, `monto`,
+  `detalle`); "Materiales más utilizados" le pasa la cantidad como `detalle` y "Por categoría de
+  tratamiento" la ganancia del profesional. `BarChart` vertical no servía con 8+ categorías en móvil.
+- **"Sin categoría"** en Reportes usa la constante de insumos (mismo texto) para que `kpis.ts` siga
+  sin importar Dexie.
+- **Sync**: un `porcentajeCategoria` espera a que su categoría suba; si la categoría fue rechazada,
+  el cambio también. Un registro con una categoría rechazada sube con `categoria_tratamiento_id null`
+  y su nombre. Seis pruebas de sync con su propia base en memoria necesitaron la tabla nueva.
+- **Desempate del ledger**: en `categorias.test.ts` dos ediciones en el mismo milisegundo empataban
+  en `creadoEn`; la prueba separa las ediciones (el código no cambia: es la regla de siempre).
+- **Ensayo** (T034): respaldo del 2026-11-23 restaurado en un proyecto Supabase temporal (puertos
+  565xx). El `auth` local es más viejo que el de producción (faltan columnas en `one_time_tokens` y
+  `saml_providers`): esos COPY fallan y no afectan a `public`. `public`: 18 tablas, 412 filas antes;
+  migración sin errores; 420 después (las 8 categorías de "Clínica Denart"); un tenant insertado
+  después recibe sus 8. Producción no tenía tratamientos ni registros, así que SC-003 se cumple
+  trivialmente.
+- **Recorrido** (T035, `run-indentory`, desktop, administración): % general 40 en Clínica; categoría
+  "Evaluación" creada y con 50 %; "Evaluación inicial" ($20.000) con categoría y "Resina simple"
+  ($20.000) sin ella; chips "Todas / Evaluación / Sin categoría"; la hoja de registro dice
+  "Ganancia del profesional (50 % · Evaluación): $10.000"; el historial muestra la categoría de cada
+  registro y Reportes "Por categoría de tratamiento" con $10.000 y $8.000. No se recorrieron a mano
+  personal, móvil ni sin conexión: los cubren las pruebas de integración y de sync.
+
 **Organization**: por historia de spec.md. `R#` = research.md, "UI §n" = `contracts/ui-contracts.md`,
 "SQL §n" = `contracts/supabase-schema.md`, "DM" = data-model.md, "QS" = quickstart.md.
 
@@ -26,7 +59,7 @@ implementar.
 
 ## Phase 1: Setup
 
-- [ ] T001 Línea base en la rama `026-categorias-tratamientos`: `npm run lint && npm test`; con
+- [X] T001 Línea base en la rama `026-categorias-tratamientos`: `npm run lint && npm test`; con
   `supabase start`, `npm run test:rls` (anotar totales e intermitentes)
 
 ---
@@ -35,30 +68,30 @@ implementar.
 
 **Purpose**: esquema, tipos, Dexie, sync y proyección compartidos.
 
-- [ ] T002 Escribir `supabase/migrations/20261123000000_categorias_tratamiento.sql` según SQL §1–§4
+- [X] T002 Escribir `supabase/migrations/20261123000000_categorias_tratamiento.sql` según SQL §1–§4
   (tabla, RLS, trigger de protección, siembra + trigger en `tenants`, columnas y CHECK de
   `cambios_tratamiento`, columnas y trigger de `tratamientos_realizados`, `revoke` de las funciones)
-- [ ] T003 Controles nuevos en `scripts/test-rls.mjs` (SQL §5, 1–9); `supabase db reset` y
+- [X] T003 Controles nuevos en `scripts/test-rls.mjs` (SQL §5, 1–9); `supabase db reset` y
   `npm run test:rls` en verde
-- [ ] T004 [P] `tests/unit/dexie-v15.test.ts`: upgrade completa `categoriaId`/`categoriaNombre` con
+- [X] T004 [P] `tests/unit/dexie-v15.test.ts`: upgrade completa `categoriaId`/`categoriaNombre` con
   `null` y crea `categoriasTratamiento`
-- [ ] T005 Tipos y Dexie v15 en `src/lib/db/index.ts` (DM: `CategoriaTratamiento`, `CampoTratamiento`,
+- [X] T005 Tipos y Dexie v15 en `src/lib/db/index.ts` (DM: `CategoriaTratamiento`, `CampoTratamiento`,
   `CambioTratamiento.categoriaId`, `TratamientoRealizado.categoriaId/categoriaNombre`); ajustar los
   constructores existentes de `CambioTratamiento` y `TratamientoRealizado` (y fixtures de pruebas) con
   los campos nuevos en `null`
-- [ ] T006 [P] `tests/unit/tratamientos/proyeccion-categorias.test.ts`: `categoriaId` (último gana,
+- [X] T006 [P] `tests/unit/tratamientos/proyeccion-categorias.test.ts`: `categoriaId` (último gana,
   `null`), `porcentajesPorCategoria`, `porcentajeAplicable` (categoría > lugar > null; borrar vuelve al
   general; categoría desactivada aplica)
-- [ ] T007 `src/features/tratamientos/lib/proyeccion.ts`: `categoriaId` en `TratamientoProyectado`,
+- [X] T007 `src/features/tratamientos/lib/proyeccion.ts`: `categoriaId` en `TratamientoProyectado`,
   `porcentajesPorCategoria`, `porcentajeAplicable` (R3–R5)
-- [ ] T008 [P] `tests/unit/sync-categorias-tratamiento.test.ts`: push solo admin; `23505` → rechazada y
+- [X] T008 [P] `tests/unit/sync-categorias-tratamiento.test.ts`: push solo admin; `23505` → rechazada y
   aviso; pull sin pisar locales sin subir; columnas nuevas de `cambios_tratamiento` y
   `tratamientos_realizados` en push y pull
-- [ ] T009 `src/lib/sync/index.ts`: `pushCategoriasTratamiento`/`pullCategoriasTratamiento` (paginado,
+- [X] T009 `src/lib/sync/index.ts`: `pushCategoriasTratamiento`/`pullCategoriasTratamiento` (paginado,
   antes de `cambios_tratamiento` y de `tratamientos_realizados`); mapear columnas nuevas (R8); aviso
   `categoria-tratamiento-repetida` en `src/stores/avisosStore.ts` y su texto en
   `src/app/AvisosConsumo.tsx`
-- [ ] T010 `src/stores/tratamientosStore.ts`: `categorias` (no rechazadas, por nombre) y
+- [X] T010 `src/stores/tratamientosStore.ts`: `categorias` (no rechazadas, por nombre) y
   `porcentajesCategoria` desde Dexie
 
 **Checkpoint**: T003, T004, T006 y T008 en verde.
@@ -73,29 +106,29 @@ implementar.
 
 ### Tests (primero, deben fallar)
 
-- [ ] T011 [P] [US1] `tests/unit/tratamientos/categorias.test.ts`: validación de nombre (vacío, > 40,
+- [X] T011 [P] [US1] `tests/unit/tratamientos/categorias.test.ts`: validación de nombre (vacío, > 40,
   repetido por clave, "Sin categoría"); crear (personal rechazado); renombrar; desactivar/reactivar
-- [ ] T012 [P] [US1] `tests/integration/ajustes-categorias-tratamiento.test.tsx`: tarjeta e índice,
+- [X] T012 [P] [US1] `tests/integration/ajustes-categorias-tratamiento.test.tsx`: tarjeta e índice,
   sembradas visibles, crear, renombrar, desactivar ("Desactivada" en texto), personal sin la sección
-- [ ] T013 [P] [US1] `tests/integration/tratamientos.test.tsx`: selector "Categoría" en el formulario
+- [X] T013 [P] [US1] `tests/integration/tratamientos.test.tsx`: selector "Categoría" en el formulario
   (elegir, "Sin categoría", "Agregar categoría"), cambio `categoria` en el ledger, categoría visible y
   chips de filtro en el catálogo, "(desactivada)"
 
 ### Implementation
 
-- [ ] T014 [US1] `src/features/tratamientos/lib/categorias.ts`: `validarNombreCategoriaTratamiento`,
+- [X] T014 [US1] `src/features/tratamientos/lib/categorias.ts`: `validarNombreCategoriaTratamiento`,
   `crearCategoriaTratamiento`, `guardarCategoriaTratamiento` (nombre/activa), `reactivarCategoriaTratamiento`
   (UI §7), con `exigirAdministrador`
-- [ ] T015 [US1] `src/features/tratamientos/lib/catalogo.ts`: `categoriaId` en `TratamientoInput`,
+- [X] T015 [US1] `src/features/tratamientos/lib/catalogo.ts`: `categoriaId` en `TratamientoInput`,
   cambio `categoria` al crear/editar si cambió
-- [ ] T016 [US1] `src/features/ajustes/lib/secciones.ts`, `useResumenesAjustes.ts` y
+- [X] T016 [US1] `src/features/ajustes/lib/secciones.ts`, `useResumenesAjustes.ts` y
   `components/AjustesView.tsx`: sección `'categoriasTratamiento'` (solo administración, después de
   `'lugares'`, ícono `Tag`) con resumen
-- [ ] T017 [US1] `src/features/ajustes/components/CategoriasTratamientoSection.tsx`: lista con "Ver
+- [X] T017 [US1] `src/features/ajustes/components/CategoriasTratamientoSection.tsx`: lista con "Ver
   más", "Nueva categoría", hoja de edición con nombre y "Activa" (UI §1, sin % todavía)
-- [ ] T018 [US1] `src/features/tratamientos/components/TratamientoForm.tsx`: `SelectorCatalogo` de
+- [X] T018 [US1] `src/features/tratamientos/components/TratamientoForm.tsx`: `SelectorCatalogo` de
   categoría (UI §2)
-- [ ] T019 [US1] `src/features/tratamientos/components/TratamientosView.tsx` y `TratamientoDetalle.tsx`:
+- [X] T019 [US1] `src/features/tratamientos/components/TratamientosView.tsx` y `TratamientoDetalle.tsx`:
   categoría visible y chips de filtro (UI §3)
 
 **Checkpoint**: T011–T013 en verde.
@@ -110,27 +143,27 @@ implementar.
 
 ### Tests (primero, deben fallar)
 
-- [ ] T020 [P] [US2] `tests/unit/tratamientos/categorias.test.ts`: `guardarCategoriaTratamiento` con
+- [X] T020 [P] [US2] `tests/unit/tratamientos/categorias.test.ts`: `guardarCategoriaTratamiento` con
   `porcentajes` (escribe solo los cambiados, `null` borra, rango 0–100, nada se guarda si uno es
   inválido); `fijarPorcentajeCategoria`
-- [ ] T021 [P] [US2] `tests/unit/tratamientos/registro.test.ts`: snapshot con % de categoría,
+- [X] T021 [P] [US2] `tests/unit/tratamientos/registro.test.ts`: snapshot con % de categoría,
   `categoriaId` y `categoriaNombre`; sin categoría o sin % de categoría → general; lugar sin general y
   categoría con % → el de la categoría
-- [ ] T022 [P] [US2] `tests/integration/registrar-tratamiento.test.tsx`: ejemplo 40/50 (Evaluación
+- [X] T022 [P] [US2] `tests/integration/registrar-tratamiento.test.tsx`: ejemplo 40/50 (Evaluación
   $10.000, Restauración $8.000); origen del % en la hoja; cambio posterior del % no altera el registro
-- [ ] T023 [P] [US2] `tests/integration/ajustes-categorias-tratamiento.test.tsx`: % por lugar con
+- [X] T023 [P] [US2] `tests/integration/ajustes-categorias-tratamiento.test.tsx`: % por lugar con
   placeholder del general y "Sin % general en este lugar"; guardar y borrar
 
 ### Implementation
 
-- [ ] T024 [US2] `src/features/tratamientos/lib/catalogo.ts`: `fijarPorcentajeCategoria` (cambio
+- [X] T024 [US2] `src/features/tratamientos/lib/catalogo.ts`: `fijarPorcentajeCategoria` (cambio
   `porcentajeCategoria` con `lugarId` y `categoriaId`); `guardarCategoriaTratamiento` acepta
   `porcentajes` en la misma transacción
-- [ ] T025 [US2] `src/features/tratamientos/lib/registro.ts`: % con `porcentajeAplicable` y snapshot de
+- [X] T025 [US2] `src/features/tratamientos/lib/registro.ts`: % con `porcentajeAplicable` y snapshot de
   la categoría (R5, R6)
-- [ ] T026 [US2] `src/features/tratamientos/lib/useMontosTratamiento.ts` y
+- [X] T026 [US2] `src/features/tratamientos/lib/useMontosTratamiento.ts` y
   `components/MontosTratamiento.tsx`/`RegistrarTratamientoSheet.tsx`: % aplicable con origen (FR-012)
-- [ ] T027 [US2] `CategoriasTratamientoSection.tsx`: campos de % por lugar activo en la hoja (UI §1) y
+- [X] T027 [US2] `CategoriasTratamientoSection.tsx`: campos de % por lugar activo en la hoja (UI §1) y
   resumen "Clínica A: 50 %" en la lista
 
 **Checkpoint**: T020–T023 en verde.
@@ -145,19 +178,19 @@ implementar.
 
 ### Tests (primero, deben fallar)
 
-- [ ] T028 [P] [US3] `tests/unit/tratamientos/historial.test.ts`: filtro por categoría (incluye "Sin
+- [X] T028 [P] [US3] `tests/unit/tratamientos/historial.test.ts`: filtro por categoría (incluye "Sin
   categoría") y totales del filtro
-- [ ] T029 [P] [US3] `tests/unit/reportes/kpis.test.ts`: `porCategoriaTratamiento` (por id, nombre
+- [X] T029 [P] [US3] `tests/unit/reportes/kpis.test.ts`: `porCategoriaTratamiento` (por id, nombre
   actual o del snapshot, "Sin categoría", anulados fuera, período y lugar; mismo total que el
   historial filtrado)
-- [ ] T030 [P] [US3] `tests/integration/historial-tratamientos.test.tsx` y
+- [X] T030 [P] [US3] `tests/integration/historial-tratamientos.test.tsx` y
   `tests/integration/reportes.test.tsx`: selector y totales; tarjeta y tabla
 
 ### Implementation
 
-- [ ] T031 [US3] `src/features/tratamientos/lib/historial.ts` y
+- [X] T031 [US3] `src/features/tratamientos/lib/historial.ts` y
   `components/HistorialTratamientos.tsx`: categoría del registro y selector de filtro (UI §5)
-- [ ] T032 [US3] `src/features/reportes/lib/kpis.ts` y `components/ReportesView.tsx`: tarjeta "Por
+- [X] T032 [US3] `src/features/reportes/lib/kpis.ts` y `components/ReportesView.tsx`: tarjeta "Por
   categoría de tratamiento" (UI §6, R11)
 
 **Checkpoint**: T028–T030 en verde.
@@ -166,13 +199,13 @@ implementar.
 
 ## Phase 6: Polish & Cross-Cutting
 
-- [ ] T033 `npm run lint && npm run build && npm test` en verde (incluye `rendimiento` de Reportes y
+- [X] T033 `npm run lint && npm run build && npm test` en verde (incluye `rendimiento` de Reportes y
   `lecturas-movimientos`); `npm run test:rls` en verde
-- [ ] T034 Ensayo de la migración sobre la restauración del último respaldo de producción (QS "Ensayo"):
+- [X] T034 Ensayo de la migración sobre la restauración del último respaldo de producción (QS "Ensayo"):
   8 categorías por tenant, filas intactas, totales idénticos; anotar los conteos
-- [ ] T035 Recorrido de [quickstart.md](./quickstart.md) con `run-indentory` (administración y personal;
+- [X] T035 Recorrido de [quickstart.md](./quickstart.md) con `run-indentory` (administración y personal;
   móvil y desktop) y capturas
-- [ ] T036 Notas de despliegue en `README.md`: migración antes del front con respaldo y visto bueno;
+- [X] T036 Notas de despliegue en `README.md`: migración antes del front con respaldo y visto bueno;
   convivencia con versiones en caché (registros con % general hasta actualizar)
 
 ---

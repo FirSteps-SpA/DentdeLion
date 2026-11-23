@@ -28,6 +28,7 @@ function cambio(
     tenantId: TENANT_1,
     tratamientoId: campo === 'porcentajeProfesional' ? null : 't1',
     lugarId: null,
+    categoriaId: null,
     campo,
     valorAnterior: null,
     valorNuevo,

@@ -11,6 +11,11 @@ import { ETIQUETA_GANANCIA_PROFESIONAL, ETIQUETA_NETO, TEXTO_MOTIVO } from '../l
 import type { TratamientoProyectado } from '../lib/proyeccion'
 import { textoComision, textoCosto, textoGanancia } from '../lib/textos'
 import { useMontosTratamiento } from '../lib/useMontosTratamiento'
+import {
+  nombreCategoriaTratamiento,
+  opcionesFiltroCategoria,
+  pasaFiltroCategoria,
+} from '../lib/categorias'
 import { HistorialTratamientos } from './HistorialTratamientos'
 import { RegistrarTratamientoSheet } from './RegistrarTratamientoSheet'
 import { TratamientoDetalle } from './TratamientoDetalle'
@@ -31,6 +36,7 @@ type Overlay =
  */
 export function TratamientosView() {
   const tratamientos = useTratamientosStore((s) => s.tratamientos)
+  const categorias = useTratamientosStore((s) => s.categorias)
   const usuario = useAuthStore((s) => s.usuario)
   const esAdministrador = usuario?.rol === 'administrador'
   const lugares = lugaresActivos(useLugarStore((s) => s.lugares))
@@ -41,10 +47,19 @@ export function TratamientosView() {
   const [mostrarDesactivados, setMostrarDesactivados] = useState(false)
   const [detalleId, setDetalleId] = useState<string | null>(null)
   const [overlay, setOverlay] = useState<Overlay>(null)
+  // Spec 026 (FR-007): '' = todas.
+  const [filtroCategoria, setFiltroCategoria] = useState('')
 
   const esTodos = !lugarActivoId || lugarActivoId === 'todos'
   const lugaresVista = esTodos ? lugares : lugares.filter((l) => l.id === lugarActivoId)
-  const visibles = tratamientos.filter((t) => t.activo || mostrarDesactivados)
+  const noOcultos = tratamientos.filter((t) => t.activo || mostrarDesactivados)
+  const opcionesCategoria = opcionesFiltroCategoria(
+    categorias,
+    noOcultos.map((t) => t.categoriaId),
+  )
+  const visibles = noOcultos.filter((t) =>
+    pasaFiltroCategoria(categorias, t.categoriaId, filtroCategoria),
+  )
   const porId = (id: string) => tratamientos.find((t) => t.id === id)
 
   function registrar(tratamiento: TratamientoProyectado) {
@@ -96,6 +111,27 @@ export function TratamientosView() {
             />
           )}
 
+          {opcionesCategoria.length > 1 && (
+            <div
+              role="group"
+              aria-label="Filtrar por categoría"
+              className="flex gap-2 overflow-x-auto pb-1"
+            >
+              {[{ valor: '', nombre: 'Todas' }, ...opcionesCategoria].map((opcion) => (
+                <TouchButton
+                  key={opcion.valor}
+                  type="button"
+                  variant={filtroCategoria === opcion.valor ? 'primary' : 'ghost'}
+                  aria-pressed={filtroCategoria === opcion.valor}
+                  onClick={() => setFiltroCategoria(opcion.valor)}
+                  className="shrink-0 rounded-pill px-4 text-sm whitespace-nowrap"
+                >
+                  {opcion.nombre}
+                </TouchButton>
+              ))}
+            </div>
+          )}
+
           {visibles.length === 0 ? (
             <Card className="px-3.5 py-3">
               <p className="text-sm text-text-muted">
@@ -119,6 +155,9 @@ export function TratamientosView() {
                         onClick={() => setDetalleId(tratamiento.id)}
                         className="touch-target flex flex-1 flex-col gap-1 rounded-lg py-1 pl-3.5 text-left"
                       >
+                        <span className="text-xs text-text-muted">
+                          {nombreCategoriaTratamiento(categorias, tratamiento.categoriaId)}
+                        </span>
                         <span className="text-[15px] font-bold text-text">
                           {tratamiento.nombre}
                           {!tratamiento.activo && (

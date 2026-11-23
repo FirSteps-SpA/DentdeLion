@@ -284,3 +284,45 @@ describe('gráficos de gasto (US3)', () => {
     expect(invertido.gasto.valor).toBe(r.gasto.valor)
   })
 })
+
+/** Spec 026 T029 (FR-015, FR-016, SC-004; research.md R11). */
+describe('por categoría de tratamiento (spec 026)', () => {
+  const eval1 = { categoriaId: 'eval', categoriaNombre: 'Evaluación', porcentajeProfesional: 50 }
+  const datos = (extra: Partial<EntradaReportes> = {}): EntradaReportes => ({
+    ...entrada([
+      realizado(20000, 10000, iso(2026, 9, 3), eval1),
+      realizado(20000, 10000, iso(2026, 9, 4), { ...eval1, anuladoEn: iso(2026, 9, 4), anuladoPor: 'A' }),
+      realizado(30000, 12000, iso(2026, 9, 5), { categoriaId: 'rest', categoriaNombre: 'Restauración' }),
+      realizado(45000, 18000, iso(2026, 9, 6), { categoriaId: 'rest', categoriaNombre: 'Resina' }),
+      realizado(10000, 4000, iso(2026, 9, 7)),
+      realizado(50000, 20000, iso(2026, 9, 8), { ...eval1, lugarId: LUGAR_2 }),
+      // Fuera del período.
+      realizado(99000, 1, iso(2026, 8, 20), eval1),
+    ]),
+    categoriasTratamiento: [
+      { id: 'rest', tenantId: 'x', nombre: 'Restauración y resinas', creadoPor: null, creadoEn: '', desactivadoEn: null, sincronizado: true, rechazadoEn: null },
+    ],
+    ...extra,
+  })
+
+  it('agrupa por la categoría registrada, con el nombre actual (o el del registro), sin anulados', () => {
+    const r = resumenReportes(datos(), ESTE_MES, LUGAR_1, AHORA)
+    expect(r.porCategoriaTratamiento).toEqual([
+      { id: 'rest', nombre: 'Restauración y resinas', produccion: 75000, gananciaProfesional: 30000, monto: 75000 },
+      { id: 'eval', nombre: 'Evaluación', produccion: 20000, gananciaProfesional: 10000, monto: 20000 },
+      { id: null, nombre: 'Sin categoría', produccion: 10000, gananciaProfesional: 4000, monto: 10000 },
+    ])
+  })
+
+  it('en "Todos" suma los lugares', () => {
+    const r = resumenReportes(datos(), ESTE_MES, 'todos', AHORA)
+    expect(r.porCategoriaTratamiento.find((c) => c.id === 'eval')).toMatchObject({
+      produccion: 70000,
+      gananciaProfesional: 35000,
+    })
+  })
+
+  it('sin registros en el período queda vacío', () => {
+    expect(resumenReportes(entrada([]), ESTE_MES, LUGAR_1, AHORA).porCategoriaTratamiento).toEqual([])
+  })
+})

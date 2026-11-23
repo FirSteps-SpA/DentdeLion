@@ -1,15 +1,19 @@
 import type { ComponentType } from 'react'
-import { Archive, Bell, Factory, MapPin, Tag, Truck, User, type IconProps } from '../../../components/icons'
+import { Archive, Bell, Factory, MapPin, Stethoscope, Tag, Truck, User, type IconProps } from '../../../components/icons'
 import type { UsuarioActual } from '../../../lib/db'
 
 /**
  * Spec 019 (research.md R2): secciones de Ajustes, en el orden del índice.
  * Spec 021 (research.md R9): `'proveedores'` entre `categorias` y `baja`.
  * Spec 023 (research.md R11): `'marcas'` entre `proveedores` y `baja`.
+ * Spec 026 (research.md R10): `'categoriasTratamiento'` después de `'lugares'`
+ * (junto al % profesional de cada lugar); `'categorias'` pasa a llamarse
+ * "Categorías de insumos" para distinguirlas.
  */
 export type IdSeccion =
   | 'perfil'
   | 'lugares'
+  | 'categoriasTratamiento'
   | 'avisos'
   | 'categorias'
   | 'proveedores'
@@ -39,6 +43,12 @@ export const SECCIONES_AJUSTES: readonly SeccionAjustes[] = [
     soloAdministracion: true,
   },
   {
+    id: 'categoriasTratamiento',
+    titulo: () => 'Categorías de tratamientos',
+    Icon: Stethoscope,
+    soloAdministracion: true,
+  },
+  {
     id: 'avisos',
     titulo: (admin) => (admin ? 'Notificaciones y avisos' : 'Notificaciones'),
     Icon: Bell,
@@ -46,7 +56,7 @@ export const SECCIONES_AJUSTES: readonly SeccionAjustes[] = [
   },
   {
     id: 'categorias',
-    titulo: () => 'Categorías',
+    titulo: () => 'Categorías de insumos',
     Icon: Tag,
     soloAdministracion: true,
   },
@@ -92,6 +102,8 @@ export interface DatosResumen {
   proveedoresActivos: number | null
   /** Spec 023 — marcas activas. */
   marcasActivas: number | null
+  /** Spec 026 — categorías de tratamientos activas y cuántas tienen % propio en algún lugar. */
+  categoriasTratamiento: { activas: number; conPorcentaje: number } | null
   notificaciones: { stockBajo: boolean; caducidad: boolean } | null
   nivelesAvisoDias: number[] | null
 }
@@ -123,6 +135,12 @@ export function resumenSeccion(id: IdSeccion, datos: DatosResumen): string | nul
     case 'lugares':
       if (datos.lugaresActivos === null) return null
       return contar(datos.lugaresActivos, 'lugar', 'lugares', 'Sin lugares')
+    case 'categoriasTratamiento': {
+      if (datos.categoriasTratamiento === null) return null
+      const { activas, conPorcentaje } = datos.categoriasTratamiento
+      const base = contar(activas, 'categoría', 'categorías', 'Sin categorías')
+      return conPorcentaje === 0 ? base : `${base} · ${conPorcentaje} con % propio`
+    }
     case 'avisos': {
       if (!datos.notificaciones) return null
       const base = textoNotificaciones(datos.notificaciones)

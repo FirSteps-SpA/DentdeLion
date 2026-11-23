@@ -7,7 +7,10 @@ import { usePendientesStore } from '../../../stores/pendientesStore'
 import { useTratamientosStore } from '../../../stores/tratamientosStore'
 import { formatearCLP } from '../../insumos/lib/precio'
 import {
+  categoriaDeRegistro,
   ETIQUETA_PERIODO,
+  filtrarPorCategoria,
+  opcionesCategoriaHistorial,
   registrosDelPeriodo,
   totalesHistorial,
   type Periodo,
@@ -28,15 +31,24 @@ import { formatearConSigno } from '../lib/textos'
  */
 export function HistorialTratamientos() {
   const realizados = useTratamientosStore((s) => s.realizados)
+  const categorias = useTratamientosStore((s) => s.categorias)
   const lugares = useLugarStore((s) => s.lugares)
   const lugarActivoId = useLugarStore((s) => s.lugarActivoId)
   const usuario = useAuthStore((s) => s.usuario)
   const conocidos = usePendientesStore((s) => s.usuariosConocidos)
   const [periodo, setPeriodo] = useState<Periodo>('hoy')
   const [error, setError] = useState<string | null>(null)
+  // Spec 026 (FR-014): '' = todas.
+  const [filtroCategoria, setFiltroCategoria] = useState('')
 
   const esTodos = !lugarActivoId || lugarActivoId === 'todos'
-  const registros = registrosDelPeriodo(realizados, periodo, esTodos ? null : lugarActivoId)
+  const delPeriodo = registrosDelPeriodo(realizados, periodo, esTodos ? null : lugarActivoId)
+  const opcionesCategoria = opcionesCategoriaHistorial(delPeriodo, categorias)
+  // Si la categoría elegida no tiene registros en el nuevo período, vuelve a "Todas".
+  const filtroEfectivo = opcionesCategoria.some((o) => o.valor === filtroCategoria)
+    ? filtroCategoria
+    : ''
+  const registros = filtrarPorCategoria(delPeriodo, filtroEfectivo)
   const totales = totalesHistorial(registros)
   const fecha = new Intl.DateTimeFormat('es-CL', { dateStyle: 'medium', timeStyle: 'short' })
   const autor = (id: string | null) =>
@@ -67,6 +79,24 @@ export function HistorialTratamientos() {
           </TouchButton>
         ))}
       </div>
+
+      {opcionesCategoria.length > 0 && (
+        <label className="flex flex-col gap-1 text-sm font-bold text-text">
+          Categoría
+          <select
+            value={filtroEfectivo}
+            onChange={(event) => setFiltroCategoria(event.target.value)}
+            className="touch-target rounded-md border border-border-input bg-surface px-3 text-sm font-normal text-text"
+          >
+            <option value="">Todas</option>
+            {opcionesCategoria.map((opcion) => (
+              <option key={opcion.valor} value={opcion.valor}>
+                {opcion.nombre}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
       <Card className="grid grid-cols-2 gap-2 p-3.5 text-sm text-text md:grid-cols-5">
         <p className="col-span-2 md:col-span-1">
@@ -118,6 +148,7 @@ export function HistorialTratamientos() {
                       {registro.nombre}
                     </span>
                     <span className="text-xs text-text-muted">
+                      {categoriaDeRegistro(registro)} ·{' '}
                       {fecha.format(new Date(registro.creadoEn))} · {autor(registro.usuarioId)}
                       {esTodos && ` · ${nombreLugar(lugares, registro.lugarId)}`}
                     </span>

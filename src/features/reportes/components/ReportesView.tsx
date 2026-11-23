@@ -128,7 +128,38 @@ export function ReportesView({ onNavegar }: { onNavegar?: (vista: Vista) => void
                 ]),
               }}
             >
-              <HorizontalBarChart datos={resumen.masUtilizados} />
+              <HorizontalBarChart
+                datos={resumen.masUtilizados.map((m) => ({
+                  id: m.insumoId,
+                  nombre: m.nombre,
+                  monto: m.monto,
+                  detalle: formatearCantidad(m.cantidad, m.unidad),
+                  dadoDeBaja: m.dadoDeBaja,
+                }))}
+              />
+            </TarjetaGrafico>
+            {/* Spec 026 (FR-015): producción y ganancia del profesional por categoría. */}
+            <TarjetaGrafico
+              titulo="Por categoría de tratamiento"
+              vacio={resumen.porCategoriaTratamiento.length === 0}
+              nota={notasIncompleto(resumen.produccion.incompleto).join(' · ') || undefined}
+              tabla={{
+                columnas: ['Categoría', 'Producción', ETIQUETA_GANANCIA_PROFESIONAL],
+                filas: resumen.porCategoriaTratamiento.map((c) => [
+                  c.nombre,
+                  formatearMonto(c.produccion),
+                  formatearMonto(c.gananciaProfesional),
+                ]),
+              }}
+            >
+              <HorizontalBarChart
+                datos={resumen.porCategoriaTratamiento.map((c) => ({
+                  id: c.id ?? 'sin-categoria',
+                  nombre: c.nombre,
+                  monto: c.produccion,
+                  detalle: `${ETIQUETA_GANANCIA_PROFESIONAL.toLocaleLowerCase('es')} ${formatearMonto(c.gananciaProfesional)}`,
+                }))}
+              />
             </TarjetaGrafico>
             {resumen.gananciaPorLugar && (
               <TarjetaGrafico

@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { TratamientoRealizado } from '../../../src/lib/db'
 import {
+  categoriaDeRegistro,
+  filtrarPorCategoria,
   inicioPeriodo,
+  opcionesCategoriaHistorial,
   registrosDelPeriodo,
   totalesHistorial,
 } from '../../../src/features/tratamientos/lib/historial'
+import { FILTRO_SIN_CATEGORIA } from '../../../src/features/tratamientos/lib/categorias'
 import { LUGAR_1, LUGAR_2, TENANT_1 } from '../../helpers/tenancy'
 
 function registro(id: string, creadoEn: Date, extra: Partial<TratamientoRealizado> = {}): TratamientoRealizado {
@@ -16,6 +20,8 @@ function registro(id: string, creadoEn: Date, extra: Partial<TratamientoRealizad
     nombre: 'Restauración',
     precio: 45000,
     porcentajeProfesional: 40,
+    categoriaId: null,
+    categoriaNombre: null,
     materiales: [],
     costoMateriales: 3480,
     costoCompleto: true,
@@ -71,5 +77,44 @@ describe('totales (FR-019)', () => {
       gananciaEstimada: 14520,
       sinMonto: 1,
     })
+  })
+})
+
+/** Spec 026 T028 (FR-014, US3-1, US3-2, US3-4). */
+describe('historial por categoría (spec 026)', () => {
+  const t = new Date(2026, 9, 15, 10)
+  const registros = [
+    registro('a', t, { categoriaId: 'eval', categoriaNombre: 'Evaluación', precio: 20000, porcentajeProfesional: 50 }),
+    registro('b', t, { categoriaId: 'eval', categoriaNombre: 'Evaluación', precio: 20000, porcentajeProfesional: 50, anuladoEn: 'x', anuladoPor: 'p1' }),
+    registro('c', t, { categoriaId: 'rest', categoriaNombre: 'Restauración' }),
+    registro('d', t),
+  ]
+  const categorias = [
+    { id: 'eval', tenantId: TENANT_1, nombre: 'Evaluación y diagnóstico', creadoPor: null, creadoEn: '', desactivadoEn: null, sincronizado: true, rechazadoEn: null },
+  ]
+
+  it('cada registro muestra el nombre que tenía al registrarse', () => {
+    expect(categoriaDeRegistro(registros[0])).toBe('Evaluación')
+    expect(categoriaDeRegistro(registros[3])).toBe('Sin categoría')
+  })
+
+  it('opciones: por identidad con el nombre actual (o el registrado si ya no está), y "Sin categoría" al final', () => {
+    expect(opcionesCategoriaHistorial(registros, categorias)).toEqual([
+      { valor: 'eval', nombre: 'Evaluación y diagnóstico' },
+      { valor: 'rest', nombre: 'Restauración' },
+      { valor: FILTRO_SIN_CATEGORIA, nombre: 'Sin categoría' },
+    ])
+  })
+
+  it('el filtro deja los totales de la categoría, sin anulados', () => {
+    const evaluacion = filtrarPorCategoria(registros, 'eval')
+    expect(evaluacion.map((r) => r.id)).toEqual(['a', 'b'])
+    expect(totalesHistorial(evaluacion)).toMatchObject({
+      cantidad: 1,
+      precios: 20000,
+      gananciaProfesional: 10000,
+    })
+    expect(filtrarPorCategoria(registros, FILTRO_SIN_CATEGORIA).map((r) => r.id)).toEqual(['d'])
+    expect(filtrarPorCategoria(registros, '')).toHaveLength(4)
   })
 })

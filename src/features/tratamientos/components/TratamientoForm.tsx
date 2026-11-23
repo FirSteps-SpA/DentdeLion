@@ -22,6 +22,7 @@ import { textoComision, textoCosto, textoGanancia } from '../lib/textos'
 import { useInsumosPorId, useMontosTratamiento } from '../lib/useMontosTratamiento'
 import { ETIQUETA_GANANCIA_PROFESIONAL, ETIQUETA_NETO } from '../lib/montos'
 import { NumeroInput } from '../../../components/ui/NumeroInput'
+import { SelectorCategoriaTratamiento } from './SelectorCategoriaTratamiento'
 
 const INPUT_CLASS = 'h-full w-full border-none bg-transparent text-[15px] text-text outline-none'
 
@@ -48,6 +49,8 @@ export function TratamientoForm({ tratamiento, onGuardado, onCancelar }: Tratami
   const montosDe = useMontosTratamiento()
 
   const [nombre, setNombre] = useState(tratamiento?.nombre ?? '')
+  // Spec 026 (FR-005): opcional.
+  const [categoriaId, setCategoriaId] = useState<string | null>(tratamiento?.categoriaId ?? null)
   const [materiales, setMateriales] = useState<TratamientoInput['materiales']>(
     () =>
       tratamiento?.materiales.map((m) => ({
@@ -67,6 +70,7 @@ export function TratamientoForm({ tratamiento, onGuardado, onCancelar }: Tratami
 
   const input: TratamientoInput = {
     nombre,
+    categoriaId,
     materiales,
     precios: Object.fromEntries(
       Object.entries(precios).map(([lugarId, texto]) => [
@@ -87,6 +91,7 @@ export function TratamientoForm({ tratamiento, onGuardado, onCancelar }: Tratami
             ...m,
             unidad: insumosPorId.get(m.insumoId)?.unidadMedida ?? 'unidad',
           })),
+          categoriaId,
           precios: new Map(
             Object.entries(input.precios).filter(
               (entrada): entrada is [string, number] => entrada[1] !== null,
@@ -154,6 +159,14 @@ export function TratamientoForm({ tratamiento, onGuardado, onCancelar }: Tratami
             </p>
           )}
         </div>
+
+        <IconField label="Categoría (opcional)" htmlFor="tratamiento-categoria">
+          <SelectorCategoriaTratamiento
+            id="tratamiento-categoria"
+            valor={categoriaId}
+            onCambio={setCategoriaId}
+          />
+        </IconField>
 
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-sm font-bold text-text">Precio en cada lugar</legend>

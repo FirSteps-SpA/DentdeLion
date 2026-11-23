@@ -1,8 +1,14 @@
 import { create } from 'zustand'
 import { liveQuery } from 'dexie'
-import type { CambioTratamiento, Tratamiento, TratamientoRealizado } from '../lib/db'
+import type {
+  CambioTratamiento,
+  CategoriaTratamiento,
+  Tratamiento,
+  TratamientoRealizado,
+} from '../lib/db'
 import { delTenant } from '../lib/tenancy'
 import {
+  porcentajesPorCategoria,
   porcentajesPorLugar,
   proyectarTratamientos,
   type TratamientoProyectado,
@@ -18,6 +24,10 @@ interface TratamientosState {
   tratamientos: TratamientoProyectado[]
   /** % profesional por lugar (Clarifications Q2). */
   porcentajes: Map<string, number>
+  /** Spec 026 (R4): % por categoría y lugar (`claveCategoriaLugar`). */
+  porcentajesCategoria: Map<string, number>
+  /** Spec 026 (R1): categorías no rechazadas, activas y desactivadas, por nombre. */
+  categorias: CategoriaTratamiento[]
   cambiosTratamiento: CambioTratamiento[]
   realizados: TratamientoRealizado[]
   isReady: boolean
@@ -27,6 +37,8 @@ interface TratamientosState {
 export const useTratamientosStore = create<TratamientosState>((set) => ({
   tratamientos: [],
   porcentajes: new Map(),
+  porcentajesCategoria: new Map(),
+  categorias: [],
   cambiosTratamiento: [],
   realizados: [],
   isReady: false,
@@ -37,6 +49,7 @@ export const useTratamientosStore = create<TratamientosState>((set) => ({
       set({
         tratamientos: proyectarTratamientos(filas, cambios),
         porcentajes: porcentajesPorLugar(cambios),
+        porcentajesCategoria: porcentajesPorCategoria(cambios),
         cambiosTratamiento: cambios,
         isReady: true,
       })
@@ -55,9 +68,18 @@ export const useTratamientosStore = create<TratamientosState>((set) => ({
     const realizadosSub = liveQuery(() => delTenant('tratamientosRealizados')).subscribe({
       next: (realizados) => set({ realizados }),
     })
+    const categoriasSub = liveQuery(() => delTenant('categoriasTratamiento')).subscribe({
+      next: (valor) =>
+        set({
+          categorias: valor
+            .filter((c) => c.rechazadoEn === null)
+            .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
+        }),
+    })
     return () => {
       filasSub.unsubscribe()
       cambiosSub.unsubscribe()
+      categoriasSub.unsubscribe()
       realizadosSub.unsubscribe()
     }
   },

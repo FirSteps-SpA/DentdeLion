@@ -13,6 +13,7 @@ describe('SECCIONES_AJUSTES', () => {
     expect(SECCIONES_AJUSTES.map((s) => s.id)).toEqual([
       'perfil',
       'lugares',
+      'categoriasTratamiento',
       'avisos',
       'categorias',
       'proveedores',
@@ -21,10 +22,11 @@ describe('SECCIONES_AJUSTES', () => {
     ])
   })
 
-  it('la administración ve las siete en orden; el personal solo perfil y avisos', () => {
+  it('la administración ve las ocho en orden; el personal solo perfil y avisos', () => {
     expect(seccionesVisibles('administrador').map((s) => s.id)).toEqual([
       'perfil',
       'lugares',
+      'categoriasTratamiento',
       'avisos',
       'categorias',
       'proveedores',
@@ -41,8 +43,9 @@ describe('SECCIONES_AJUSTES', () => {
     expect(titulos).toEqual({
       perfil: ['Perfil y equipo', 'Perfil'],
       lugares: ['Lugares de trabajo', 'Lugares de trabajo'],
+      categoriasTratamiento: ['Categorías de tratamientos', 'Categorías de tratamientos'],
       avisos: ['Notificaciones y avisos', 'Notificaciones'],
-      categorias: ['Categorías', 'Categorías'],
+      categorias: ['Categorías de insumos', 'Categorías de insumos'],
       proveedores: ['Proveedores', 'Proveedores'],
       marcas: ['Marcas', 'Marcas'],
       baja: ['Insumos dados de baja', 'Insumos dados de baja'],
@@ -66,6 +69,7 @@ describe('resumenSeccion', () => {
     insumosDadosDeBaja: 3,
     proveedoresActivos: 6,
     marcasActivas: 12,
+    categoriasTratamiento: { activas: 8, conPorcentaje: 0 },
     notificaciones: { stockBajo: true, caducidad: true },
     nivelesAvisoDias: [7, 30, 15],
   }
@@ -103,6 +107,19 @@ describe('resumenSeccion', () => {
     expect(resumenSeccion('baja', { ...listos, insumosDadosDeBaja: 0 })).toBe(
       'Sin insumos dados de baja',
     )
+  })
+
+  it('categorías de tratamientos: activas y cuántas tienen % propio (spec 026)', () => {
+    expect(resumenSeccion('categoriasTratamiento', listos)).toBe('8 categorías')
+    expect(
+      resumenSeccion('categoriasTratamiento', {
+        ...listos,
+        categoriasTratamiento: { activas: 8, conPorcentaje: 1 },
+      }),
+    ).toBe('8 categorías · 1 con % propio')
+    expect(
+      resumenSeccion('categoriasTratamiento', { ...listos, categoriasTratamiento: null }),
+    ).toBeNull()
   })
 
   it('avisos para personal: qué notificaciones están activadas', () => {

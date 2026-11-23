@@ -6,7 +6,6 @@ import { etiquetaUnidad, formatearCantidad, unidadAdmiteDecimales } from '../../
 import { useAvisosStore } from '../../../stores/avisosStore'
 import { useInventoryStore } from '../../../stores/inventoryStore'
 import { nombreLugar, useLugarStore } from '../../../stores/lugarStore'
-import { useTratamientosStore } from '../../../stores/tratamientosStore'
 import { formatearCLP } from '../../insumos/lib/precio'
 import { computeStockLote } from '../../insumos/lib/stock'
 import { useCostosUnitarios } from '../../insumos/lib/useCostosUnitarios'
@@ -18,8 +17,8 @@ import {
 } from '../lib/montos'
 import type { TratamientoProyectado } from '../lib/proyeccion'
 import { esLoteVigente, registrarTratamiento, StockInsuficienteError } from '../lib/registro'
-import { formatearConSigno } from '../lib/textos'
-import { useInsumosPorId } from '../lib/useMontosTratamiento'
+import { formatearConSigno, textoPorcentaje } from '../lib/textos'
+import { useInsumosPorId, usePorcentajeAplicable } from '../lib/useMontosTratamiento'
 
 export interface RegistrarTratamientoSheetProps {
   tratamiento: TratamientoProyectado
@@ -44,7 +43,9 @@ export function RegistrarTratamientoSheet({
   const cambiosInsumo = useInventoryStore((s) => s.cambiosInsumo)
   const insumos = useInsumosPorId()
   const costos = useCostosUnitarios()
-  const porcentaje = useTratamientosStore((s) => s.porcentajes).get(lugarId) ?? null
+  // Spec 026 (FR-010/FR-012): el % de la categoría en el lugar o el general.
+  const origenPorcentaje = usePorcentajeAplicable()(tratamiento, lugarId)
+  const porcentaje = origenPorcentaje.valor
   const lugares = useLugarStore((s) => s.lugares)
   const agregarAviso = useAvisosStore((s) => s.agregar)
 
@@ -166,7 +167,7 @@ export function RegistrarTratamientoSheet({
       <p className="text-sm text-text" aria-live="polite">
         {comision !== null && (
           <>
-            {ETIQUETA_GANANCIA_PROFESIONAL}:{' '}
+            {ETIQUETA_GANANCIA_PROFESIONAL} ({textoPorcentaje(origenPorcentaje)}):{' '}
             <span className="font-bold whitespace-nowrap">{formatearCLP(comision)}</span>
             {' · '}
           </>

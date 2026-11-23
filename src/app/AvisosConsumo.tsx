@@ -20,6 +20,9 @@ function textoAviso(aviso: Aviso): string {
   if (aviso.tipo === 'marca-no-eliminada') {
     return `No se pudo eliminar «${aviso.insumoNombre}»: la usan insumos.`
   }
+  if (aviso.tipo === 'categoria-tratamiento-repetida') {
+    return `La categoría «${aviso.insumoNombre}» no se guardó: ya existe una con ese nombre.`
+  }
   if (aviso.tipo === 'marca-repetida') {
     return `No se pudo renombrar a «${aviso.insumoNombre}»: ya existe una marca con ese nombre.`
   }
@@ -72,6 +75,7 @@ export function AvisosConsumo() {
           aviso.tipo === 'proveedor-repetido' ||
           aviso.tipo === 'marca-no-eliminada' ||
           aviso.tipo === 'marca-repetida' ||
+          aviso.tipo === 'categoria-tratamiento-repetida' ||
           aviso.tipo === 'marca-descartada' ? (
             <AlertTriangle size={18} className="shrink-0 text-warning-30-bg" />
           ) : (
