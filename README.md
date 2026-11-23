@@ -237,6 +237,12 @@ registros. Mientras un dispositivo tenga una versión anterior en caché, no ve 
 registros llevan el % general del lugar, aunque la categoría tenga uno propio: avisar al equipo que
 actualice. En Ajustes, "Categorías" pasa a llamarse "Categorías de insumos".
 
+**Spec 027 (rediseño visual):** solo front, sin `db push` ni cambios de datos. Barra lateral con el
+activo en turquesa lleno y el diente al pie, pastillas para el lugar y la sincronización, ondas de
+fondo, tarjetas con íconos de fondo, encabezados y estados vacíos comunes en todas las vistas. Inicio
+ya no tiene la tarjeta "¿Qué necesitas comprar?" (queda la KPI "Para comprar"). Nada cambia de lugar
+ni de comportamiento; avisar al equipo del cambio de apariencia.
+
 ## ¿Quedó bien configurado mi entorno?
 
 Checklist manual (sin script) — cada punto debe poder confirmarse a simple vista en menos de 2

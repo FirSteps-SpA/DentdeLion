@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { APP_NAME } from '../lib/branding'
-import { Tooth } from '../components/icons'
+import { DienteLinea, OndasFondo } from '../components/decoracion'
 import { useBackendConnection } from '../lib/supabase/useBackendConnection'
 import { startBackgroundSync } from '../lib/sync'
 import { useAuthStore } from '../stores/authStore'
@@ -116,8 +116,12 @@ function App() {
     !!usuario?.desactivadoEn || (lugaresListos && lugaresActivos(lugares).length === 0)
   if (isReady && usuario && sinAcceso) {
     return (
-      <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-bg p-6">
-        <AccesoDesactivado />
+      <main className="relative flex min-h-dvh flex-col items-center justify-center gap-4 overflow-hidden bg-bg p-6">
+        {/* Spec 027 (FR-015): fondo con ondas en las pantallas de acceso. */}
+        <OndasFondo />
+        <div className="relative z-10 flex w-full justify-center">
+          <AccesoDesactivado />
+        </div>
       </main>
     )
   }
@@ -140,17 +144,22 @@ function App() {
   }
 
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-bg p-6 text-center">
+    <main className="relative flex min-h-dvh flex-col items-center justify-center gap-4 overflow-hidden bg-bg p-6 text-center">
+      <OndasFondo />
       {!isReady ? (
-        <>
-          <Tooth size={48} className="text-brand" />
+        <div className="relative z-10 flex flex-col items-center gap-4">
+          <DienteLinea size={64} />
           <h1 className="text-h1 text-teal-dark">{APP_NAME}</h1>
           <p className="text-body text-text-muted">Cargando…</p>
-        </>
-      ) : tokenInvitacion ? (
-        <AceptarInvitacion token={tokenInvitacion} onSalir={() => setTokenInvitacion(null)} />
+        </div>
       ) : (
-        <LoginForm />
+        <div className="relative z-10 flex w-full justify-center">
+          {tokenInvitacion ? (
+            <AceptarInvitacion token={tokenInvitacion} onSalir={() => setTokenInvitacion(null)} />
+          ) : (
+            <LoginForm />
+          )}
+        </div>
       )}
     </main>
   )

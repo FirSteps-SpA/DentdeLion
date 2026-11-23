@@ -4,6 +4,8 @@
 import type { LucideIcon } from 'lucide-react'
 import {
   Archive as LucideArchive,
+  ClipboardList as LucideClipboardList,
+  Sparkles as LucideSparkles,
   ArrowLeft as LucideArrowLeft,
   Bell as LucideBell,
   Boxes as LucideBoxes,
@@ -165,3 +167,7 @@ export const Link = deLucide(LucideLink)
 export const MessageCircle = deLucide(LucideMessageCircle)
 /** Spec 019 — sección "Insumos dados de baja" de Ajustes. */
 export const Archive = deLucide(LucideArchive)
+
+// Spec 027: encabezados de sección de Compras.
+export const Sparkles = deLucide(LucideSparkles)
+export const ClipboardIcon = deLucide(LucideClipboardList)

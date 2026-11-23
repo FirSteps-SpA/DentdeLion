@@ -7,7 +7,8 @@ import {
   guardarCategoriaTratamiento,
 } from '../../tratamientos/lib/categorias'
 import { claveCategoriaLugar } from '../../tratamientos/lib/proyeccion'
-import { Plus } from '../../../components/icons'
+import { Plus, Stethoscope } from '../../../components/icons'
+import { EstadoVacio } from '../../../components/ui/EstadoVacio'
 import { BottomSheet } from '../../../components/ui/BottomSheet'
 import { Card } from '../../../components/ui/Card'
 import { IconField } from '../../../components/ui/IconField'
@@ -117,8 +118,8 @@ export function CategoriasTratamientoSection() {
       </div>
 
       {lista.total === 0 ? (
-        <Card className="px-3.5 py-4">
-          <p className="text-sm text-text-muted">Todavía no hay categorías.</p>
+        <Card>
+          <EstadoVacio Icono={Stethoscope} texto="Todavía no hay categorías." compacto />
         </Card>
       ) : (
         <Card className="flex flex-col divide-y divide-border px-1.5">

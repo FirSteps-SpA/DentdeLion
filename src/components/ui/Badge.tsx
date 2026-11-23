@@ -35,7 +35,7 @@ const VARIANT_CLASSES: Record<BadgeVariant, string> = {
 export function Badge({ variant, icono: Icono, children }: BadgeProps) {
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-pill px-2.5 py-0.5 text-xs font-bold ${VARIANT_CLASSES[variant]}`}
+      className={`inline-flex items-center gap-1 rounded-pill px-3 py-1 text-xs font-bold whitespace-nowrap ${VARIANT_CLASSES[variant]}`}
     >
       {Icono && <Icono size={14} />}
       {children}

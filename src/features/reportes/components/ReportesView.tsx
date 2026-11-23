@@ -1,6 +1,16 @@
 import { useState } from 'react'
 import type { Vista } from '../../../app/navegacion'
-import { CircleAlert, Package, Stethoscope, Wallet } from '../../../components/icons'
+import {
+  Calendar,
+  ChartColumn,
+  CircleAlert,
+  MapPin,
+  Package,
+  Stethoscope,
+  Tag,
+  Wallet,
+} from '../../../components/icons'
+import { EncabezadoVista } from '../../../components/ui/EncabezadoVista'
 import { formatearCantidad } from '../../../lib/unidades'
 import { useLugarStore } from '../../../stores/lugarStore'
 import { useSyncStore } from '../../../stores/syncStore'
@@ -48,13 +58,13 @@ export function ReportesView({ onNavegar }: { onNavegar?: (vista: Vista) => void
 
   return (
     <div className="flex w-full flex-col gap-6 text-left desk:gap-6">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-h2 text-text">Reportes</h1>
-          {nombreLugar && <p className="text-body text-text-muted">{nombreLugar}</p>}
-        </div>
-        <SelectorPeriodo periodo={periodo} onCambiar={setPeriodo} />
-      </header>
+      {/* Spec 027 (FR-011): encabezado común. */}
+      <EncabezadoVista
+        titulo="Reportes"
+        subtitulo={nombreLugar || undefined}
+        Icono={ChartColumn}
+        accion={<SelectorPeriodo periodo={periodo} onCambiar={setPeriodo} />}
+      />
 
       {puedeFaltar && (
         <p role="status" className="flex items-center gap-2 rounded-md bg-info-bg p-3 text-body text-text">
@@ -96,6 +106,7 @@ export function ReportesView({ onNavegar }: { onNavegar?: (vista: Vista) => void
           <section aria-label="Gráficos" className="grid grid-cols-1 gap-3 desk:grid-cols-2 desk:gap-6">
             <TarjetaGrafico
               titulo="Consumo por categoría"
+              Icono={Tag}
               vacio={resumen.porCategoria.length === 0}
               nota={notaSinPrecio(resumen.gasto.incompleto?.materialesSinPrecio)}
               tabla={{
@@ -107,6 +118,7 @@ export function ReportesView({ onNavegar }: { onNavegar?: (vista: Vista) => void
             </TarjetaGrafico>
             <TarjetaGrafico
               titulo="Gastos mensuales"
+              Icono={Calendar}
               vacio={resumen.gastosMensuales.every((m) => m.monto === 0)}
               tabla={{
                 columnas: ['Mes', 'Gasto'],
@@ -117,6 +129,7 @@ export function ReportesView({ onNavegar }: { onNavegar?: (vista: Vista) => void
             </TarjetaGrafico>
             <TarjetaGrafico
               titulo="Materiales más utilizados"
+              Icono={Package}
               vacio={resumen.masUtilizados.length === 0}
               nota={notaSinPrecio(resumen.gasto.incompleto?.materialesSinPrecio)}
               tabla={{
@@ -141,6 +154,7 @@ export function ReportesView({ onNavegar }: { onNavegar?: (vista: Vista) => void
             {/* Spec 026 (FR-015): producción y ganancia del profesional por categoría. */}
             <TarjetaGrafico
               titulo="Por categoría de tratamiento"
+              Icono={Stethoscope}
               vacio={resumen.porCategoriaTratamiento.length === 0}
               nota={notasIncompleto(resumen.produccion.incompleto).join(' · ') || undefined}
               tabla={{
@@ -164,6 +178,7 @@ export function ReportesView({ onNavegar }: { onNavegar?: (vista: Vista) => void
             {resumen.gananciaPorLugar && (
               <TarjetaGrafico
                 titulo="Ganancia del profesional por lugar"
+                Icono={MapPin}
                 vacio={false}
                 nota={notasIncompleto(resumen.gananciaProfesional.incompleto).join(' · ') || undefined}
                 tabla={{

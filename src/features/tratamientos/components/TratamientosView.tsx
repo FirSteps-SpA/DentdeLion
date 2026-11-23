@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { ElegirLugarSheet } from '../../../app/ElegirLugarSheet'
 import { Card } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
-import { Plus } from '../../../components/icons'
+import { Plus, Stethoscope } from '../../../components/icons'
+import { EncabezadoVista } from '../../../components/ui/EncabezadoVista'
+import { EstadoVacio } from '../../../components/ui/EstadoVacio'
 import { useAuthStore } from '../../../stores/authStore'
 import { lugaresActivos, useLugarStore } from '../../../stores/lugarStore'
 import { useTratamientosStore } from '../../../stores/tratamientosStore'
@@ -72,15 +74,20 @@ export function TratamientosView() {
 
   return (
     <div className="flex w-full flex-col gap-4 text-left">
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="text-h2 text-text">Tratamientos</h1>
-        {esAdministrador && pestana === 'tratamientos' && (
-          <TouchButton type="button" onClick={() => setOverlay({ tipo: 'nuevo' })}>
-            <Plus size={18} />
-            Tratamiento
-          </TouchButton>
-        )}
-      </div>
+      {/* Spec 027 (FR-011): encabezado común con la acción. */}
+      <EncabezadoVista
+        titulo="Tratamientos"
+        Icono={Stethoscope}
+        accion={
+          esAdministrador &&
+          pestana === 'tratamientos' && (
+            <TouchButton type="button" onClick={() => setOverlay({ tipo: 'nuevo' })}>
+              <Plus size={18} />
+              Tratamiento
+            </TouchButton>
+          )
+        }
+      />
 
       <div role="tablist" aria-label="Tratamientos" className="grid grid-cols-2 gap-2">
         {(['tratamientos', 'historial'] as const).map((opcion) => (
@@ -133,12 +140,15 @@ export function TratamientosView() {
           )}
 
           {visibles.length === 0 ? (
-            <Card className="px-3.5 py-3">
-              <p className="text-sm text-text-muted">
-                {esAdministrador
-                  ? 'Aún no hay tratamientos. Crea el primero con "+ Tratamiento".'
-                  : 'Aún no hay tratamientos definidos.'}
-              </p>
+            <Card>
+              <EstadoVacio
+                Icono={Stethoscope}
+                texto={
+                  esAdministrador
+                    ? 'Aún no hay tratamientos. Crea el primero con "+ Tratamiento".'
+                    : 'Aún no hay tratamientos definidos.'
+                }
+              />
             </Card>
           ) : (
             <ul className="flex flex-col gap-2">

@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Card } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
+import { EstadoVacio } from '../../../components/ui/EstadoVacio'
+import { Calendar } from '../../../components/icons'
 import { useAuthStore } from '../../../stores/authStore'
 import { nombreLugar, useLugarStore } from '../../../stores/lugarStore'
 import { usePendientesStore } from '../../../stores/pendientesStore'
@@ -135,7 +137,9 @@ export function HistorialTratamientos() {
       )}
 
       {registros.length === 0 ? (
-        <p className="text-sm text-text-muted">No hay tratamientos registrados en este período.</p>
+        <Card>
+          <EstadoVacio Icono={Calendar} texto="No hay tratamientos registrados en este período." />
+        </Card>
       ) : (
         <ul className="flex flex-col gap-2">
           {registros.map((registro) => {
