@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useAuthStore } from '../../../stores/authStore'
 import { ArrowLeft } from '../../../components/icons'
 import { TouchButton } from '../../../components/ui/TouchButton'
+import { EncabezadoVista } from '../../../components/ui/EncabezadoVista'
 import { SECCIONES_AJUSTES, type IdSeccion } from '../lib/secciones'
 import { PerfilSection } from './PerfilSection'
 import { EquipoSection } from './EquipoSection'
@@ -41,20 +42,25 @@ export function SeccionAjustesPantalla({
 
   return (
     <div className="flex w-full max-w-3xl flex-col gap-6 text-left">
-      <header className="flex items-center gap-3">
+      <div className="flex flex-col gap-2">
         <TouchButton
           type="button"
           variant="ghost"
           onClick={onVolver}
           aria-label="Volver a Ajustes"
+          className="self-start"
         >
           <ArrowLeft size={18} />
           Volver
         </TouchButton>
-        <h1 ref={titulo} tabIndex={-1} className="text-h2 text-text outline-none">
-          {seccion.titulo(esAdministrador)}
-        </h1>
-      </header>
+        {/* Spec 027 (FR-011): encabezado común con el ícono de la sección. */}
+        <EncabezadoVista
+          titulo={seccion.titulo(esAdministrador)}
+          Icono={seccion.Icon}
+          tituloRef={titulo}
+          tituloClassName="outline-none"
+        />
+      </div>
 
       {id === 'perfil' && (
         <>

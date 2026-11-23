@@ -1,5 +1,7 @@
 import type { ComponentType, ElementType, ReactNode } from 'react'
-import type { IconProps } from '../icons'
+import { ChevronRight, type IconProps } from '../icons'
+import { IconoFondo, MiniBarras } from '../decoracion'
+import { CUADRADO_TONO, type TonoIcono } from './tonos'
 
 interface CardProps {
   as?: ElementType
@@ -19,7 +21,7 @@ interface CardProps {
 export function Card({ as: Component = 'div', className = '', ...props }: CardProps) {
   return (
     <Component
-      className={`rounded-lg border border-border bg-surface shadow-card ${className}`}
+      className={`rounded-lg border border-border bg-surface shadow-tarjeta ${className}`}
       {...props}
     />
   )
@@ -36,7 +38,7 @@ export interface KpiCardProps {
   titulo: string
   valor: ReactNode
   Icono: ComponentType<IconProps>
-  /** Color del valor cuando importa (p. ej. hay insumos bajo mínimo). */
+  /** Color del valor y del cuadrado del ícono cuando importa (p. ej. hay insumos bajo mínimo). */
   tono?: 'neutro' | 'danger' | 'warning'
   ariaLabel: string
   /** Sin `onClick` la tarjeta es informativa (spec 017, Reportes): un `<div>`. */
@@ -45,12 +47,27 @@ export interface KpiCardProps {
   variacion?: KpiVariacion
   /** Spec 017 — aclaraciones bajo el valor ("desde $X", "2 sin precio"…). */
   nota?: ReactNode
+  /** Spec 027 (FR-008): "Valor de inventario" con degradado y mini gráfico. */
+  variante?: 'normal' | 'destacada'
 }
 
 const TONO_VALOR: Record<NonNullable<KpiCardProps['tono']>, string> = {
   neutro: 'text-text',
   danger: 'text-danger',
   warning: 'text-warning-30-text',
+}
+
+const TONO_CUADRADO: Record<NonNullable<KpiCardProps['tono']>, TonoIcono> = {
+  neutro: 'primario',
+  danger: 'peligro',
+  warning: 'aviso',
+}
+
+/** Pastilla "Ver detalle →" con el tinte del tono (texto AA sobre su fondo). */
+const TONO_PASTILLA: Record<NonNullable<KpiCardProps['tono']>, string> = {
+  neutro: 'bg-secondary-bg text-primary-text',
+  danger: 'bg-danger-bg text-danger',
+  warning: 'bg-warning-30-bg text-warning-30-text',
 }
 
 const TONO_VARIACION: Record<KpiVariacion['tono'], string> = {
@@ -64,6 +81,11 @@ const TONO_VARIACION: Record<KpiVariacion['tono'], string> = {
  * Con `onClick` es un botón que lleva a la sección donde se resuelve el tema
  * (FR-024); sin él, una tarjeta informativa. La spec 017 agrega la variación
  * ("↑ 12 % vs. mes anterior", 12/600) y una nota bajo el valor.
+ *
+ * Spec 027 (FR-007, FR-008, research.md R6): ícono en cuadrado con el tinte
+ * del tono, ícono grande desvaído de fondo (o el mini gráfico en la
+ * `destacada`) y, si navega, la pastilla "Ver detalle →" — parte visual del
+ * botón (su nombre accesible ya dice "Ver …").
  */
 export function KpiCard({
   titulo,
@@ -74,17 +96,27 @@ export function KpiCard({
   onClick,
   variacion,
   nota,
+  variante = 'normal',
 }: KpiCardProps) {
+  const destacada = variante === 'destacada'
   const contenido = (
     <>
-      <span className="flex items-center gap-2 text-[13px] font-semibold text-text-muted">
-        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary-soft text-brand-icon">
+      {destacada ? (
+        <MiniBarras className="absolute right-3 bottom-3 h-9 w-14 opacity-70" />
+      ) : (
+        <IconoFondo Icono={Icono} size={76} className="absolute -right-2 -bottom-2" />
+      )}
+      <span className="relative flex items-center gap-2.5 text-[13px] leading-4 font-semibold text-text">
+        <span
+          aria-hidden="true"
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${CUADRADO_TONO[TONO_CUADRADO[tono]]}`}
+        >
           <Icono size={18} />
         </span>
         {titulo}
       </span>
-      <span className="flex flex-col gap-1">
-        <span className={`text-num ${TONO_VALOR[tono]}`}>{valor}</span>
+      <span className={`relative flex flex-col gap-1 ${destacada ? 'pb-8' : ''}`}>
+        <span className={`text-num break-words ${TONO_VALOR[tono]}`}>{valor}</span>
         {variacion && (
           <span className={`text-caption font-semibold ${TONO_VARIACION[variacion.tono]}`}>
             {variacion.texto}
@@ -92,10 +124,21 @@ export function KpiCard({
         )}
         {nota && <span className="text-caption text-text-muted">{nota}</span>}
       </span>
+      {onClick && !destacada && (
+        <span
+          aria-hidden="true"
+          data-ver-detalle
+          className={`relative inline-flex w-fit items-center gap-1 rounded-pill px-3 py-1 text-caption font-semibold ${TONO_PASTILLA[tono]}`}
+        >
+          Ver detalle <ChevronRight size={14} />
+        </span>
+      )}
     </>
   )
-  const clases =
-    'flex min-h-[132px] flex-col gap-3 rounded-lg border border-border bg-surface p-5 text-left shadow-card'
+  const fondo = destacada
+    ? 'bg-gradient-to-br from-destacada-desde to-destacada-hasta border-secondary-bg'
+    : 'bg-surface border-border'
+  const clases = `relative overflow-hidden flex min-h-[148px] flex-col gap-3 rounded-lg border p-5 text-left shadow-tarjeta ${fondo}`
   if (!onClick) {
     // Informativa (Reportes): el valor va bajo el título, así los montos de
     // tarjetas vecinas quedan alineados aunque solo algunas tengan notas.
@@ -110,7 +153,7 @@ export function KpiCard({
       type="button"
       onClick={onClick}
       aria-label={ariaLabel}
-      className={`touch-target ${clases} justify-between transition-colors hover:border-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand`}
+      className={`touch-target ${clases} justify-between motion-safe:transition-colors hover:border-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand`}
     >
       {contenido}
     </button>

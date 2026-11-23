@@ -81,6 +81,7 @@ Driver commands:
 | `seed-lote <insumoId> <loteId> <días\|none> <cantidad> [lugarId]` | Writes one `Lote` expiring in `<días>` (negative = already expired, `none` = no expiry) plus an `ingreso` of `<cantidad>` in `lugarId` (default: lugar 1), so the insumo has stock for "Consumir 1" |
 | `seed-presentacion <insumoId> <unidadConsumo> <unidadCompra> <contenido>` | Spec 015: sets a purchase presentation directly on the insumo row (e.g. `seed-presentacion art cartucho caja 50`). Call it **before** `seed-lote`, which records the ingreso in the insumo's consumption unit. Screenshot-only shortcut: it bypasses the `cambiosInsumo` ledger |
 | `wheel <selector>` | Spec 018: focuses the field, turns the real mouse wheel over it and prints value before/after, whether it kept focus and how far its scroll container moved (`FAIL` if the value changed) |
+| `desborde` | Spec 027: prints the document's `scrollWidth` against `innerWidth` (`FAIL` if there is horizontal scroll) |
 | `press <key>` | Presses a key on the focused element (e.g. `press ArrowUp`) |
 | `wait <ms>` | Pause (e.g. `wait 400` so a modal's fade-in finishes before `screenshot`) |
 | `viewport <ancho> [alto]` | Resize the page (375 = móvil, 768 = tablet, 1440 = desktop) |

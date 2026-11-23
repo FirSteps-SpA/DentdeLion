@@ -4,7 +4,10 @@ import { useAlertasStore } from '../../../stores/alertasStore'
 import { computeInsumosStockBajo } from '../lib/stockBajo'
 import { computeAlertasCaducidad } from '../lib/caducidad'
 import { lotesEnRevision, marcarLoteResuelto } from '../lib/revision'
-import { AlertTriangle, CircleAlert, Clock } from '../../../components/icons'
+import { AlertTriangle, Bell, CircleAlert, CircleCheck, Clock } from '../../../components/icons'
+import { EncabezadoVista } from '../../../components/ui/EncabezadoVista'
+import { EncabezadoSeccion } from '../../../components/ui/EncabezadoSeccion'
+import { EstadoVacio } from '../../../components/ui/EstadoVacio'
 import { Badge, type BadgeVariant } from '../../../components/ui/Badge'
 import { Card } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
@@ -72,15 +75,20 @@ export function AlertasView() {
 
   return (
     <div className="flex w-full flex-col gap-6 text-left">
+      {/* Spec 027 (FR-011, FR-012): encabezado común y secciones con ícono. */}
+      <EncabezadoVista titulo="Alertas" Icono={Bell} />
+
       {/* Spec 013 FR-011: stock bajo y caducidad lado a lado en desktop. */}
       <div className="grid grid-cols-1 gap-4 desk:grid-cols-2 desk:items-start desk:gap-6">
       <section className="flex flex-col gap-2">
-        <h2 className="text-h3 text-text">Stock bajo</h2>
+        <EncabezadoSeccion Icono={AlertTriangle} titulo="Stock bajo" tono="aviso" />
         {alertasStockBajo.length === 0 ? (
-          <Card className="px-3.5 py-2.5">
-            <p className="text-sm text-text-muted">
-              Ningún insumo está por debajo de su stock mínimo.
-            </p>
+          <Card>
+            <EstadoVacio
+              Icono={CircleCheck}
+              texto="Ningún insumo está por debajo de su stock mínimo."
+              compacto
+            />
           </Card>
         ) : (
           <ul className="flex flex-col gap-2">
@@ -119,12 +127,14 @@ export function AlertasView() {
       </section>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-h3 text-text">Próximos a caducar</h2>
+        <EncabezadoSeccion Icono={Clock} titulo="Próximos a caducar" tono="peligro" />
         {alertasCaducidad.length === 0 ? (
-          <Card className="px-3.5 py-2.5">
-            <p className="text-sm text-text-muted">
-              Ningún lote está próximo a caducar ni caducado.
-            </p>
+          <Card>
+            <EstadoVacio
+              Icono={CircleCheck}
+              texto="Ningún lote está próximo a caducar ni caducado."
+              compacto
+            />
           </Card>
         ) : (
           <ul className="flex flex-col gap-2">
@@ -167,7 +177,7 @@ export function AlertasView() {
       </div>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-h3 text-text">Lotes en revisión</h2>
+        <EncabezadoSeccion Icono={CircleAlert} titulo="Lotes en revisión" tono="info" />
         {errorRevision && (
           <Card className="bg-danger-bg px-3.5 py-2.5">
             <p role="alert" className="text-sm text-danger">
@@ -176,10 +186,12 @@ export function AlertasView() {
           </Card>
         )}
         {alertasRevision.length === 0 ? (
-          <Card className="px-3.5 py-2.5">
-            <p className="text-sm text-text-muted">
-              Ningún lote está marcado para revisión manual.
-            </p>
+          <Card>
+            <EstadoVacio
+              Icono={CircleCheck}
+              texto="Ningún lote está marcado para revisión manual."
+              compacto
+            />
           </Card>
         ) : (
           <ul className="flex flex-col gap-2">

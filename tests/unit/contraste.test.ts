@@ -90,6 +90,30 @@ const PARES: [string, string[], string[], number][] = [
   ['Reportes: variación', ['success-text', 'danger'], ['surface'], 4.5],
   ['Reportes: aviso de sincronización', ['text'], ['info-bg'], 4.5],
   ['Reportes: serie oscura del donut', ['chart-2'], ['surface'], 3],
+  // Spec 027 (contracts/ui-contracts.md §1): rediseño.
+  ['Rediseño: ícono neutro en su tinte', ['brand-icon'], ['tinte-primario'], 3],
+  ['Rediseño: ícono de peligro en su tinte', ['danger'], ['tinte-peligro'], 3],
+  ['Rediseño: ícono de aviso en su tinte', ['warning-icon'], ['tinte-aviso'], 3],
+  ['Rediseño: ícono informativo en su tinte', ['info-icon'], ['tinte-info'], 3],
+  [
+    'Rediseño: textos de la tarjeta destacada (todo el degradado)',
+    ['text', 'text-muted', 'primary-text'],
+    ['destacada-desde', 'destacada-hasta'],
+    4.5,
+  ],
+  [
+    'Rediseño: textos sobre las ondas del fondo',
+    ['text', 'text-muted'],
+    ['onda-1', 'onda-2'],
+    4.5,
+  ],
+  [
+    'Rediseño: pastillas de sincronización',
+    ['success-text'],
+    ['success-bg'],
+    4.5,
+  ],
+  ['Rediseño: pastilla de lugar', ['primary-text'], ['secondary-bg'], 4.5],
 ]
 
 const casos = PARES.flatMap(([uso, frentes, fondos, minimo]) =>

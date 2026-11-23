@@ -21,6 +21,9 @@ export interface BottomNavProps {
  * dispositivo (requiere `viewport-fit=cover` en el meta viewport de
  * `index.html`). `AppShell` reserva espacio equivalente en el contenido para
  * que nada quede oculto detrás de la barra.
+ *
+ * Spec 027 (FR-005, research.md R4): el activo lleva una pastilla menta
+ * detrás del ícono (color y texto, no solo color).
  */
 export function BottomNav({ active, onChange, alertasBadge }: BottomNavProps) {
   return (
@@ -42,12 +45,16 @@ export function BottomNav({ active, onChange, alertasBadge }: BottomNavProps) {
                 activa ? 'text-primary-text' : 'text-text-muted'
               }`}
             >
-              <span className={`relative ${activa ? 'text-brand-icon' : ''}`}>
+              <span
+                className={`relative flex h-8 w-14 items-center justify-center rounded-pill ${
+                  activa ? 'bg-primary-soft text-brand-icon' : ''
+                }`}
+              >
                 <Icon size={24} />
                 {vista === 'alertas' && !!alertasBadge && alertasBadge > 0 && (
                   <span
                     aria-label={`${alertasBadge} alertas pendientes`}
-                    className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-pill bg-danger px-1 text-[10px] font-bold text-white"
+                    className="absolute right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-pill bg-danger px-1 text-[10px] font-bold text-white"
                   >
                     {alertasBadge}
                   </span>

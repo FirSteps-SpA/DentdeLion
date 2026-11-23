@@ -23,7 +23,10 @@ import { AgregarItemManualForm } from './AgregarItemManualForm'
 import { VincularOCrearDialog } from './VincularOCrearDialog'
 import { Card } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
-import { Plus } from '../../../components/icons'
+import { ClipboardIcon, Plus, ShoppingCart, Sparkles } from '../../../components/icons'
+import { EncabezadoVista } from '../../../components/ui/EncabezadoVista'
+import { EncabezadoSeccion } from '../../../components/ui/EncabezadoSeccion'
+import { EstadoVacio } from '../../../components/ui/EstadoVacio'
 import { porLugar, useVistasDeLugar, vistasDeLugar } from '../../insumos/lib/vistaLugar'
 import { ChipLugar } from '../../../app/ChipLugar'
 import { ElegirLugarSheet } from '../../../app/ElegirLugarSheet'
@@ -239,9 +242,12 @@ export function ComprasView() {
 
   return (
     <div className="flex w-full flex-col gap-4 text-left">
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="text-h2 text-text">Compras</h1>
-        {items.length > 0 && (
+      {/* Spec 027 (FR-011): encabezado común. */}
+      <EncabezadoVista
+        titulo="Compras"
+        Icono={ShoppingCart}
+        accion={
+          items.length > 0 && (
           // FR-002: sobre los ítems visibles; "mixed" con algunos marcados.
           <label className="touch-target flex cursor-pointer items-center gap-2 px-2 text-sm font-bold text-text">
             <input
@@ -253,8 +259,9 @@ export function ComprasView() {
             />
             Seleccionar todo
           </label>
-        )}
-      </div>
+          )
+        }
+      />
 
       {mensajeCompartir && (
         <Card className="flex flex-col gap-2 px-3.5 py-2.5">
@@ -267,14 +274,10 @@ export function ComprasView() {
       {/* Spec 013 FR-011: sugeridos y manuales lado a lado en desktop. */}
       <div className="grid grid-cols-1 gap-4 desk:grid-cols-2 desk:items-start desk:gap-6">
       <section className="flex flex-col gap-2">
-        <h2 className="text-xs font-bold uppercase tracking-wide text-text-muted">
-          Sugeridos por el Sistema
-        </h2>
+        <EncabezadoSeccion Icono={Sparkles} titulo="Sugeridos por el Sistema" />
         {sugeridos.length === 0 ? (
-          <Card className="flex flex-col gap-1 px-3.5 py-3">
-            <p className="text-sm text-text-muted">
-              No hay materiales sugeridos por ahora.
-            </p>
+          <Card>
+            <EstadoVacio Icono={ShoppingCart} texto="No hay materiales sugeridos por ahora." compacto />
           </Card>
         ) : (
           <ul className="flex flex-col gap-2">
@@ -304,23 +307,24 @@ export function ComprasView() {
       </section>
 
       <section className="flex flex-col gap-2">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-xs font-bold uppercase tracking-wide text-text-muted">
-            Agregados Manualmente
-          </h2>
-          <TouchButton
-            type="button"
-            variant="secondary"
-            onClick={abrirAgregarManual}
-            className="px-3 text-xs"
-          >
-            <Plus size={16} />
-            Añadir Ítem Manual
-          </TouchButton>
-        </div>
+        <EncabezadoSeccion
+          Icono={ClipboardIcon}
+          titulo="Agregados Manualmente"
+          accion={
+            <TouchButton
+              type="button"
+              variant="secondary"
+              onClick={abrirAgregarManual}
+              className="shrink-0 px-3 text-xs"
+            >
+              <Plus size={16} />
+              Añadir Ítem Manual
+            </TouchButton>
+          }
+        />
         {manuales.length === 0 ? (
-          <Card className="flex flex-col gap-1 px-3.5 py-3">
-            <p className="text-sm text-text-muted">Aún no agregaste ítems.</p>
+          <Card>
+            <EstadoVacio Icono={ClipboardIcon} texto="Aún no agregaste ítems." compacto />
           </Card>
         ) : (
           <ul className="flex flex-col gap-2">

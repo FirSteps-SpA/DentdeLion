@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 import type { Vista } from '../../../app/navegacion'
 import {
   Bell,
+  Calendar,
   ChevronRight,
   CircleAlert,
   CircleCheck,
@@ -10,6 +11,9 @@ import {
   ShoppingCart,
   Wallet,
 } from '../../../components/icons'
+import { EncabezadoVista } from '../../../components/ui/EncabezadoVista'
+import { EncabezadoSeccion } from '../../../components/ui/EncabezadoSeccion'
+import { EstadoVacio } from '../../../components/ui/EstadoVacio'
 import { Badge } from '../../../components/ui/Badge'
 import { Card, KpiCard } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
@@ -111,7 +115,21 @@ function FilaAlerta({
 
 function puntoVencimiento(dias: number): string {
   if (dias <= 30) return 'bg-warning-icon'
-  return 'bg-success-icon'
+  return 'bg-brand-icon'
+}
+
+/** Spec 027 (FR-009): "Ver todas →" de las tarjetas de sección. */
+function VerTodas({ texto, onClick }: { texto: string; onClick: () => void }) {
+  return (
+    <TouchButton
+      type="button"
+      variant="ghost"
+      className="shrink-0 border-none px-2 whitespace-nowrap text-primary-text"
+      onClick={onClick}
+    >
+      {texto} <ChevronRight size={16} />
+    </TouchButton>
+  )
 }
 
 /**
@@ -121,6 +139,11 @@ function puntoVencimiento(dias: number): string {
  * resuelve el tema — Inicio no agrega acciones ni datos (FR-024/FR-026). La
  * spec 018 (FR-009) solo suma abrir el detalle del insumo desde una alerta o
  * un vencimiento, de solo lectura.
+ *
+ * Spec 027 (US2, FR-006..FR-010): encabezado con el diente y destellos,
+ * KPI con tinte, ícono de fondo y "Ver detalle", "Valor de inventario"
+ * destacada, secciones con ícono, vencimientos en línea de tiempo y sin la
+ * tarjeta "¿Qué necesitas comprar?".
  */
 export function InicioView({ onNavegar }: InicioViewProps) {
   const usuario = useAuthStore((s) => s.usuario)
@@ -184,12 +207,11 @@ export function InicioView({ onNavegar }: InicioViewProps) {
 
   return (
     <div className="flex w-full flex-col gap-6 text-left">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-h1 text-text">¡Hola, {primerNombre}!</h1>
-        <p className="text-body text-text-muted first-letter:uppercase">
-          {hoy}
-        </p>
-      </header>
+      <EncabezadoVista
+        titulo={`¡Hola, ${primerNombre}!`}
+        subtitulo={<span className="inline-block first-letter:uppercase">{hoy}</span>}
+        ilustracion="diente"
+      />
 
       <section
         aria-label="Resumen"
@@ -220,21 +242,14 @@ export function InicioView({ onNavegar }: InicioViewProps) {
         <Card
           as="section"
           aria-labelledby="inicio-alertas"
-          className="flex flex-col px-5 py-4"
+          className="flex flex-col gap-2 px-5 py-4"
         >
-          <div className="flex items-center justify-between gap-2">
-            <h2 id="inicio-alertas" className="text-h3 text-text">
-              Alertas
-            </h2>
-            <TouchButton
-              type="button"
-              variant="ghost"
-              className="shrink-0 border-none px-2 whitespace-nowrap text-primary-text"
-              onClick={() => onNavegar('alertas')}
-            >
-              Ver todas <ChevronRight size={16} />
-            </TouchButton>
-          </div>
+          <EncabezadoSeccion
+            Icono={Bell}
+            titulo="Alertas"
+            id="inicio-alertas"
+            accion={<VerTodas texto="Ver todas" onClick={() => onNavegar('alertas')} />}
+          />
           {resumen.listaAlertas.length === 0 ? (
             <p className="flex items-center gap-2 py-3 text-sm text-success-text">
               <CircleCheck size={18} /> Todo en orden
@@ -256,37 +271,33 @@ export function InicioView({ onNavegar }: InicioViewProps) {
         <Card
           as="section"
           aria-labelledby="inicio-vencimientos"
-          className="flex flex-col px-5 py-4"
+          className="flex flex-col gap-2 px-5 py-4"
         >
-          <div className="flex items-center justify-between gap-2">
-            <h2 id="inicio-vencimientos" className="text-h3 text-text">
-              Próximos vencimientos
-            </h2>
-            <TouchButton
-              type="button"
-              variant="ghost"
-              className="shrink-0 border-none px-2 whitespace-nowrap text-primary-text"
-              onClick={() => onNavegar('alertas')}
-            >
-              Ver todos <ChevronRight size={16} />
-            </TouchButton>
-          </div>
+          <EncabezadoSeccion
+            Icono={Calendar}
+            titulo="Próximos vencimientos"
+            id="inicio-vencimientos"
+            accion={<VerTodas texto="Ver todos" onClick={() => onNavegar('alertas')} />}
+          />
           {resumen.proximosVencimientos.length === 0 ? (
-            <p className="py-3 text-sm text-text-muted">
-              Sin vencimientos próximos
-            </p>
+            <EstadoVacio Icono={Calendar} texto="Sin vencimientos próximos" compacto />
           ) : (
-            <ul className="flex flex-col divide-y divide-border">
+            // Línea de tiempo (FR-009): puntos unidos por una línea vertical.
+            <ol className="relative flex flex-col">
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute top-6 bottom-6 left-[4.5px] w-px bg-primary-soft"
+              />
               {resumen.proximosVencimientos.map(
                 ({ insumo, lote, diasRestantes, lugar }) => (
-                  <li key={`${lugar?.id ?? ''}-${lote.id}`}>
+                  <li key={`${lugar?.id ?? ''}-${lote.id}`} className="relative">
                     <RenglonAlerta
                       variante="lista"
                       onAbrir={abrir(insumo.id, lugar)}
                       icono={
                         <span
                           aria-hidden="true"
-                          className={`h-2.5 w-2.5 shrink-0 rounded-full ${puntoVencimiento(diasRestantes)}`}
+                          className={`relative z-10 h-2.5 w-2.5 shrink-0 rounded-full ring-4 ring-surface ${puntoVencimiento(diasRestantes)}`}
                         />
                       }
                       titulo={insumo.nombre}
@@ -300,28 +311,10 @@ export function InicioView({ onNavegar }: InicioViewProps) {
                   </li>
                 ),
               )}
-            </ul>
+            </ol>
           )}
         </Card>
       </div>
-
-      {resumen.paraComprar > 0 && (
-        <Card className="flex flex-col gap-3 bg-bg-secondary px-5 py-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-col gap-1">
-            <h2 className="text-h3 text-text">¿Qué necesitas comprar?</h2>
-            <p className="text-body text-text-muted">
-              Te{' '}
-              {resumen.paraComprar === 1
-                ? 'falta 1 producto'
-                : `faltan ${resumen.paraComprar} productos`}
-              .
-            </p>
-          </div>
-          <TouchButton type="button" onClick={() => onNavegar('compras')}>
-            Ver lista de compra
-          </TouchButton>
-        </Card>
-      )}
 
       {detalle && (
         <DetalleDesdeAlerta abierto={detalle} vistas={vistas} onClose={cerrarDetalle} />
@@ -360,6 +353,7 @@ function TarjetaValorInventario({
       titulo="Valor de inventario"
       valor={monto}
       Icono={Wallet}
+      variante="destacada"
       variacion={variacion ? { texto: variacion, tono: 'muted' } : undefined}
       nota={nota}
       ariaLabel={[`Valor de inventario: ${monto}`, variacion, nota, 'Ver Reportes']

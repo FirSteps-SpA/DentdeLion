@@ -11,14 +11,18 @@ import {
   type IconProps,
 } from '../components/icons'
 
+/**
+ * Spec 027 (FR-004, research.md R4): pastilla con fondo por estado (todas con
+ * texto AA sobre su fondo); el error en ámbar, como en la referencia.
+ */
 const ESTILOS: Record<
   EstadoIndicador,
   { Icono: ComponentType<IconProps>; color: string }
 > = {
-  sincronizado: { Icono: Check, color: 'text-success-text' },
-  pendientes: { Icono: ArrowsSync, color: 'text-primary' },
-  'sin-conexion': { Icono: CloudOff, color: 'text-text-muted' },
-  error: { Icono: AlertTriangle, color: 'text-danger' },
+  sincronizado: { Icono: Check, color: 'bg-success-bg text-success-text' },
+  pendientes: { Icono: ArrowsSync, color: 'bg-primary-soft text-primary-text' },
+  'sin-conexion': { Icono: CloudOff, color: 'bg-bg-secondary text-text-muted' },
+  error: { Icono: AlertTriangle, color: 'bg-warning-30-bg text-warning-30-text' },
 }
 
 export interface SyncIndicatorProps {
@@ -36,7 +40,7 @@ export interface SyncIndicatorProps {
 export function SyncIndicator({ indicador, onClick }: SyncIndicatorProps) {
   const sincronizando = useSyncStore((s) => s.fase === 'sincronizando')
   const { Icono, color } = indicador.alerta
-    ? { Icono: Clock, color: 'text-warning-30-text' }
+    ? { Icono: Clock, color: 'bg-warning-30-bg text-warning-30-text' }
     : ESTILOS[indicador.estado]
   const texto = textoIndicador(indicador)
 
@@ -47,13 +51,13 @@ export function SyncIndicator({ indicador, onClick }: SyncIndicatorProps) {
       aria-label={`Estado de sincronización: ${texto}${indicador.alerta ? ' · cambios antiguos sin subir' : ''}`}
       data-estado={indicador.estado}
       data-alerta={indicador.alerta || undefined}
-      className={`touch-target flex items-center gap-1.5 rounded-full px-2.5 ${indicador.alerta ? 'bg-warning-30-bg' : ''} ${color}`}
+      className={`touch-target flex items-center gap-1.5 rounded-full px-2.5 focus-visible:outline-2 focus-visible:outline-brand ${color}`}
     >
       <Icono
         size={16}
         className={sincronizando ? 'motion-safe:animate-spin' : undefined}
       />
-      <span className="whitespace-nowrap text-[11px] font-semibold">
+      <span className="whitespace-nowrap text-[11px] font-semibold sm:text-xs">
         <span className="sm:hidden">{textoCortoIndicador(indicador)}</span>
         <span className="hidden sm:inline">{texto}</span>
       </span>

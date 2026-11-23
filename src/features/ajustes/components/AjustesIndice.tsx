@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useAuthStore } from '../../../stores/authStore'
-import { ChartColumn, ShoppingCart } from '../../../components/icons'
+import { ChartColumn, Settings, ShoppingCart } from '../../../components/icons'
+import { EncabezadoVista } from '../../../components/ui/EncabezadoVista'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import type { Vista } from '../../../app/navegacion'
 import { seccionesVisibles, type IdSeccion } from '../lib/secciones'
@@ -31,7 +32,8 @@ export function AjustesIndice({ onAbrir, enfocar, onNavegar }: AjustesIndiceProp
 
   return (
     <div className="flex w-full max-w-5xl flex-col gap-4 text-left md:gap-6">
-      <h1 className="text-h2 text-text">Ajustes</h1>
+      {/* Spec 027 (FR-011): encabezado común. */}
+      <EncabezadoVista titulo="Ajustes" Icono={Settings} />
       {/* Specs 016 (R7) y 017 (R11): en móvil, Compras y Reportes se abren
           desde "Más"; lado a lado para que el índice entre en una pantalla
           (spec 019 SC-002). */}

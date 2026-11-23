@@ -251,7 +251,7 @@ describe('Inicio (spec 013 US3)', () => {
     ).toBeInTheDocument()
   })
 
-  it('muestra los próximos vencimientos y la tarjeta de compra', () => {
+  it('muestra los próximos vencimientos; Compras se abre desde su KPI (spec 027: sin tarjeta de compra)', () => {
     sembrar()
     render(<Harness />)
 
@@ -265,7 +265,10 @@ describe('Inicio (spec 013 US3)', () => {
     expect(
       within(vencimientos).getByText(/vence en 3 días/),
     ).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Ver lista de compra' }))
+    // Spec 027 FR-010: la tarjeta "¿Qué necesitas comprar?" ya no está.
+    expect(screen.queryByRole('button', { name: 'Ver lista de compra' })).not.toBeInTheDocument()
+    expect(screen.queryByText('¿Qué necesitas comprar?')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^Para comprar: .*Ver Compras$/ }))
     expect(screen.getByRole('heading', { name: 'Compras' })).toBeInTheDocument()
   })
 

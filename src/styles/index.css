@@ -74,6 +74,17 @@
   --color-chart-otras: #8CA0A5;
   --color-chart-negativo: #E96767;
 
+  /* Spec 027 (research.md R2) — rediseño: tintes de los cuadrados de ícono
+     por tono, degradado de "Valor de inventario" y ondas decorativas. */
+  --color-tinte-primario: #D8F3EF;
+  --color-tinte-peligro: #FDEEEE;
+  --color-tinte-aviso: #FFF1DC;
+  --color-tinte-info: #EDF7FD;
+  --color-destacada-desde: #F1FBF9;
+  --color-destacada-hasta: #E0F5F2;
+  --color-onda-1: #E3F6F3;
+  --color-onda-2: #E0F5F2;
+
   /* Radios (DS §10) */
   --radius-sm: 8px;
   --radius-md: 10px;
@@ -86,6 +97,8 @@
   --shadow-modal: 0 12px 40px rgba(13, 83, 96, 0.12);
   --shadow-dropdown: 0 8px 24px rgba(13, 83, 96, 0.1);
   --shadow-fab: 0 6px 16px rgba(18, 184, 174, 0.25);
+  /* Spec 027: tarjetas que flotan algo más, como en la referencia. */
+  --shadow-tarjeta: 0 8px 24px rgba(13, 83, 96, 0.07);
 
   /* Desktop desde 1200 px (DS §38); md (768) separa móvil de tablet. */
   --breakpoint-desk: 75rem;

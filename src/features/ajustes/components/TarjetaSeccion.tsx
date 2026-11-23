@@ -24,15 +24,16 @@ export const TarjetaSeccion = forwardRef<HTMLButtonElement, TarjetaSeccionProps>
         onClick={onClick}
         aria-labelledby={idTitulo}
         aria-describedby={resumen ? idResumen : undefined}
-        className="flex min-h-14 w-full items-center gap-3 rounded-lg border border-border bg-surface px-4 py-2 md:min-h-[72px] md:py-3 text-left shadow-card transition-colors hover:border-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        className="relative flex min-h-14 w-full items-center gap-3 overflow-hidden rounded-lg border border-border bg-surface px-4 py-2 md:min-h-[72px] md:py-3 text-left shadow-tarjeta motion-safe:transition-colors hover:border-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
       >
+
         <span
           aria-hidden="true"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary-soft text-brand-icon"
+          className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-tinte-primario text-brand-icon"
         >
           <Icon size={20} />
         </span>
-        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="relative flex min-w-0 flex-1 flex-col gap-0.5">
           <span id={idTitulo} className="text-h3 text-text">
             {titulo}
           </span>
@@ -42,7 +43,7 @@ export const TarjetaSeccion = forwardRef<HTMLButtonElement, TarjetaSeccionProps>
             </span>
           )}
         </span>
-        <ChevronRight size={18} className="shrink-0 text-text-muted" />
+        <ChevronRight size={18} className="relative shrink-0 text-text-muted" />
       </button>
     )
   },

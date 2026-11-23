@@ -29,7 +29,9 @@ import { ConfirmarBajaDialog } from './ConfirmarBajaDialog'
 import { BottomSheet } from '../../../components/ui/BottomSheet'
 import { Card } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
-import { Plus } from '../../../components/icons'
+import { Boxes, Plus, Search } from '../../../components/icons'
+import { EncabezadoVista } from '../../../components/ui/EncabezadoVista'
+import { EstadoVacio } from '../../../components/ui/EstadoVacio'
 import { VerMas } from '../../../components/ui/VerMas'
 import { Paginador } from '../../../components/ui/Paginador'
 import { rangoPagina, useListaPaginada } from '../../../lib/paginacion'
@@ -236,6 +238,9 @@ export function InventarioView() {
 
   return (
     <div className="flex w-full flex-col gap-4 text-left">
+      {/* Spec 027 (FR-011): encabezado común. */}
+      <EncabezadoVista titulo="Inventario" Icono={Boxes} />
+
       <ResumenAlertasBanner
         totalCaducidad={totalCaducidad}
         totalStockBajo={totalStockBajo}
@@ -324,18 +329,18 @@ export function InventarioView() {
       )}
 
       {resultados.length === 0 && insumos.length === 0 && (
-        <Card className="flex flex-col gap-2 px-3.5 py-3">
-          <p className="text-sm text-text-muted">
-            Aún no hay insumos en el inventario.
-          </p>
+        <Card>
+          <EstadoVacio Icono={Boxes} texto="Aún no hay insumos en el inventario." />
         </Card>
       )}
 
       {resultados.length === 0 && insumos.length > 0 && (
-        <Card className="flex flex-col gap-2 px-3.5 py-3">
-          <p className="text-sm text-text-muted">
-            Ningún insumo coincide con la búsqueda o los filtros.
-          </p>
+        <Card className="flex flex-col gap-2 px-3.5 pb-4">
+          <EstadoVacio
+            Icono={Search}
+            texto="Ningún insumo coincide con la búsqueda o los filtros."
+            compacto
+          />
           {hayFiltrosActivos && (
             <TouchButton
               type="button"

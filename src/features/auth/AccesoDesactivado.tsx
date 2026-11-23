@@ -22,7 +22,7 @@ export function AccesoDesactivado() {
     : 0
 
   return (
-    <div className="flex w-full max-w-sm flex-col items-center gap-4 rounded-xl border border-border bg-surface p-6 text-center shadow-card md:p-8">
+    <div className="flex w-full max-w-sm flex-col items-center gap-4 rounded-xl border border-border bg-surface p-6 text-center shadow-tarjeta md:p-8">
       <CircleAlert size={40} className="text-danger" />
       <h1 className="text-h2 text-text">Acceso desactivado</h1>
       <p className="text-body text-text-muted">

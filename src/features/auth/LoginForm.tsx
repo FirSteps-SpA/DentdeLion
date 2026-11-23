@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { useLogin } from './useLogin'
 import { APP_NAME } from '../../lib/branding'
-import { Mail, Lock, Tooth } from '../../components/icons'
+import { Mail, Lock } from '../../components/icons'
+import { DienteLinea } from '../../components/decoracion'
 import { IconField } from '../../components/ui/IconField'
 import { TouchButton } from '../../components/ui/TouchButton'
 
@@ -18,9 +19,9 @@ export function LoginForm() {
   }
 
   return (
-    <div className="flex w-full max-w-sm flex-col items-center gap-6 rounded-xl border border-border bg-surface p-6 shadow-card md:p-8">
+    <div className="flex w-full max-w-sm flex-col items-center gap-6 rounded-xl border border-border bg-surface p-6 shadow-tarjeta md:p-8">
       <div className="flex flex-col items-center gap-2">
-        <Tooth size={48} className="text-brand" />
+        <DienteLinea size={64} destellos />
         <h1 className="text-h1 text-teal-dark">{APP_NAME}</h1>
         {/* Frase de marca del DS §43. */}
         <p className="text-body text-text-muted">Tu inventario. Tu tiempo. Tu ganancia.</p>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown } from '../components/icons'
+import { Building, ChevronDown } from '../components/icons'
 import {
   hayVariosLugares,
   lugaresActivos,
@@ -15,6 +15,9 @@ import { useDisposicion } from './useDisposicion'
  * como la clínica original. Con 2 o más abre un `BottomSheet` en el teléfono
  * o un menú desplegable en tablet y desktop, con "Todos los lugares" arriba.
  * `compacto` es la variante del encabezado del teléfono.
+ *
+ * Spec 027 (FR-003, research.md R4): pastilla con ícono de edificio, nombre y
+ * flecha (la flecha solo cuando hay menú).
  */
 export function SelectorLugar({ compacto = false }: { compacto?: boolean }) {
   const lugares = useLugarStore((s) => s.lugares)
@@ -50,13 +53,18 @@ export function SelectorLugar({ compacto = false }: { compacto?: boolean }) {
   }, [abierto, disposicion])
 
   const chip = compacto
-    ? 'rounded-pill bg-primary-soft px-2 py-px text-[11px] font-bold text-primary-text'
-    : 'rounded-pill bg-primary-soft px-3 py-1 text-[13px] font-bold text-primary-text'
+    ? 'rounded-pill border border-secondary-bg bg-secondary-bg px-2 py-px text-[11px] font-bold text-primary-text'
+    : 'rounded-pill border border-primary-soft bg-secondary-bg px-3.5 py-2 text-[13px] font-bold text-primary-text'
+  const edificio = <Building size={compacto ? 12 : 16} className="shrink-0" />
 
   if (!varios) {
     return (
-      <span className={`inline-flex w-fit max-w-full min-w-0 items-center truncate ${chip}`}>
-        {etiqueta}
+      <span
+        title={etiqueta}
+        className={`inline-flex w-fit max-w-full min-w-0 items-center gap-1.5 ${chip}`}
+      >
+        {edificio}
+        <span className="truncate">{etiqueta}</span>
       </span>
     )
   }
@@ -76,7 +84,8 @@ export function SelectorLugar({ compacto = false }: { compacto?: boolean }) {
         aria-label={`Lugar de trabajo: ${etiqueta}`}
         className={`inline-flex min-h-12 max-w-full items-center focus-visible:outline-2 focus-visible:outline-brand ${compacto ? '-my-3' : ''}`}
       >
-        <span className={`inline-flex min-w-0 items-center gap-1 ${chip}`}>
+        <span className={`inline-flex min-w-0 items-center gap-1.5 ${chip}`}>
+          {edificio}
           <span className="truncate">{etiqueta}</span>
           <ChevronDown size={compacto ? 12 : 14} className="shrink-0" />
         </span>
