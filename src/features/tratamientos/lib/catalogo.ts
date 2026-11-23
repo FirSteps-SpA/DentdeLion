@@ -9,7 +9,7 @@ import { tenantActualOFallar, useAuthStore } from '../../../stores/authStore'
 import { proyectarTratamientos, type TratamientoProyectado } from './proyeccion'
 
 /** FR-004: solo administración define tratamientos y porcentajes. */
-function exigirAdministrador(accion: string): string {
+export function exigirAdministrador(accion: string): string {
   const usuario = useAuthStore.getState().usuario
   if (usuario?.rol !== 'administrador') {
     throw new Error(`Solo un administrador puede ${accion} tratamientos.`)
@@ -24,6 +24,11 @@ export interface TratamientoInput {
   materiales: { insumoId: string; cantidad: number }[]
   /** Precio por lugar; `null` o ausente = sin precio en ese lugar (Q1). */
   precios: Record<string, number | null>
+  /**
+   * Spec 026 (R3): id de la categoría o `null` ("Sin categoría"). Ausente =
+   * no se toca (al editar) / sin categoría (al crear).
+   */
+  categoriaId?: string | null
 }
 
 export type CampoTratamientoInput = 'nombre' | 'materiales' | 'precios'
@@ -92,7 +97,7 @@ function materialesDe(
   }))
 }
 
-function nuevoCambio(
+export function nuevoCambio(
   usuarioId: string,
   campo: CambioTratamiento['campo'],
   valorAnterior: CambioTratamiento['valorAnterior'],
@@ -100,13 +105,15 @@ function nuevoCambio(
   {
     tratamientoId = null,
     lugarId = null,
-  }: { tratamientoId?: string | null; lugarId?: string | null },
+    categoriaId = null,
+  }: { tratamientoId?: string | null; lugarId?: string | null; categoriaId?: string | null },
 ): CambioTratamiento {
   return {
     id: crypto.randomUUID(),
     tenantId: tenantActualOFallar(),
     tratamientoId,
     lugarId,
+    categoriaId,
     campo,
     valorAnterior,
     valorNuevo,
@@ -165,6 +172,9 @@ export async function crearTratamiento(input: TratamientoInput): Promise<string>
         nuevoCambio(usuarioId, 'materiales', null, materialesDe(input, insumos), {
           tratamientoId: id,
         }),
+        ...(input.categoriaId
+          ? [nuevoCambio(usuarioId, 'categoria', null, input.categoriaId, { tratamientoId: id })]
+          : []),
         ...Object.entries(input.precios)
           .filter(([, precio]) => precio !== null)
           .map(([lugarId, precio]) =>
@@ -201,6 +211,13 @@ export async function editarTratamiento(id: string, input: TratamientoInput): Pr
       if (!mismosMateriales(materiales, actual.materiales)) {
         cambios.push(
           nuevoCambio(usuarioId, 'materiales', actual.materiales, materiales, {
+            tratamientoId: id,
+          }),
+        )
+      }
+      if (input.categoriaId !== undefined && input.categoriaId !== actual.categoriaId) {
+        cambios.push(
+          nuevoCambio(usuarioId, 'categoria', actual.categoriaId, input.categoriaId, {
             tratamientoId: id,
           }),
         )

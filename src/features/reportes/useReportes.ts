@@ -44,6 +44,7 @@ export function useReportes(periodo: Periodo): ResumenReportes | null {
   const insumos = useInventoryStore((s) => s.insumos)
   const dadosDeBaja = useInventoryStore((s) => s.insumosDadosDeBaja)
   const realizados = useTratamientosStore((s) => s.realizados)
+  const categoriasTratamiento = useTratamientosStore((s) => s.categorias)
   const lugares = useLugarStore((s) => s.lugares)
   const filtro = useFiltroLugar()
   const consumos = useMemo(
@@ -57,14 +58,20 @@ export function useReportes(periodo: Periodo): ResumenReportes | null {
       filtro === null
         ? null
         : resumenReportes(
-            { realizados, consumos, insumos: [...insumos, ...dadosDeBaja], lugares },
+            {
+              realizados,
+              consumos,
+              insumos: [...insumos, ...dadosDeBaja],
+              lugares,
+              categoriasTratamiento,
+            },
             periodo,
             filtro,
             new Date(),
           ),
     // `periodo` entra por su clave; `dia` rehace el cálculo al cambiar de día.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [realizados, consumos, insumos, dadosDeBaja, lugares, filtro, clave, dia],
+    [realizados, consumos, insumos, dadosDeBaja, lugares, categoriasTratamiento, filtro, clave, dia],
   )
 }
 

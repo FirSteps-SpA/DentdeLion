@@ -420,6 +420,24 @@ export interface MaterialTratamiento {
  * Spec 016 data-model.md — Tratamiento: solo identidad. Nombre, materiales,
  * estado y precios por lugar viven en el ledger `CambioTratamiento` (R1).
  */
+/**
+ * Spec 026 data-model.md — categoría de tratamientos del tenant (R1). Las 8
+ * sembradas llegan por el pull (`creadoPor: null`).
+ */
+export interface CategoriaTratamiento {
+  id: string
+  tenantId: string
+  nombre: string
+  creadoPor: string | null
+  creadoEn: string
+  /** `null` = activa; con fecha = no se ofrece para asignar, reversible. */
+  desactivadoEn: string | null
+  /** Local: `false` = creada o cambiada aquí y aún sin subir. */
+  sincronizado: boolean
+  /** Local: el servidor la rechazó (permisos o nombre repetido). */
+  rechazadoEn: string | null
+}
+
 export interface Tratamiento {
   id: string
   tenantId: string
@@ -436,6 +454,10 @@ export type CampoTratamiento =
   | 'activo'
   | 'precio'
   | 'porcentajeProfesional'
+  /** Spec 026 (R3): id de la categoría del tratamiento, o `null`. */
+  | 'categoria'
+  /** Spec 026 (R4): % de una categoría en un lugar (`categoriaId` + `lugarId`). */
+  | 'porcentajeCategoria'
 
 /**
  * Spec 016 data-model.md — ledger append-only del catálogo de tratamientos,
@@ -447,8 +469,10 @@ export interface CambioTratamiento {
   tenantId: string
   /** `null` solo en `porcentajeProfesional`. */
   tratamientoId: string | null
-  /** Obligatorio en `precio` y `porcentajeProfesional`. */
+  /** Obligatorio en `precio`, `porcentajeProfesional` y `porcentajeCategoria`. */
   lugarId: string | null
+  /** Spec 026 — solo en `porcentajeCategoria`. */
+  categoriaId: string | null
   campo: CampoTratamiento
   valorAnterior: string | number | boolean | MaterialTratamiento[] | null
   valorNuevo: string | number | boolean | MaterialTratamiento[] | null
@@ -481,6 +505,9 @@ export interface TratamientoRealizado {
   nombre: string
   precio: number | null
   porcentajeProfesional: number | null
+  /** Spec 026 (R6) — categoría con que se registró (identidad y nombre). */
+  categoriaId: string | null
+  categoriaNombre: string | null
   materiales: MaterialUsado[]
   costoMateriales: number
   costoCompleto: boolean
@@ -492,6 +519,23 @@ export interface TratamientoRealizado {
   sincronizado: boolean
   /** Local: `false` = anulación aún sin subir. */
   anulacionSincronizada: boolean
+}
+
+/**
+ * Spec 028 data-model.md — paciente de un tratamiento realizado (dato de
+ * salud). Aparte del registro, con RLS de autor o administración (R1, R2).
+ */
+export interface PacienteRegistro {
+  registroId: string
+  tenantId: string
+  /** Quien registró el tratamiento (el servidor lo toma del registro). */
+  autorId: string
+  /** `null` = sin paciente / quitado. */
+  paciente: string | null
+  actualizadoPor: string
+  actualizadoEn: string
+  /** Local: `false` = cambiado aquí y aún sin subir. */
+  sincronizado: boolean
 }
 
 /** Spec 014 (research.md R10) — lugar elegido en este dispositivo. Local. */
@@ -527,6 +571,8 @@ export const db = new Dexie('inDENToryDB') as Dexie & {
   tratamientosRealizados: EntityTable<TratamientoRealizado, 'id'>
   proveedores: EntityTable<Proveedor, 'id'>
   marcas: EntityTable<Marca, 'id'>
+  categoriasTratamiento: EntityTable<CategoriaTratamiento, 'id'>
+  pacientesRegistro: EntityTable<PacienteRegistro, 'registroId'>
 }
 
 db.version(1).stores({
@@ -830,5 +876,32 @@ db.version(14)
         insumo.marcaId ??= null
       })
   })
+
+// Version 15 (spec 026, data-model.md): categorías de tratamientos, la
+// categoría del % por categoría en el ledger y la del snapshot de cada registro.
+db.version(15)
+  .stores({
+    categoriasTratamiento: 'id, tenantId, sincronizado',
+  })
+  .upgrade(async (tx) => {
+    await tx
+      .table('cambiosTratamiento')
+      .toCollection()
+      .modify((cambio: Partial<CambioTratamiento>) => {
+        cambio.categoriaId ??= null
+      })
+    await tx
+      .table('tratamientosRealizados')
+      .toCollection()
+      .modify((registro: Partial<TratamientoRealizado>) => {
+        registro.categoriaId ??= null
+        registro.categoriaNombre ??= null
+      })
+  })
+
+// Version 16 (spec 028, data-model.md): paciente de cada tratamiento realizado.
+db.version(16).stores({
+  pacientesRegistro: 'registroId, tenantId, sincronizado',
+})
 
 export type { EntityTable }

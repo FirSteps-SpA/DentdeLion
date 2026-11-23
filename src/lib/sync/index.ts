@@ -17,6 +17,8 @@ import {
   type MinimoLugar,
   type Movimiento,
   type Marca,
+  type CategoriaTratamiento,
+  type PacienteRegistro,
   type Proveedor,
 } from '../db'
 import { fetchPerfilPropio } from '../supabase/perfiles'
@@ -117,6 +119,8 @@ interface CambioTratamientoRow {
   tenant_id: string
   tratamiento_id: string | null
   lugar_id: string | null
+  /** Spec 026 — solo en `porcentajeCategoria`. */
+  categoria_tratamiento_id?: string | null
   campo: CambioTratamiento['campo']
   valor_anterior: CambioTratamiento['valorAnterior']
   valor_nuevo: CambioTratamiento['valorNuevo']
@@ -132,6 +136,9 @@ interface TratamientoRealizadoRow {
   nombre: string
   precio: number | null
   porcentaje_profesional: number | null
+  /** Spec 026 (R6). */
+  categoria_tratamiento_id?: string | null
+  categoria_nombre?: string | null
   materiales: TratamientoRealizado['materiales']
   costo_materiales: number
   costo_completo: boolean
@@ -154,6 +161,8 @@ function toTratamientoRealizadoRow(r: TratamientoRealizado): TratamientoRealizad
     nombre: r.nombre,
     precio: r.precio,
     porcentaje_profesional: r.porcentajeProfesional,
+    categoria_tratamiento_id: r.categoriaId,
+    categoria_nombre: r.categoriaNombre,
     materiales: r.materiales,
     costo_materiales: r.costoMateriales,
     costo_completo: r.costoCompleto,
@@ -174,6 +183,8 @@ function fromTratamientoRealizadoRow(row: TratamientoRealizadoRow): TratamientoR
     nombre: row.nombre,
     precio: aNumero(row.precio),
     porcentajeProfesional: aNumero(row.porcentaje_profesional),
+    categoriaId: row.categoria_tratamiento_id ?? null,
+    categoriaNombre: row.categoria_nombre ?? null,
     materiales: row.materiales ?? [],
     costoMateriales: Number(row.costo_materiales),
     costoCompleto: row.costo_completo,
@@ -185,6 +196,204 @@ function fromTratamientoRealizadoRow(row: TratamientoRealizadoRow): TratamientoR
     sincronizado: true,
     anulacionSincronizada: true,
   }
+}
+
+interface CategoriaTratamientoRow {
+  id: string
+  tenant_id: string
+  nombre: string
+  creado_por: string | null
+  creado_en: string
+  desactivado_en: string | null
+}
+
+function toCategoriaTratamientoRow(c: CategoriaTratamiento): CategoriaTratamientoRow {
+  return {
+    id: c.id,
+    tenant_id: c.tenantId,
+    nombre: c.nombre,
+    creado_por: c.creadoPor,
+    creado_en: c.creadoEn,
+    desactivado_en: c.desactivadoEn,
+  }
+}
+
+function fromCategoriaTratamientoRow(row: CategoriaTratamientoRow): CategoriaTratamiento {
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    nombre: row.nombre,
+    creadoPor: row.creado_por ?? null,
+    creadoEn: row.creado_en,
+    desactivadoEn: row.desactivado_en ?? null,
+    sincronizado: true,
+    rechazadoEn: null,
+  }
+}
+
+/**
+ * Spec 026 (research.md R8): sube las categorías de tratamientos creadas o
+ * cambiadas aquí (solo administración). Un rechazo por permisos o un nombre
+ * repetido en el servidor (`23505`, dos administradoras sin conexión) no es
+ * error del ciclo: si la categoría ya existía en el servidor se vuelve a su
+ * versión; si era nueva queda `rechazadoEn` (la proyección la oculta). En
+ * ambos casos, con aviso.
+ */
+async function pushCategoriasTratamiento(
+  client: SupabaseClient,
+  ciclo: CicloSync,
+): Promise<void> {
+  const pendientes = delTenantActual(await db.categoriasTratamiento.toArray()).filter(
+    (c) => !c.sincronizado && c.rechazadoEn === null,
+  )
+  for (const categoria of pendientes) {
+    const respuesta = await client
+      .from('categorias_tratamiento')
+      .upsert(toCategoriaTratamientoRow(categoria))
+    if (!respuesta.error) {
+      const actual = await db.categoriasTratamiento.get(categoria.id)
+      if (actual && mismaFila(actual, categoria)) {
+        await db.categoriasTratamiento.update(categoria.id, { sincronizado: true })
+      }
+      continue
+    }
+    const repetida = respuesta.error.code === '23505'
+    if (!repetida && !esRechazoDePermisos(respuesta.error)) {
+      ciclo.registrar('push categorias_tratamiento', errorDe(respuesta))
+      continue
+    }
+    const porId = await client
+      .from('categorias_tratamiento')
+      .select('*')
+      .eq('id', categoria.id)
+      .limit(1)
+    ciclo.registrar('push categorias_tratamiento (rechazo)', errorDe(porId))
+    if (porId.error) continue
+    const [remota] = (porId.data ?? []) as CategoriaTratamientoRow[]
+    if (remota) await db.categoriasTratamiento.put(fromCategoriaTratamientoRow(remota))
+    else {
+      await db.categoriasTratamiento.update(categoria.id, {
+        rechazadoEn: new Date().toISOString(),
+      })
+    }
+    useAvisosStore.getState().agregar({
+      tipo: repetida ? 'categoria-tratamiento-repetida' : 'categoria-rechazada',
+      movimientoId: null,
+      loteId: null,
+      insumoNombre: categoria.nombre,
+      unidadMedida: null,
+    })
+  }
+}
+
+async function pullCategoriasTratamiento(
+  client: SupabaseClient,
+  ciclo: CicloSync,
+): Promise<void> {
+  const respuesta = await seleccionarTodo(client, 'categorias_tratamiento')
+  ciclo.registrar('pull categorias_tratamiento', errorDe(respuesta))
+  if (respuesta.error || !respuesta.data) return
+  const locales = new Map(
+    (await db.categoriasTratamiento.toArray()).map((categoria) => [categoria.id, categoria]),
+  )
+  await db.categoriasTratamiento.bulkPut(
+    (respuesta.data as unknown as CategoriaTratamientoRow[])
+      .filter((row) => !conservarCambioLocal(locales.get(row.id)))
+      .map(fromCategoriaTratamientoRow),
+  )
+}
+
+interface PacienteRegistroRow {
+  registro_id: string
+  tenant_id: string
+  autor_id: string
+  paciente: string | null
+  actualizado_por: string
+  actualizado_en: string
+}
+
+/**
+ * Spec 028 (research.md R4, R5) — sube los pacientes cambiados aquí por quien
+ * tiene la sesión, después de los registros (FK). Si el servidor lo rechaza
+ * por permisos o porque el registro está anulado, el cambio nunca podrá subir:
+ * se borra del dispositivo (dato de salud: no se conserva lo que no
+ * corresponde). Un error del texto del paciente nunca se registra con el
+ * valor: `errorDe` solo lleva código y mensaje del servidor.
+ */
+async function pushPacientesRegistro(
+  client: SupabaseClient,
+  ciclo: CicloSync,
+): Promise<void> {
+  const usuarioId = usuarioActualId()
+  if (!usuarioId) return
+  const pendientes = delTenantActual(await db.pacientesRegistro.toArray()).filter(
+    (p) => !p.sincronizado && p.actualizadoPor === usuarioId,
+  )
+  for (const fila of pendientes) {
+    const respuesta = await client.from('pacientes_registro').upsert({
+      registro_id: fila.registroId,
+      tenant_id: fila.tenantId,
+      autor_id: fila.autorId,
+      paciente: fila.paciente,
+      actualizado_por: fila.actualizadoPor,
+      actualizado_en: fila.actualizadoEn,
+    } satisfies PacienteRegistroRow)
+    if (!respuesta.error) {
+      const actual = await db.pacientesRegistro.get(fila.registroId)
+      if (actual && actual.actualizadoEn === fila.actualizadoEn) {
+        await db.pacientesRegistro.update(fila.registroId, { sincronizado: true })
+      }
+      continue
+    }
+    if (
+      esRechazoDePermisos(respuesta.error) ||
+      /registro_anulado/.test(respuesta.error.message ?? '')
+    ) {
+      await db.pacientesRegistro.delete(fila.registroId)
+      continue
+    }
+    ciclo.registrar('push pacientes_registro', errorDe(respuesta))
+  }
+}
+
+/**
+ * Baja los pacientes que el servidor deja leer a esta sesión y **reemplaza**
+ * los sincronizados del dispositivo (FR-007): si cambió el rol, desaparecen
+ * los que ya no corresponden. Los pendientes locales se conservan.
+ */
+async function pullPacientesRegistro(
+  client: SupabaseClient,
+  ciclo: CicloSync,
+): Promise<void> {
+  const respuesta = await seleccionarTodo<PacienteRegistroRow & Record<string, unknown>>(
+    client,
+    'pacientes_registro',
+    { clave: ['registro_id'] },
+  )
+  ciclo.registrar('pull pacientes_registro', errorDe(respuesta))
+  if (respuesta.error || !respuesta.data) return
+  const remotas = respuesta.data as unknown as PacienteRegistroRow[]
+  const locales = delTenantActual(await db.pacientesRegistro.toArray())
+  const pendientes = new Set(locales.filter((p) => !p.sincronizado).map((p) => p.registroId))
+  const visibles = new Set(remotas.map((r) => r.registro_id))
+  await db.pacientesRegistro.bulkDelete(
+    locales.filter((p) => p.sincronizado && !visibles.has(p.registroId)).map((p) => p.registroId),
+  )
+  await db.pacientesRegistro.bulkPut(
+    remotas
+      .filter((r) => !pendientes.has(r.registro_id))
+      .map(
+        (r): PacienteRegistro => ({
+          registroId: r.registro_id,
+          tenantId: r.tenant_id,
+          autorId: r.autor_id,
+          paciente: r.paciente ?? null,
+          actualizadoPor: r.actualizado_por,
+          actualizadoEn: r.actualizado_en,
+          sincronizado: true,
+        }),
+      ),
+  )
 }
 
 /**
@@ -241,15 +450,29 @@ async function pushCambiosTratamiento(
 ): Promise<void> {
   const usuarioId = usuarioActualId()
   if (!usuarioId) return
-  const pendientes = delTenantActual(await db.cambiosTratamiento.toArray()).filter(
+  const candidatos = delTenantActual(await db.cambiosTratamiento.toArray()).filter(
     (c) => !c.sincronizado && c.rechazadoEn === null && c.usuarioId === usuarioId,
   )
+  // Spec 026 (R8): un % de categoría espera a que su categoría suba (FK); si
+  // la categoría fue rechazada, el cambio también.
+  const pendientes: CambioTratamiento[] = []
+  for (const cambio of candidatos) {
+    const categoria = cambio.categoriaId
+      ? await db.categoriasTratamiento.get(cambio.categoriaId)
+      : undefined
+    if (categoria?.rechazadoEn) {
+      await db.cambiosTratamiento.update(cambio.id, { rechazadoEn: new Date().toISOString() })
+    } else if (!categoria || categoria.sincronizado) {
+      pendientes.push(cambio)
+    }
+  }
   if (pendientes.length === 0) return
   const fila = (c: CambioTratamiento): CambioTratamientoRow => ({
     id: c.id,
     tenant_id: c.tenantId,
     tratamiento_id: c.tratamientoId,
     lugar_id: c.lugarId,
+    categoria_tratamiento_id: c.categoriaId,
     campo: c.campo,
     valor_anterior: c.valorAnterior,
     valor_nuevo: c.valorNuevo,
@@ -297,6 +520,7 @@ async function pullCambiosTratamiento(
       tenantId: row.tenant_id,
       tratamientoId: row.tratamiento_id ?? null,
       lugarId: row.lugar_id ?? null,
+      categoriaId: row.categoria_tratamiento_id ?? null,
       campo: row.campo,
       valorAnterior: row.valor_anterior,
       valorNuevo: row.valor_nuevo,
@@ -324,9 +548,19 @@ async function pushTratamientosRealizados(
   const propios = delTenantActual(await db.tratamientosRealizados.toArray())
   const altas = propios.filter((r) => !r.sincronizado && r.usuarioId === usuarioId)
   if (altas.length > 0) {
+    // Spec 026 (R8): una categoría rechazada por el servidor no existe allá;
+    // el registro sube con su nombre, sin la referencia.
+    const rechazadas = new Set(
+      (await db.categoriasTratamiento.toArray()).filter((c) => c.rechazadoEn).map((c) => c.id),
+    )
+    const filas = altas.map((r) => {
+      const fila = toTratamientoRealizadoRow(r)
+      if (r.categoriaId && rechazadas.has(r.categoriaId)) fila.categoria_tratamiento_id = null
+      return fila
+    })
     const respuesta = await client
       .from('tratamientos_realizados')
-      .upsert(altas.map(toTratamientoRealizadoRow), { onConflict: 'id', ignoreDuplicates: true })
+      .upsert(filas, { onConflict: 'id', ignoreDuplicates: true })
     ciclo.registrar('push tratamientos_realizados', errorDe(respuesta))
     if (respuesta.error) return
     await db.tratamientosRealizados.bulkUpdate(
@@ -2128,6 +2362,10 @@ async function ejecutarCiclo(
   await moverASinCategoria(rechazadasCategorias)
 
   await pushInsumos(client, ciclo)
+  // Spec 026: las categorías de tratamientos antes de los cambios y registros
+  // que las referencian (FK compuesta).
+  await pushCategoriasTratamiento(client, ciclo)
+  await pullCategoriasTratamiento(client, ciclo)
   // Spec 016: el catálogo de tratamientos referencia insumos y lugares.
   await pushTratamientos(client, ciclo)
   await pushCambiosTratamiento(client, ciclo)
@@ -2150,6 +2388,8 @@ async function ejecutarCiclo(
   await pushConfiguracionAlertas(client, ciclo)
   // Spec 016: los registros antes que sus consumos (FK).
   await pushTratamientosRealizados(client, ciclo)
+  // Spec 028: los pacientes después de sus registros (FK).
+  await pushPacientesRegistro(client, ciclo)
   for (const loteId of await pushMovimientos(client, ciclo)) {
     loteIdsTocados.add(loteId)
   }
@@ -2160,6 +2400,7 @@ async function ejecutarCiclo(
   await pullMinimosLugar(client, ciclo)
   await pullConfiguracionAlertas(client, ciclo)
   await pullTratamientosRealizados(client, ciclo)
+  await pullPacientesRegistro(client, ciclo)
   for (const loteId of await pullMovimientos(client, ciclo)) {
     loteIdsTocados.add(loteId)
   }

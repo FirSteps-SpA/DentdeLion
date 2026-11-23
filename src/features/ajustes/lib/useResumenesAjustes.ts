@@ -1,6 +1,7 @@
 import { useAuthStore } from '../../../stores/authStore'
 import { useAlertasStore } from '../../../stores/alertasStore'
 import { useInventoryStore } from '../../../stores/inventoryStore'
+import { useTratamientosStore } from '../../../stores/tratamientosStore'
 import { lugaresActivos, useLugarStore } from '../../../stores/lugarStore'
 import { catalogoCategorias } from '../../insumos/lib/categorias'
 import { activos } from '../../proveedores/lib/proveedores'
@@ -25,6 +26,9 @@ export function useResumenesAjustes(): Record<IdSeccion, string | null> {
   const preferenciaStockBajo = useAlertasStore((s) => s.preferenciaStockBajo)
   const preferenciaCaducidad = useAlertasStore((s) => s.preferenciaCaducidad)
   const nivelesAvisoDias = useAlertasStore((s) => s.nivelesAvisoDias)
+  const categoriasTratamiento = useTratamientosStore((s) => s.categorias)
+  const porcentajesCategoria = useTratamientosStore((s) => s.porcentajesCategoria)
+  const tratamientosListos = useTratamientosStore((s) => s.isReady)
 
   const datos = {
     usuario,
@@ -37,6 +41,14 @@ export function useResumenesAjustes(): Record<IdSeccion, string | null> {
     insumosDadosDeBaja: inventarioListo ? insumosDadosDeBaja.length : null,
     proveedoresActivos: inventarioListo ? activos(proveedores).length : null,
     marcasActivas: inventarioListo ? activosDe(marcas).length : null,
+    categoriasTratamiento: tratamientosListos
+      ? {
+          activas: categoriasTratamiento.filter((c) => c.desactivadoEn === null).length,
+          conPorcentaje: new Set(
+            [...porcentajesCategoria.keys()].map((clave) => clave.split('|')[0]),
+          ).size,
+        }
+      : null,
     notificaciones: alertasListas
       ? { stockBajo: preferenciaStockBajo, caducidad: preferenciaCaducidad }
       : null,

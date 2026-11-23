@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type {
   CambioTratamiento,
+  CategoriaTratamiento,
   Insumo,
   Lote,
   Tratamiento,
@@ -24,6 +25,7 @@ import { useInventoryStore } from '../../src/stores/inventoryStore'
 import { useLugarStore } from '../../src/stores/lugarStore'
 import { useTratamientosStore } from '../../src/stores/tratamientosStore'
 import {
+  porcentajesPorCategoria,
   porcentajesPorLugar,
   proyectarTratamientos,
 } from '../../src/features/tratamientos/lib/proyeccion'
@@ -100,6 +102,7 @@ function porcentaje(lugarId: string, valor: number): CambioTratamiento {
     tenantId: TENANT_1,
     tratamientoId: null,
     lugarId,
+    categoriaId: null,
     campo: 'porcentajeProfesional',
     valorAnterior: null,
     valorNuevo: valor,
@@ -110,11 +113,29 @@ function porcentaje(lugarId: string, valor: number): CambioTratamiento {
   }
 }
 
+const categoriasT = db.categoriasTratamiento as unknown as MemoryTable<CategoriaTratamiento>
+
+function categoria(id: string, nombre: string, extra: Partial<CategoriaTratamiento> = {}) {
+  return {
+    id,
+    tenantId: TENANT_1,
+    nombre,
+    creadoPor: null,
+    creadoEn: '2026-11-23T00:00:00.000Z',
+    desactivadoEn: null,
+    sincronizado: true,
+    rechazadoEn: null,
+    ...extra,
+  }
+}
+
 function reflejar() {
   const cambios = cambiosT.all()
   useTratamientosStore.setState({
     tratamientos: proyectarTratamientos(tratamientosT.all(), cambios),
     porcentajes: porcentajesPorLugar(cambios),
+    porcentajesCategoria: porcentajesPorCategoria(cambios),
+    categorias: categoriasT.all().sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
     cambiosTratamiento: cambios,
     isReady: true,
   })
@@ -137,6 +158,11 @@ beforeEach(() => {
   lotesT.seed(lotes)
   tratamientosT.seed([])
   cambiosT.seed([porcentaje(LUGAR_1, 40), porcentaje(LUGAR_2, 50)])
+  categoriasT.seed([
+    categoria('eval', 'Evaluación'),
+    categoria('rest', 'Restauración'),
+    categoria('urg', 'Urgencia', { desactivadoEn: '2026-11-01T00:00:00.000Z' }),
+  ])
   useInventoryStore.setState({
     insumos,
     insumosDadosDeBaja: [],
@@ -297,5 +323,111 @@ describe('rueda del mouse (spec 018 FR-005)', () => {
     const form = await crearRestauracion()
     esperarQueLaRuedaNoCambie(within(form).getByLabelText('Precio en Clínica'), '45000')
     esperarQueLaRuedaNoCambie(within(form).getByLabelText('Resina A2 (g)'), '2')
+  })
+})
+
+/** Spec 026 T013/T022 (US1-3..8, US2-6; contracts/ui-contracts.md §2, §3). */
+describe('categorías de tratamientos (spec 026)', () => {
+  async function elegirCategoria(form: HTMLElement, nombre: string) {
+    fireEvent.click(within(form).getByLabelText('Categoría (opcional)'))
+    const hoja = screen.getByRole('dialog', { name: 'Categoría' })
+    fireEvent.click(within(hoja).getByRole('option', { name: nombre }))
+  }
+
+  it('el formulario elige una categoría, se guarda en el ledger y se muestra en la lista', async () => {
+    const form = await crearRestauracion()
+    expect(within(form).getByLabelText('Categoría (opcional)')).toHaveTextContent('Sin categoría')
+    await elegirCategoria(form, 'Restauración')
+    expect(within(form).getByLabelText('Categoría (opcional)')).toHaveTextContent('Restauración')
+    fireEvent.click(within(form).getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Nuevo tratamiento' })).not.toBeInTheDocument())
+
+    expect(cambiosT.all().find((c) => c.campo === 'categoria')).toMatchObject({ valorNuevo: 'rest' })
+    expect(useTratamientosStore.getState().tratamientos[0].categoriaId).toBe('rest')
+    const tarjeta = screen.getByText('Restauración clase II').closest('button')!
+    expect(tarjeta).toHaveTextContent('Restauración')
+  })
+
+  it('sin categoría se ve "Sin categoría"; una desactivada se marca', async () => {
+    const form = await crearRestauracion()
+    fireEvent.click(within(form).getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.getByText('Restauración clase II').closest('button')).toHaveTextContent(
+      'Sin categoría',
+    )
+
+    act(() => {
+      cambiosT.seed([
+        ...cambiosT.all(),
+        {
+          ...porcentaje(LUGAR_1, 0),
+          id: 'cat-urg',
+          tratamientoId: useTratamientosStore.getState().tratamientos[0].id,
+          lugarId: null,
+          campo: 'categoria',
+          valorNuevo: 'urg',
+          creadoEn: '2026-12-01T00:00:00.000Z',
+        },
+      ])
+      reflejar()
+    })
+    expect(screen.getByText('Restauración clase II').closest('button')).toHaveTextContent(
+      'Urgencia (desactivada)',
+    )
+  })
+
+  it('los chips filtran por categoría y por "Sin categoría"', async () => {
+    let form = await crearRestauracion()
+    await elegirCategoria(form, 'Restauración')
+    fireEvent.click(within(form).getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    vi.setSystemTime((reloj += 60_000))
+    fireEvent.click(screen.getByRole('button', { name: /Tratamiento$/ }))
+    form = await screen.findByRole('dialog', { name: 'Nuevo tratamiento' })
+    fireEvent.change(within(form).getByLabelText('Nombre'), { target: { value: 'Control' } })
+    fireEvent.click(within(form).getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    const grupo = screen.getByRole('group', { name: 'Filtrar por categoría' })
+    expect(within(grupo).getAllByRole('button').map((b) => b.textContent)).toEqual([
+      'Todas',
+      'Restauración',
+      'Sin categoría',
+    ])
+    fireEvent.click(within(grupo).getByRole('button', { name: 'Restauración' }))
+    expect(screen.getByText('Restauración clase II')).toBeInTheDocument()
+    expect(screen.queryByText('Control')).not.toBeInTheDocument()
+    fireEvent.click(within(grupo).getByRole('button', { name: 'Sin categoría' }))
+    expect(screen.queryByText('Restauración clase II')).not.toBeInTheDocument()
+    expect(screen.getByText('Control')).toBeInTheDocument()
+  })
+
+  it('el detalle muestra el % de la categoría en el lugar y su origen; en otro lugar, el general', async () => {
+    cambiosT.seed([
+      ...cambiosT.all(),
+      {
+        ...porcentaje(LUGAR_1, 50),
+        id: 'pc-rest',
+        campo: 'porcentajeCategoria',
+        categoriaId: 'rest',
+      },
+    ])
+    reflejar()
+    const form = await crearRestauracion()
+    await elegirCategoria(form, 'Restauración')
+    // Vista previa: $45.000 × 50 %.
+    expect(within(form).getByText('$22.500')).toBeInTheDocument()
+    fireEvent.click(within(form).getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    fireEvent.click(screen.getByText('Restauración clase II'))
+    const detalle = screen.getByRole('heading', { name: 'Restauración clase II' }).closest('div')!
+      .parentElement!
+    expect(within(detalle).getByText(/50 % · Restauración/)).toBeInTheDocument()
+    expect(within(detalle).getByText('$22.500')).toBeInTheDocument()
+
+    act(() => useLugarStore.setState({ lugarActivoId: LUGAR_2 }))
+    expect(await within(detalle).findByText(/50 % · general del lugar/)).toBeInTheDocument()
   })
 })

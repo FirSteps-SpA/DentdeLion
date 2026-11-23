@@ -1,6 +1,6 @@
 import { formatearCLP } from '../../insumos/lib/precio'
 import { TEXTO_MOTIVO } from './montos'
-import type { MontosTratamiento } from './useMontosTratamiento'
+import type { MontosTratamiento, PorcentajeConOrigen } from './useMontosTratamiento'
 
 /** "$3.480" o "desde $1.080" si falta el precio de algún material (FR-008). */
 export function textoCosto(montos: MontosTratamiento): string {
@@ -25,4 +25,19 @@ export function textoComision(montos: MontosTratamiento): string {
   const { comision, motivo } = montos.ganancia
   if (comision === null) return motivo ? TEXTO_MOTIVO[motivo] : '—'
   return formatearCLP(comision)
+}
+
+const formatoPorcentaje = new Intl.NumberFormat('es-CL', { maximumFractionDigits: 2 })
+
+/**
+ * Spec 026 (FR-012): "50 % · Evaluación" o "40 % · general del lugar"; `null`
+ * sin porcentaje.
+ */
+export function textoPorcentaje(porcentaje: PorcentajeConOrigen): string | null {
+  if (porcentaje.valor === null) return null
+  const valor = `${formatoPorcentaje.format(porcentaje.valor)} %`
+  if (porcentaje.origen === 'categoria') {
+    return porcentaje.categoriaNombre ? `${valor} · ${porcentaje.categoriaNombre}` : valor
+  }
+  return `${valor} · general del lugar`
 }

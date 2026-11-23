@@ -17,9 +17,15 @@ import {
   movimientosNormalizadosDeLote,
 } from '../../insumos/lib/stock'
 import { calcularGanancia, cantidadEfectiva } from './montos'
-import { porcentajesPorLugar, type TratamientoProyectado } from './proyeccion'
+import { filaPaciente, normalizarPaciente } from './pacientes'
+import {
+  porcentajeAplicable,
+  porcentajesPorCategoria,
+  porcentajesPorLugar,
+  type TratamientoProyectado,
+} from './proyeccion'
 
-/** Mismo criterio que "Consumir 1" y las alertas: vence hoy = todavía vigente. */
+/** Mismo criterio que la hoja de consumo y las alertas: vence hoy = todavía vigente. */
 export function esLoteVigente(lote: Lote, hoy: Date = new Date()): boolean {
   return lote.fechaCaducidad === null || diasEntre(lote.fechaCaducidad, hoy) >= 0
 }
@@ -57,6 +63,11 @@ export interface RegistroInput {
    * la cantidad estándar del tratamiento (FR-013).
    */
   cantidades?: Record<string, number>
+  /**
+   * Spec 028 (FR-001, FR-002): paciente opcional ("nombre o N° de ficha"). Se
+   * guarda aparte del registro, en la misma transacción.
+   */
+  paciente?: string
 }
 
 async function lotesConStockEnLugar(insumoId: string, lugarId: string): Promise<LoteConStock[]> {
@@ -101,6 +112,8 @@ export async function registrarTratamiento(
       db.cambiosLote,
       db.cambiosTratamiento,
       db.tratamientosRealizados,
+      db.categoriasTratamiento,
+      db.pacientesRegistro,
     ],
     async () => {
       const cambiosInsumo = await db.cambiosInsumo.toArray()
@@ -168,8 +181,18 @@ export async function registrarTratamiento(
         0,
       )
       const precio = tratamiento.precios.get(lugarId) ?? null
-      const porcentaje =
-        porcentajesPorLugar(await db.cambiosTratamiento.toArray()).get(lugarId) ?? null
+      // Spec 026 (R5, R6, FR-010/FR-011): % de la categoría en el lugar o el
+      // general, y la categoría (identidad y nombre) congelados en el registro.
+      const cambiosTratamiento = await db.cambiosTratamiento.toArray()
+      const porcentaje = porcentajeAplicable({
+        categoriaId: tratamiento.categoriaId,
+        lugarId,
+        porcentajesLugar: porcentajesPorLugar(cambiosTratamiento),
+        porcentajesCategoria: porcentajesPorCategoria(cambiosTratamiento),
+      }).valor
+      const categoria = tratamiento.categoriaId
+        ? await db.categoriasTratamiento.get(tratamiento.categoriaId)
+        : undefined
 
       const registro: TratamientoRealizado = {
         id: crypto.randomUUID(),
@@ -179,6 +202,8 @@ export async function registrarTratamiento(
         nombre: tratamiento.nombre,
         precio,
         porcentajeProfesional: porcentaje,
+        categoriaId: categoria ? categoria.id : null,
+        categoriaNombre: categoria ? categoria.nombre : null,
         materiales: usados,
         costoMateriales,
         costoCompleto: conCantidad.every((u) => u.costoUnitario !== null),
@@ -191,6 +216,10 @@ export async function registrarTratamiento(
         anulacionSincronizada: true,
       }
       await db.tratamientosRealizados.add(registro)
+      const paciente = normalizarPaciente(input.paciente ?? '')
+      if (paciente !== null) {
+        await db.pacientesRegistro.add(filaPaciente(registro, paciente, usuarioId, tenantId))
+      }
       for (const consumo of consumos) {
         await crearMovimiento({
           tipo: 'consumo',

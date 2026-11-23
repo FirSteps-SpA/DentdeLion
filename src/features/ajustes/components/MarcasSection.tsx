@@ -11,7 +11,8 @@ import {
   renombrarMarca,
   MarcaDesactivada,
 } from '../../marcas/lib/marcasAdmin'
-import { ChevronDown, Plus, Undo } from '../../../components/icons'
+import { ChevronDown, Factory, Plus, Undo } from '../../../components/icons'
+import { EstadoVacio } from '../../../components/ui/EstadoVacio'
 import { BottomSheet } from '../../../components/ui/BottomSheet'
 import { Card } from '../../../components/ui/Card'
 import { IconField } from '../../../components/ui/IconField'
@@ -119,8 +120,8 @@ export function MarcasSection() {
       )}
 
       {lista.total === 0 ? (
-        <Card className="px-3.5 py-4">
-          <p className="text-sm text-text-muted">Todavía no hay marcas.</p>
+        <Card>
+          <EstadoVacio Icono={Factory} texto="Todavía no hay marcas." compacto />
         </Card>
       ) : (
         <Card className="flex flex-col divide-y divide-border px-1.5">

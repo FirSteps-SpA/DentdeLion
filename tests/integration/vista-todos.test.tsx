@@ -149,12 +149,16 @@ describe('vista "Todos" (spec 014 US3)', () => {
     expect(screen.getByText('Clínica 2 · Box Las Condes 3')).toBeInTheDocument()
   })
 
-  it('"Consumir 1" pide el lugar y registra en el elegido, sin salir de "Todos"', async () => {
+  it('"Consumir" pide el lugar y registra en el elegido, sin salir de "Todos" (spec 025)', async () => {
     render(<InventarioView />)
 
-    fireEvent.click(screen.getByRole('button', { name: /Consumir 1 cartucho de Anestesia/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Consumir Anestesia' }))
     const sheet = screen.getByRole('dialog', { name: '¿En qué lugar?' })
     fireEvent.click(within(sheet).getByRole('button', { name: /Box Las Condes/ }))
+    const panel = screen.getByRole('dialog', { name: 'Consumir Anestesia' })
+    await within(panel).findByLabelText(/Lote/)
+    expect(movimientosT.all().filter((m) => m.tipo === 'consumo')).toHaveLength(0)
+    fireEvent.click(within(panel).getByRole('button', { name: 'Confirmar consumo' }))
 
     await waitFor(() =>
       expect(movimientosT.all().filter((m) => m.tipo === 'consumo')).toHaveLength(1),

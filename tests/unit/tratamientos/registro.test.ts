@@ -122,6 +122,7 @@ const restauracion: TratamientoProyectado = {
     { insumoId: 'res', cantidad: 2, unidad: 'g' },
   ],
   precios: new Map([[LUGAR_1, 45000]]),
+  categoriaId: null,
   creadoEn: '2026-01-01T00:00:00.000Z',
   creadoPor: 'admin',
 }
@@ -146,6 +147,7 @@ beforeEach(() => {
       tenantId: TENANT_1,
       tratamientoId: null,
       lugarId: LUGAR_1,
+      categoriaId: null,
       campo: 'porcentajeProfesional',
       valorAnterior: null,
       valorNuevo: 40,
@@ -288,5 +290,117 @@ describe('anularTratamiento (US3-6, R5)', () => {
     })
     expect(await anularTratamiento(registro.id)).toBeNull()
     expect(movimientosT.all().filter((m) => m.tipo === 'ajuste')).toHaveLength(3)
+  })
+})
+
+/** Spec 026 T021 (FR-010, FR-011, FR-013; research.md R5, R6). */
+describe('registro con categoría (spec 026)', () => {
+  const categoriasT = db.categoriasTratamiento as unknown as MemoryTable<
+    import('../../../src/lib/db').CategoriaTratamiento
+  >
+  const pctCategoria = (valor: number | null, lugarId = LUGAR_1) => ({
+    id: `pc-${lugarId}-${String(valor)}`,
+    tenantId: TENANT_1,
+    tratamientoId: null,
+    lugarId,
+    categoriaId: 'eval',
+    campo: 'porcentajeCategoria' as const,
+    valorAnterior: null,
+    valorNuevo: valor,
+    usuarioId: 'admin',
+    creadoEn: '2026-02-01T00:00:00.000Z',
+    sincronizado: true,
+    rechazadoEn: null,
+  })
+
+  beforeEach(() => {
+    categoriasT.seed([
+      {
+        id: 'eval',
+        tenantId: TENANT_1,
+        nombre: 'Evaluación',
+        creadoPor: null,
+        creadoEn: '2026-01-01T00:00:00.000Z',
+        desactivadoEn: null,
+        sincronizado: true,
+        rechazadoEn: null,
+      },
+    ])
+  })
+
+  it('usa el % de la categoría en el lugar y congela la categoría (ejemplo 40/50)', async () => {
+    cambiosTratamientoT.seed([...cambiosTratamientoT.all(), pctCategoria(50)])
+    const registro = await registrarTratamiento({ ...restauracion, categoriaId: 'eval' })
+    expect(registro).toMatchObject({
+      porcentajeProfesional: 50,
+      categoriaId: 'eval',
+      categoriaNombre: 'Evaluación',
+      gananciaEstimada: 45000 * 0.5 - 3050,
+    })
+  })
+
+  it('sin % de la categoría en ese lugar, o sin categoría, usa el general', async () => {
+    cambiosTratamientoT.seed([...cambiosTratamientoT.all(), pctCategoria(50, LUGAR_2)])
+    const conCategoria = await registrarTratamiento({ ...restauracion, categoriaId: 'eval' })
+    expect(conCategoria).toMatchObject({ porcentajeProfesional: 40, categoriaId: 'eval' })
+
+    const sinCategoria = await registrarTratamiento(restauracion)
+    expect(sinCategoria).toMatchObject({
+      porcentajeProfesional: 40,
+      categoriaId: null,
+      categoriaNombre: null,
+    })
+  })
+
+  it('una categoría desactivada sigue aplicando su %', async () => {
+    categoriasT.seed([{ ...categoriasT.all()[0], desactivadoEn: '2026-03-01T00:00:00.000Z' }])
+    cambiosTratamientoT.seed([...cambiosTratamientoT.all(), pctCategoria(55)])
+    const registro = await registrarTratamiento({ ...restauracion, categoriaId: 'eval' })
+    expect(registro.porcentajeProfesional).toBe(55)
+  })
+
+  it('cambiar el % después no altera el registro (FR-013)', async () => {
+    cambiosTratamientoT.seed([...cambiosTratamientoT.all(), pctCategoria(50)])
+    const registro = await registrarTratamiento({ ...restauracion, categoriaId: 'eval' })
+    cambiosTratamientoT.seed([
+      ...cambiosTratamientoT.all(),
+      { ...pctCategoria(60), id: 'pc-60', creadoEn: '2026-03-01T00:00:00.000Z' },
+    ])
+    expect(realizadosT.all().find((r) => r.id === registro.id)?.porcentajeProfesional).toBe(50)
+  })
+})
+
+/** Spec 028 T009 (FR-001, FR-002). */
+describe('registro con paciente (spec 028)', () => {
+  const pacientesT = db.pacientesRegistro as unknown as MemoryTable<
+    import('../../../src/lib/db').PacienteRegistro
+  >
+  beforeEach(() => pacientesT.seed([]))
+
+  it('guarda el paciente normalizado aparte, en la misma operación, sin subir', async () => {
+    const registro = await registrarTratamiento(restauracion, { paciente: '  Juan   Pérez ' })
+    expect(pacientesT.all()).toEqual([
+      expect.objectContaining({
+        registroId: registro.id,
+        autorId: registro.usuarioId,
+        paciente: 'Juan Pérez',
+        sincronizado: false,
+      }),
+    ])
+    // El registro no lleva el paciente (FR-003).
+    expect(JSON.stringify(registro)).not.toContain('Juan')
+  })
+
+  it('sin paciente (o solo espacios) no crea fila', async () => {
+    await registrarTratamiento(restauracion)
+    await registrarTratamiento(restauracion, { paciente: '   ' })
+    expect(pacientesT.all()).toHaveLength(0)
+  })
+
+  it('si el registro falla no queda el paciente', async () => {
+    await registrarTratamiento(restauracion, { cantidades: { res: 99 }, paciente: 'Juan' }).catch(
+      () => null,
+    )
+    expect(pacientesT.all()).toHaveLength(0)
   })
 })

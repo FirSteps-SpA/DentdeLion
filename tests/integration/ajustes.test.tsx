@@ -32,6 +32,8 @@ vi.mock('../../src/lib/db', async () => {
       configuracionAlertas: new MemoryTable(),
       categorias: new MemoryTable(),
       usuarioActual: new MemoryTable(),
+      // Spec 028: el cierre de sesión y el sync usan la tabla de pacientes.
+      pacientesRegistro: new MemoryTable(),
       borradores: new MemoryTable(),
       preferenciasNotificaciones: new MemoryTable(),
     }),
@@ -238,7 +240,7 @@ describe('Ajustes — Categorías (User Story 4)', () => {
     categoriasT.seed([categoria('c1', 'Ortodoncia')])
     insumosT.seed([insumo('a', 'Anestesia local', { categoria: 'Ortodoncia' })])
     reflejarStore()
-    renderSeccion('Categorías')
+    renderSeccion('Categorías de insumos')
 
     fireEvent.click(screen.getByRole('button', { name: /Nueva categoría/i }))
     fireEvent.change(screen.getByLabelText('Nombre'), {
@@ -274,7 +276,7 @@ describe('Ajustes — Categorías (User Story 4)', () => {
     useAuthStore.setState({ usuario: personal, isReady: true })
     render(<AjustesView />)
 
-    expect(screen.queryByText('Categorías')).not.toBeInTheDocument()
+    expect(screen.queryByText('Categorías de insumos')).not.toBeInTheDocument()
   })
 })
 
@@ -503,7 +505,7 @@ describe('Índice de Ajustes (spec 019 US1)', () => {
   const tarjetas = () =>
     within(screen.getByRole('list', { name: 'Secciones de Ajustes' })).getAllByRole('button')
 
-  it('abre en el índice con las siete tarjetas en orden y sus resúmenes', () => {
+  it('abre en el índice con las ocho tarjetas en orden y sus resúmenes', () => {
     useAuthStore.setState({ usuario: admin, isReady: true })
     categoriasT.seed([categoria('c1', 'Ortodoncia')])
     insumosT.seed([insumo('a', 'Anestesia local', { categoria: 'Ortodoncia' })])
@@ -514,13 +516,15 @@ describe('Índice de Ajustes (spec 019 US1)', () => {
     expect(tarjetas().map((b) => b.getAttribute('aria-labelledby') && b.textContent)).toEqual([
       'Perfil y equipoAdmin Uno · Administradora',
       'Lugares de trabajo1 lugar',
+      // Spec 026: sin el store de tratamientos listo, solo el título.
+      'Categorías de tratamientos',
       'Notificaciones y avisosStock bajo y caducidad · Avisos a 30, 7 y 1 días',
-      `Categorías${CATEGORIAS_PRECARGADAS.length + 1} categorías`,
+      `Categorías de insumos${CATEGORIAS_PRECARGADAS.length + 1} categorías`,
       'ProveedoresSin proveedores',
       'MarcasSin marcas',
       'Insumos dados de bajaSin insumos dados de baja',
     ])
-    expect(screen.getByRole('button', { name: 'Categorías' })).toHaveAccessibleDescription(
+    expect(screen.getByRole('button', { name: 'Categorías de insumos' })).toHaveAccessibleDescription(
       `${CATEGORIAS_PRECARGADAS.length + 1} categorías`,
     )
   })
@@ -529,9 +533,9 @@ describe('Índice de Ajustes (spec 019 US1)', () => {
     useAuthStore.setState({ usuario: admin, isReady: true })
     render(<AjustesView onNavegar={() => {}} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Categorías' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Categorías de insumos' }))
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Categorías' })).toHaveFocus()
+    expect(screen.getByRole('heading', { level: 1, name: 'Categorías de insumos' })).toHaveFocus()
     expect(screen.getByRole('button', { name: 'Volver a Ajustes' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Nueva categoría/ })).toBeInTheDocument()
     expect(window.location.hash).toBe('#ajustes/categorias')
@@ -544,11 +548,11 @@ describe('Índice de Ajustes (spec 019 US1)', () => {
     useAuthStore.setState({ usuario: admin, isReady: true })
     render(<AjustesView />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Categorías' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Categorías de insumos' }))
     fireEvent.click(screen.getByRole('button', { name: 'Volver a Ajustes' }))
     // `history.back()` es asíncrono en jsdom: llega como `popstate`.
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Categorías' })).toHaveFocus(),
+      expect(screen.getByRole('button', { name: 'Categorías de insumos' })).toHaveFocus(),
     )
     expect(window.location.hash).toBe('')
 
@@ -575,11 +579,11 @@ describe('Índice de Ajustes (spec 019 US1)', () => {
     useAuthStore.setState({ usuario: admin, isReady: true })
     render(<AjustesView />)
     const antes = CATEGORIAS_PRECARGADAS.length
-    expect(screen.getByRole('button', { name: 'Categorías' })).toHaveAccessibleDescription(
+    expect(screen.getByRole('button', { name: 'Categorías de insumos' })).toHaveAccessibleDescription(
       `${antes} categorías`,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Categorías' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Categorías de insumos' }))
     fireEvent.click(screen.getByRole('button', { name: /Nueva categoría/i }))
     fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Prótesis' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
@@ -587,7 +591,7 @@ describe('Índice de Ajustes (spec 019 US1)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Volver a Ajustes' }))
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Categorías' })).toHaveAccessibleDescription(
+      expect(screen.getByRole('button', { name: 'Categorías de insumos' })).toHaveAccessibleDescription(
         `${antes + 1} categorías`,
       ),
     )
@@ -655,7 +659,7 @@ describe('Permisos por rol (spec 019 US2)', () => {
     render(<AjustesView />)
 
     expect(screen.getByRole('list', { name: 'Secciones de Ajustes' })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { level: 1, name: 'Categorías' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 1, name: 'Categorías de insumos' })).not.toBeInTheDocument()
     expect(window.location.hash).toBe('')
     expect(window.history.length).toBe(largo)
   })
@@ -697,7 +701,7 @@ describe('Listas de Ajustes por partes (spec 020 US4)', () => {
       revueltos(40).map((n) => categoria(`c${n}`, `Cat ${dosDigitos(n)}`)),
     )
     reflejarStore()
-    renderSeccion('Categorías')
+    renderSeccion('Categorías de insumos')
     const { categorias, insumos } = useInventoryStore.getState()
     const total = catalogoCategoriasCompleto(categorias, insumos).length
     expect(
@@ -771,7 +775,7 @@ describe('Listas de Ajustes por partes (spec 020 US4)', () => {
   })
 
   it('con 25 o menos no hay "Ver más"', () => {
-    renderSeccion('Categorías')
+    renderSeccion('Categorías de insumos')
     expect(
       screen.queryByRole('button', { name: /^Ver más/ }),
     ).not.toBeInTheDocument()

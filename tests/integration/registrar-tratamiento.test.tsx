@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type {
   CambioTratamiento,
+  CategoriaTratamiento,
   Insumo,
   Lote,
   Movimiento,
@@ -27,6 +28,7 @@ import { useInventoryStore } from '../../src/stores/inventoryStore'
 import { useLugarStore } from '../../src/stores/lugarStore'
 import { useTratamientosStore } from '../../src/stores/tratamientosStore'
 import {
+  porcentajesPorCategoria,
   porcentajesPorLugar,
   proyectarTratamientos,
 } from '../../src/features/tratamientos/lib/proyeccion'
@@ -127,6 +129,7 @@ function cambio(campo: CambioTratamiento['campo'], valorNuevo: CambioTratamiento
     tenantId: TENANT_1,
     tratamientoId: 't1',
     lugarId: null,
+    categoriaId: null,
     campo,
     valorAnterior: null,
     valorNuevo,
@@ -152,6 +155,8 @@ function reflejar() {
   useTratamientosStore.setState({
     tratamientos: proyectarTratamientos(tratamientosT.all(), cambios),
     porcentajes: porcentajesPorLugar(cambios),
+    porcentajesCategoria: porcentajesPorCategoria(cambios),
+    categorias: (db.categoriasTratamiento as unknown as MemoryTable<CategoriaTratamiento>).all(),
     cambiosTratamiento: cambios,
     realizados: realizadosT.all(),
     isReady: true,
@@ -305,5 +310,74 @@ describe('registrar un tratamiento realizado (US3)', () => {
     expect(within(panel).getByText('Lugar: Box Las Condes')).toBeInTheDocument()
     fireEvent.click(within(panel).getByRole('button', { name: 'Registrar' }))
     await waitFor(() => expect(realizadosT.all()[0]?.lugarId).toBe(LUGAR_2))
+  })
+})
+
+/** Spec 026 T022 (SC-001, FR-012, FR-013). */
+describe('registrar con % por categoría (spec 026)', () => {
+  beforeEach(() => {
+    ;(db.categoriasTratamiento as unknown as MemoryTable<CategoriaTratamiento>).seed([
+      {
+        id: 'eval',
+        tenantId: TENANT_1,
+        nombre: 'Evaluación',
+        creadoPor: null,
+        creadoEn: '2026-01-01T00:00:00.000Z',
+        desactivadoEn: null,
+        sincronizado: true,
+        rechazadoEn: null,
+      },
+    ])
+    cambiosT.seed([
+      ...cambiosT.all(),
+      cambio('categoria', 'eval', { creadoEn: '2026-01-02T00:00:00.000Z' }),
+      cambio('porcentajeCategoria', 50, {
+        tratamientoId: null,
+        lugarId: LUGAR_1,
+        categoriaId: 'eval',
+        creadoEn: '2026-01-02T00:00:00.000Z',
+      }),
+    ])
+    reflejar()
+  })
+
+  it('la hoja muestra el % de la categoría con su origen y el registro lo guarda (40/50)', async () => {
+    render(<Pantalla />)
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar Restauración clase II' }))
+    const panel = await screen.findByRole('dialog', { name: 'Registrar Restauración clase II' })
+    expect(within(panel).getByText(/Ganancia del profesional \(50 % · Evaluación\)/)).toBeInTheDocument()
+    expect(within(panel).getByText('$22.500')).toBeInTheDocument()
+    fireEvent.click(within(panel).getByRole('button', { name: 'Registrar' }))
+
+    await waitFor(() => expect(realizadosT.all()).toHaveLength(1))
+    expect(realizadosT.all()[0]).toMatchObject({
+      porcentajeProfesional: 50,
+      categoriaId: 'eval',
+      categoriaNombre: 'Evaluación',
+    })
+  })
+})
+
+/** Spec 028 T010 (US1; FR-001, FR-002). */
+describe('paciente al registrar (spec 028)', () => {
+  it('el campo es opcional y el paciente queda aparte del registro', async () => {
+    render(<Pantalla />)
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar Restauración clase II' }))
+    const panel = await screen.findByRole('dialog', { name: 'Registrar Restauración clase II' })
+    const campo = within(panel).getByLabelText('Paciente (nombre o N° de ficha)')
+    expect(campo).toHaveValue('')
+    expect(campo).toHaveAttribute('autocomplete', 'off')
+    fireEvent.change(campo, { target: { value: 'Juan Pérez' } })
+    fireEvent.click(within(panel).getByRole('button', { name: 'Registrar' }))
+
+    await waitFor(() => expect(realizadosT.all()).toHaveLength(1))
+    const pacientes = (db.pacientesRegistro as unknown as MemoryTable<{ registroId: string; paciente: string }>).all()
+    expect(pacientes).toEqual([
+      expect.objectContaining({ registroId: realizadosT.all()[0].id, paciente: 'Juan Pérez' }),
+    ])
+    expect(JSON.stringify(realizadosT.all()[0])).not.toContain('Juan')
+    // El aviso no lleva el paciente.
+    expect(await screen.findByText('Registrado: Restauración clase II')).toBeInTheDocument()
+    expect(screen.queryByText(/Juan Pérez/)).not.toBeInTheDocument()
   })
 })

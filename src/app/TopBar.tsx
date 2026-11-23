@@ -16,14 +16,14 @@ export function TopBar() {
   const { indicador, abierto, abrir, cerrar } = usePanelSync()
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 items-center gap-3 border-b border-border bg-surface px-6 desk:px-8">
+    <header className="sticky top-0 z-20 flex h-[72px] items-center gap-3 border-b border-border/70 bg-surface/85 px-6 backdrop-blur desk:px-8">
       <SelectorLugar />
       <div className="flex-1" />
       <SyncIndicator indicador={indicador} onClick={abrir} />
       {usuario && (
         <div
           title={usuario.nombre}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-bold text-primary-text"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-soft text-sm font-bold text-primary-text"
         >
           {iniciales(usuario.nombre)}
         </div>

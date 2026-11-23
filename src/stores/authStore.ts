@@ -47,6 +47,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: async () => {
     await db.usuarioActual.clear()
     await db.borradores.clear()
+    // Spec 028 (FR-006): los pacientes ya subidos no quedan en el dispositivo;
+    // los pendientes se conservan para subir (y la UI solo los muestra a quien
+    // corresponde).
+    await db.pacientesRegistro.bulkDelete(
+      (await db.pacientesRegistro.toArray())
+        .filter((p) => p.sincronizado)
+        .map((p) => p.registroId),
+    )
     set({ usuario: null, isReady: true })
   },
   actualizarRol: async (rol) => {

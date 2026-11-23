@@ -218,6 +218,64 @@ adicional. En Inicio, "Próximos vencimientos" ya no repite los lotes caducados 
 `main` y comprobar en un dispositivo el detalle de un tratamiento y la tarjeta de Reportes. Si el
 front falla, se revierte sin tocar el servidor.
 
+**Spec 025 ("Consumir" sin atajo):** solo front, sin `db push` ni cambios de datos. El botón
+"Consumir 1" de Inventario pasa a "Consumir" y abre la hoja de consumo con cantidad 1; ya no hay
+consumo de un toque ni "Consumir otra cantidad" en el menú. La hoja propone el lote vigente más
+próximo a vencer (antes podía proponer uno vencido) y marca "Lote vencido" si solo queda stock
+vencido. El aviso con "Deshacer" muestra la cantidad real. Avisar al equipo del cambio. Una 2.8.0 en
+caché sigue mostrando "Consumir 1" y escribe los mismos movimientos, así que conviven. Comprobar en
+un teléfono que al abrir la hoja "Confirmar consumo" queda a la vista (sin teclado) y que consumir 1
+toma 2 toques. Si el front falla, se revierte sin tocar el servidor.
+
+**Spec 026 (categorías de tratamientos y % por categoría):** **con migración**
+(`20261123000000_categorias_tratamiento.sql`). Orden: respaldo de producción (`respaldo.sh`), ensayo de
+la migración sobre su restauración (cada tenant con 9 categorías y el resto de las filas igual),
+`supabase db push` **con visto bueno explícito** y comprobación en producción (9 categorías por
+tenant), y recién después el front. El ensayo sobre el respaldo del 2026-11-23 dio 412 filas antes y
+421 después (las 9 categorías de Clínica Denart); producción todavía no tenía tratamientos ni
+registros. Mientras un dispositivo tenga una versión anterior en caché, no ve categorías y sus
+registros llevan el % general del lugar, aunque la categoría tenga uno propio: avisar al equipo que
+actualice. En Ajustes, "Categorías" pasa a llamarse "Categorías de insumos".
+
+**Spec 027 (rediseño visual):** solo front, sin `db push` ni cambios de datos. Barra lateral con el
+activo en turquesa lleno y el diente al pie, pastillas para el lugar y la sincronización, ondas de
+fondo, tarjetas con íconos de fondo, encabezados y estados vacíos comunes en todas las vistas. Inicio
+ya no tiene la tarjeta "¿Qué necesitas comprar?" (queda la KPI "Para comprar"). Nada cambia de lugar
+ni de comportamiento; avisar al equipo del cambio de apariencia.
+
+**Spec 028 (paciente en cada tratamiento realizado):** **con migración**
+(`20261124000000_pacientes_registro.sql`, va después de la de la 026). Orden: respaldo, ensayo,
+`supabase db push` **con visto bueno explícito**, y luego el front. El ensayo de las migraciones 026 y
+028 sobre el respaldo del 2026-11-23 dio 412 → 421 filas (las 9 categorías; `pacientes_registro`
+vacía). Es un **dato de salud**: antes de anunciarlo a la clienta, revisar con asesoría legal las
+obligaciones de la ley de protección de datos. Solo lo ven quien registró y la administración; al
+cerrar sesión se borran del dispositivo los ya subidos. Incluye además un arreglo de la 027: en el
+teléfono, la barra inferior tapaba el pie de las hojas.
+
+**Release 2.9.0 (specs 025–028):** **con migraciones**. Un solo `supabase db push --linked` aplica
+`20261123000000_categorias_tratamiento` (026) y `20261124000000_pacientes_registro` (028), en ese
+orden. Pasos:
+
+1. Respaldo de producción (`respaldo.sh`).
+2. `supabase db push --linked` (**con visto bueno explícito**) y comprobar en producción: cada tenant
+   con 9 categorías de tratamientos, `pacientes_registro` vacía y el resto de las tablas con los
+   mismos conteos que el respaldo.
+3. Comprobar que la 2.8.0 publicada sigue sincronizando contra el servidor nuevo (ignora los campos
+   nuevos y registra con el % general).
+4. Merge del PR `release/2.9.0` a `main` (Netlify publica el front), tag `2.9.0` y merge de vuelta a
+   `develop`.
+5. Comprobar en un teléfono: "Consumir" abre la hoja con 1; las hojas no quedan tapadas por la barra
+   inferior; Ajustes → Categorías de tratamientos con las 9; un registro con categoría y % propio;
+   el rediseño en Inicio.
+6. Avisar al equipo: "Consumir 1" pasa a "Consumir", categorías de tratamientos con % por lugar, el
+   cambio de apariencia y que actualice la app (una versión en caché registra con el % general y sin
+   categoría ni paciente).
+
+Ensayado el 2026-11-23 sobre la restauración del respaldo del 2026-11-23: 412 filas antes, 421
+después (las 9 categorías de Clínica Denart), `pacientes_registro` vacía y el resto igual. Si el
+front falla, se revierte solo el front: la 2.8.0 convive con el servidor nuevo. **Spec 028**: el
+paciente es un dato de salud; revisar con asesoría legal antes de anunciarlo a la clienta.
+
 ## ¿Quedó bien configurado mi entorno?
 
 Checklist manual (sin script) — cada punto debe poder confirmarse a simple vista en menos de 2

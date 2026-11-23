@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import type { Insumo, Lote } from '../../../lib/db'
-import { selectFefoLot, type LoteConStock } from '../lib/fefo'
-import { crearMovimiento } from '../lib/movements'
+import { selectLoteConsumo, type LoteConStock } from '../lib/fefo'
+import { registrarConsumo } from '../lib/consumo'
 import { computeStockLote, movimientosNormalizadosDeLote } from '../lib/stock'
 import { validateQuantity } from '../lib/quantity'
 import {
@@ -17,6 +17,9 @@ import { TouchButton } from '../../../components/ui/TouchButton'
 import { useLugarStore } from '../../../stores/lugarStore'
 import { NumeroInput } from '../../../components/ui/NumeroInput'
 import { formatearCantidad } from '../../../lib/unidades'
+import { estaVencido } from '../../alertas/lib/caducidad'
+import { ICONO_ESTADO } from '../lib/estadoIconos'
+import { useDisposicion } from '../../../app/useDisposicion'
 
 /**
  * User Story 2 (P2): busca un insumo y confirma una cantidad de consumo,
@@ -29,15 +32,27 @@ import { formatearCantidad } from '../../../lib/unidades'
  * lote sigue listando lotes caducados con stock — la vía explícita para
  * consumirlos (Clarification Q1). `onDone` se llama tras un consumo exitoso.
  * Sin props muestra la búsqueda completa, como en la spec 002 original.
+ *
+ * Spec 025: es la hoja que abre "Consumir" en Inventario. Parte con
+ * `cantidadInicial`, propone el lote **vigente** más próximo a vencer
+ * (`selectLoteConsumo`; uno vencido solo si no queda otro, marcado "Lote
+ * vencido") y registra con `registrarConsumo`, que avisa con "Deshacer".
  */
 export interface ConsumoFormProps {
   insumoInicial?: Insumo
   onDone?: () => void
   /** Spec 014 FR-014 — lugar elegido desde "Todos"; sin él, el lugar activo. */
   lugarId?: string
+  /** Spec 025 (R4) — cantidad con la que parte el campo (Inventario pasa 1). */
+  cantidadInicial?: number
 }
 
-export function ConsumoForm({ insumoInicial, onDone, lugarId: lugarElegido }: ConsumoFormProps = {}) {
+export function ConsumoForm({
+  insumoInicial,
+  onDone,
+  lugarId: lugarElegido,
+  cantidadInicial,
+}: ConsumoFormProps = {}) {
   const lotesCache = useInventoryStore((s) => s.lotes)
   const lugarActivoId = useLugarStore((s) => s.lugarActivoId)
   // Spec 014 FR-010: el stock disponible es el del lote en este lugar.
@@ -49,10 +64,12 @@ export function ConsumoForm({ insumoInicial, onDone, lugarId: lugarElegido }: Co
   // matching a specific lote) — never by an effect — so the FEFO default
   // below stays a plain derived value instead of duplicated state.
   const [loteOverrideId, setLoteOverrideId] = useState<string | null>(null)
-  const [cantidad, setCantidad] = useState('')
+  const valorInicial = cantidadInicial !== undefined ? String(cantidadInicial) : ''
+  const [cantidad, setCantidad] = useState(valorInicial)
   const [error, setError] = useState<string | null>(null)
-  const [mensajeExito, setMensajeExito] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
+  // R4: en teléfono el foco automático abriría el teclado y taparía "Confirmar".
+  const enfocarAlAbrir = useDisposicion() === 'desktop'
 
   useEffect(() => {
     if (!insumo) return
@@ -80,10 +97,11 @@ export function ConsumoForm({ insumoInicial, onDone, lugarId: lugarElegido }: Co
   const cantidadNumerica = Number(cantidad) || 0
   const loteSeleccionado = loteOverrideId
     ? (lotesConStock.find((entry) => entry.lote.id === loteOverrideId) ?? null)
-    : selectFefoLot(lotesConStock, cantidadNumerica)
+    : selectLoteConsumo(lotesConStock, cantidadNumerica)
+  const loteVencido = loteSeleccionado ? estaVencido(loteSeleccionado.lote, new Date()) : false
+  const IconoVencido = ICONO_ESTADO.caducado
 
   function seleccionarInsumo(selected: Insumo, lote?: Lote) {
-    setMensajeExito(null)
     setLotesConStock([])
     setLoteOverrideId(lote?.id ?? null)
     setInsumo(selected)
@@ -93,7 +111,7 @@ export function ConsumoForm({ insumoInicial, onDone, lugarId: lugarElegido }: Co
     setInsumo(insumoInicial ?? null)
     setLotesConStock([])
     setLoteOverrideId(null)
-    setCantidad('')
+    setCantidad(valorInicial)
     setError(null)
   }
 
@@ -107,7 +125,6 @@ export function ConsumoForm({ insumoInicial, onDone, lugarId: lugarElegido }: Co
     if (!insumo) return
 
     setError(null)
-    setMensajeExito(null)
 
     if (!loteSeleccionado) {
       setError('No hay lotes disponibles para este insumo.')
@@ -130,16 +147,16 @@ export function ConsumoForm({ insumoInicial, onDone, lugarId: lugarElegido }: Co
 
     setIsPending(true)
     try {
-      await crearMovimiento({
-        tipo: 'consumo',
+      await registrarConsumo({
+        insumo,
         loteId: loteSeleccionado.lote.id,
         cantidad: cantidadNumerica,
         lugarId: lugarId ?? undefined,
-        unidad: insumo.unidadMedida,
       })
-      setMensajeExito(`Consumo de "${insumo.nombre}" registrado.`)
       reiniciar()
       onDone?.()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo registrar el consumo.')
     } finally {
       setIsPending(false)
     }
@@ -148,13 +165,6 @@ export function ConsumoForm({ insumoInicial, onDone, lugarId: lugarElegido }: Co
   if (!insumo) {
     return (
       <div className="flex flex-col gap-3">
-        {mensajeExito && (
-          <Card className="bg-success-bg px-3.5 py-2.5">
-            <p role="status" className="text-sm text-success-text">
-              {mensajeExito}
-            </p>
-          </Card>
-        )}
         <SearchPicker onSelect={(insumo) => seleccionarInsumo(insumo)} />
       </div>
     )
@@ -186,8 +196,13 @@ export function ConsumoForm({ insumoInicial, onDone, lugarId: lugarElegido }: Co
         </Card>
       ) : (
         <div className="flex flex-col gap-1.5">
-          {!loteOverrideId && (
-            <Badge variant="neutral">Recomendado FEFO</Badge>
+          {loteVencido ? (
+            // R6 / FR-010: texto e ícono, no solo color.
+            <Badge variant="urgent-1" icono={IconoVencido}>
+              Lote vencido
+            </Badge>
+          ) : (
+            !loteOverrideId && <Badge variant="neutral">Recomendado FEFO</Badge>
           )}
           <IconField
             label="Lote (por defecto, el más próximo a caducar)"
@@ -204,7 +219,8 @@ export function ConsumoForm({ insumoInicial, onDone, lugarId: lugarElegido }: Co
                   {lote.numeroLote} —{' '}
                   {lote.fechaCaducidad
                     ? `vence ${lote.fechaCaducidad}`
-                    : 'sin fecha de caducidad'}{' '}
+                    : 'sin fecha de caducidad'}
+                  {estaVencido(lote, new Date()) ? ' — vencido' : ''}{' '}
                   — disponible {formatearCantidad(stockDisponible, insumo.unidadMedida)}
                 </option>
               ))}
@@ -232,6 +248,10 @@ export function ConsumoForm({ insumoInicial, onDone, lugarId: lugarElegido }: Co
               step="any"
               required
               value={cantidad}
+              // R4: la hoja lo enfoca al abrir (ver BottomSheet).
+              data-autofocus={enfocarAlAbrir || undefined}
+              // R4: al enfocar, el número queda seleccionado y se reemplaza al escribir.
+              onFocus={(event) => event.currentTarget.select()}
               onChange={(event) => setCantidad(event.target.value)}
               className="w-full border-none bg-transparent text-center text-[15px] font-extrabold text-text outline-none"
             />

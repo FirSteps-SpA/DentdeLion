@@ -2,7 +2,7 @@ import type { Ref } from 'react'
 import type { EstadoInsumo } from '../lib/estado'
 import { estadoVisual } from '../lib/estado'
 import { ICONO_ESTADO } from '../lib/estadoIconos'
-import type { DisponibilidadConsumoRapido } from '../lib/consumoRapido'
+import type { DisponibilidadConsumo } from '../lib/consumo'
 import { MoreVertical } from '../../../components/icons'
 import { Badge } from '../../../components/ui/Badge'
 import { TouchButton } from '../../../components/ui/TouchButton'
@@ -15,7 +15,7 @@ import { NombreConMarca } from '../../marcas/components/NombreConMarca'
 
 export interface FilaInventario {
   estadoInsumo: EstadoInsumo
-  disponibilidad: DisponibilidadConsumoRapido
+  disponibilidad: DisponibilidadConsumo
   posibleDuplicado: boolean
   /** Spec 014 — en "Todos", el stock de cada lugar. */
   desglose?: string
@@ -24,7 +24,7 @@ export interface FilaInventario {
 export interface InventarioTablaProps {
   filas: FilaInventario[]
   onOpen: (insumoId: string) => void
-  onConsumirUno: (insumoId: string) => void
+  onConsumir: (insumoId: string) => void
   onAbrirMenu: (insumoId: string) => void
   /** Spec 020 R6: título oculto con el rango ("Insumos 26–50 de 200"); se enfoca al cambiar de página. */
   titulo?: string
@@ -52,7 +52,7 @@ const COLUMNAS = [
 export function InventarioTabla({
   filas,
   onOpen,
-  onConsumirUno,
+  onConsumir,
   onAbrirMenu,
   titulo,
   tituloRef,
@@ -152,16 +152,16 @@ export function InventarioTabla({
                       type="button"
                       variant={disponibilidad.ok ? 'secondary' : 'ghost'}
                       disabled={!disponibilidad.ok}
-                      onClick={() => onConsumirUno(insumo.id)}
+                      onClick={() => onConsumir(insumo.id)}
                       aria-label={
                         disponibilidad.ok
-                          ? `Consumir 1 ${insumo.unidadMedida} de ${insumo.nombre}`
+                          ? `Consumir ${insumo.nombre}`
                           : `${MOTIVO_DESHABILITADO[disponibilidad.motivo]}: ${insumo.nombre}`
                       }
                       className="shrink-0 px-3 whitespace-nowrap disabled:text-text-muted"
                     >
                       {disponibilidad.ok
-                        ? 'Consumir 1'
+                        ? 'Consumir'
                         : MOTIVO_DESHABILITADO[disponibilidad.motivo]}
                     </TouchButton>
                     <TouchButton

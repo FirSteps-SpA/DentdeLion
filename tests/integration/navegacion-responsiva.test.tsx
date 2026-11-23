@@ -284,7 +284,7 @@ describe('sección de Ajustes en la URL (spec 019)', () => {
     window.history.replaceState(null, '', '/#ajustes/categorias')
     render(<HarnessConUrl />)
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Categorías' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Categorías de insumos' })).toBeInTheDocument()
   })
 
   it('cambiar de vista quita la sección de la URL y Ajustes vuelve a abrir en el índice', () => {

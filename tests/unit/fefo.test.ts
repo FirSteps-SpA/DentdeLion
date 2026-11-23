@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   selectFefoLot,
+  selectLoteConsumo,
   type LoteConStock,
 } from '../../src/features/insumos/lib/fefo'
 import type { Lote } from '../../src/lib/db'
@@ -97,5 +98,73 @@ describe('selectFefoLot', () => {
     const result = selectFefoLot(entries, 1)
 
     expect(result?.lote.id).toBe(loteSinFecha.id)
+  })
+})
+
+// Spec 025 (research.md R1): lote por defecto de la hoja de consumo.
+describe('selectLoteConsumo', () => {
+  const HOY = new Date(2026, 10, 23)
+  const entry = (
+    numeroLote: string,
+    fechaCaducidad: string | null,
+    stockDisponible: number,
+  ): LoteConStock => ({ lote: makeLote({ numeroLote, fechaCaducidad }), stockDisponible })
+
+  it('propone el vigente aunque un vencido venza antes', () => {
+    const result = selectLoteConsumo(
+      [entry('VEN', '2026-11-01', 3), entry('VIG', '2027-06-01', 10)],
+      1,
+      HOY,
+    )
+    expect(result?.lote.numeroLote).toBe('VIG')
+  })
+
+  it('un lote que vence hoy sigue vigente', () => {
+    const result = selectLoteConsumo(
+      [entry('HOY', '2026-11-23', 2), entry('DESPUES', '2027-01-01', 2)],
+      1,
+      HOY,
+    )
+    expect(result?.lote.numeroLote).toBe('HOY')
+  })
+
+  it('usa los lotes sin fecha después de los fechados', () => {
+    const result = selectLoteConsumo(
+      [entry('SIN', null, 5), entry('FECHA', '2027-01-01', 5)],
+      1,
+      HOY,
+    )
+    expect(result?.lote.numeroLote).toBe('FECHA')
+  })
+
+  it('salta un vigente que no cubre la cantidad por el siguiente que sí', () => {
+    const result = selectLoteConsumo(
+      [entry('CHICO', '2027-01-01', 1), entry('GRANDE', '2027-06-01', 10)],
+      4,
+      HOY,
+    )
+    expect(result?.lote.numeroLote).toBe('GRANDE')
+  })
+
+  it('si ningún vigente cubre, propone el primer vigente (no un vencido que sí cubre)', () => {
+    const result = selectLoteConsumo(
+      [entry('VEN', '2026-01-01', 50), entry('VIG', '2027-01-01', 2)],
+      10,
+      HOY,
+    )
+    expect(result?.lote.numeroLote).toBe('VIG')
+  })
+
+  it('solo con stock vencido propone el vencido más próximo', () => {
+    const result = selectLoteConsumo(
+      [entry('VEN2', '2026-10-01', 1), entry('VEN1', '2026-09-01', 1), entry('VIG0', '2027-01-01', 0)],
+      1,
+      HOY,
+    )
+    expect(result?.lote.numeroLote).toBe('VEN1')
+  })
+
+  it('sin stock devuelve null', () => {
+    expect(selectLoteConsumo([entry('A', '2027-01-01', 0)], 1, HOY)).toBeNull()
   })
 })

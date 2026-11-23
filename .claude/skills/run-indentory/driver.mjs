@@ -390,6 +390,17 @@ async function runCommand(line) {
       break
     }
 
+    case 'desborde': {
+      // Spec 027 (FR-019): ¿hay desplazamiento horizontal? Imprime el ancho del
+      // documento contra el de la ventana y FAIL si lo supera.
+      const { doc, win } = await page.evaluate(() => ({
+        doc: document.documentElement.scrollWidth,
+        win: window.innerWidth,
+      }))
+      console.log(`${doc > win ? 'FAIL' : 'ok'}: desborde ${doc}px / ventana ${win}px`)
+      break
+    }
+
     case 'wait': {
       // wait <ms> — p. ej. para que termine la animación de entrada de un modal antes de la captura.
       await page.waitForTimeout(Number(arg) || 300)

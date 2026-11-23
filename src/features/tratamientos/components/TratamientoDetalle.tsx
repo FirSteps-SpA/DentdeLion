@@ -9,12 +9,14 @@ import { formatearCLP } from '../../insumos/lib/precio'
 import type { TratamientoProyectado } from '../lib/proyeccion'
 import type { MontosTratamiento as Montos } from '../lib/useMontosTratamiento'
 import { MontosTratamiento } from './MontosTratamiento'
+import { nombreCategoriaTratamiento } from '../lib/categorias'
 
 const CAMPO: Record<string, string> = {
   nombre: 'Nombre',
   materiales: 'Materiales',
   activo: 'Estado',
   precio: 'Precio',
+  categoria: 'Categoría',
 }
 
 export interface TratamientoDetalleProps {
@@ -42,6 +44,7 @@ export function TratamientoDetalle({
   const esAdministrador = usuario?.rol === 'administrador'
   const conocidos = usePendientesStore((s) => s.usuariosConocidos)
   const cambios = useTratamientosStore((s) => s.cambiosTratamiento)
+  const categorias = useTratamientosStore((s) => s.categorias)
   const fecha = new Intl.DateTimeFormat('es-CL', { dateStyle: 'medium' })
   const autor = (id: string) =>
     id === usuario?.id ? usuario.nombre : (conocidos.find((c) => c.id === id)?.nombre ?? '')
@@ -53,7 +56,12 @@ export function TratamientoDetalle({
   return (
     <Card className="flex flex-col gap-3 p-3.5">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-h3 text-text">{tratamiento.nombre}</h3>
+        <hgroup className="flex flex-col">
+          <p className="text-xs text-text-muted">
+            {nombreCategoriaTratamiento(categorias, tratamiento.categoriaId)}
+          </p>
+          <h3 className="text-h3 text-text">{tratamiento.nombre}</h3>
+        </hgroup>
         <button
           type="button"
           onClick={onClose}

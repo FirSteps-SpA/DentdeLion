@@ -13,7 +13,8 @@ import {
   ProveedorDesactivado,
 } from '../../proveedores/lib/proveedoresAdmin'
 import { formatearWhatsapp } from '../../proveedores/lib/whatsapp'
-import { ChevronDown, Plus, Undo } from '../../../components/icons'
+import { ChevronDown, Plus, Truck, Undo } from '../../../components/icons'
+import { EstadoVacio } from '../../../components/ui/EstadoVacio'
 import { Badge } from '../../../components/ui/Badge'
 import { BottomSheet } from '../../../components/ui/BottomSheet'
 import { Card } from '../../../components/ui/Card'
@@ -184,8 +185,8 @@ export function ProveedoresSection() {
       )}
 
       {lista.total === 0 ? (
-        <Card className="px-3.5 py-4">
-          <p className="text-sm text-text-muted">Todavía no hay proveedores.</p>
+        <Card>
+          <EstadoVacio Icono={Truck} texto="Todavía no hay proveedores." compacto />
         </Card>
       ) : (
         <Card className="flex flex-col divide-y divide-border px-1.5">

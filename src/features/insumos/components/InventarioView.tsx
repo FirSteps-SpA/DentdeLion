@@ -11,11 +11,7 @@ import { useAvisosStore } from '../../../stores/avisosStore'
 import { computeInsumosStockBajo } from '../../alertas/lib/stockBajo'
 import { computeAlertasCaducidad } from '../../alertas/lib/caducidad'
 import { computeEstadoInsumo, type Estado } from '../lib/estado'
-import {
-  consumirUno,
-  lotesConStockDeInsumo,
-  selectLoteConsumoRapido,
-} from '../lib/consumoRapido'
+import { disponibilidadConsumo, lotesConStockDeInsumo } from '../lib/consumo'
 import { darDeBajaInsumo } from '../lib/catalogo'
 import { categoriasEnUso } from '../lib/categorias'
 import { useDisposicion } from '../../../app/useDisposicion'
@@ -33,7 +29,9 @@ import { ConfirmarBajaDialog } from './ConfirmarBajaDialog'
 import { BottomSheet } from '../../../components/ui/BottomSheet'
 import { Card } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
-import { Plus } from '../../../components/icons'
+import { Boxes, Plus, Search } from '../../../components/icons'
+import { EncabezadoVista } from '../../../components/ui/EncabezadoVista'
+import { EstadoVacio } from '../../../components/ui/EstadoVacio'
 import { VerMas } from '../../../components/ui/VerMas'
 import { Paginador } from '../../../components/ui/Paginador'
 import { rangoPagina, useListaPaginada } from '../../../lib/paginacion'
@@ -44,13 +42,13 @@ import {
   useVistasDeLugar,
 } from '../lib/vistaLugar'
 import { ElegirLugarSheet } from '../../../app/ElegirLugarSheet'
-import { hayVariosLugares, nombreLugar, useLugarStore } from '../../../stores/lugarStore'
+import { hayVariosLugares, useLugarStore } from '../../../stores/lugarStore'
 import { TrasladoForm } from './TrasladoForm'
 import { mapaMarcas } from '../../marcas/lib/marcas'
 
 // Spec 014 FR-014: en "Todos", las acciones que modifican stock pasan antes por
 // "¿En qué lugar?" (`elegirLugar`) y siguen con el lugar elegido.
-type AccionConLugar = 'consumirUno' | 'consumir' | 'alta' | 'trasladar'
+type AccionConLugar = 'consumir' | 'alta' | 'trasladar'
 type Overlay =
   | { tipo: 'menu' | 'editar' | 'baja'; insumoId: string }
   | { tipo: 'consumir'; insumoId: string; lugarId?: string }
@@ -69,8 +67,9 @@ function mensajeDeError(error: unknown, fallback: string): string {
  * renderiza condicionalmente sin desmontar este árbol, para que
  * texto/categoria/estado sobrevivan a abrir y cerrar el detalle (FR-011).
  *
- * Spec 007: cada tarjeta ofrece "Consumir 1" y un menú de opciones; los
- * paneles (menú, consumir otra cantidad, editar, baja) viven en `overlay`,
+ * Spec 007: cada tarjeta ofrece una acción de consumo y un menú de opciones;
+ * spec 025: "Consumir" abre la hoja de consumo con cantidad 1 (ya no hay
+ * consumo de un toque). Los paneles (menú, consumir, editar, baja) viven en `overlay`,
  * que nunca toca los filtros (FR-017). Si el insumo de un panel o del
  * detalle deja de estar activo (baja local o sincronizada), se cierra.
  */
@@ -145,7 +144,7 @@ export function InventarioView() {
   const disposicion = useDisposicion()
   const filas = resultados.map((estadoInsumo) => ({
     estadoInsumo,
-    disponibilidad: selectLoteConsumoRapido(
+    disponibilidad: disponibilidadConsumo(
       lotesConStockDeInsumo(estadoInsumo.insumo.id, lotes, movimientos),
     ),
     posibleDuplicado: duplicados.has(estadoInsumo.insumo.id),
@@ -190,24 +189,14 @@ export function InventarioView() {
     setErrorAccion(null)
   }
 
-  async function handleConsumirUno(insumoId: string, lugarId?: string) {
-    const insumo = insumoActivo(insumoId)
-    if (!insumo) return
-    if (esTodos && !lugarId) {
-      setOverlay({ tipo: 'elegirLugar', accion: 'consumirUno', insumoId })
-      return
-    }
+  // Spec 025 (R5): abre la hoja de consumo; en "Todos", primero el lugar.
+  function abrirConsumo(insumoId: string) {
     setErrorAccion(null)
-    try {
-      const movimiento = await consumirUno(insumo, { lugarId })
-      if (!movimiento && lugarId) {
-        setErrorAccion(
-          `No hay stock vigente de ${insumo.nombre} en ${nombreLugar(lugares, lugarId)}.`,
-        )
-      }
-    } catch (error) {
-      setErrorAccion(mensajeDeError(error, 'No se pudo registrar el consumo.'))
-    }
+    setOverlay(
+      esTodos
+        ? { tipo: 'elegirLugar', accion: 'consumir', insumoId }
+        : { tipo: 'consumir', insumoId },
+    )
   }
 
   function abrirAlta() {
@@ -218,7 +207,6 @@ export function InventarioView() {
   function continuarConLugar(accion: AccionConLugar, insumoId: string | null, lugarId: string) {
     setOverlay(null)
     if (accion === 'alta') setAltaAbierta({ lugarId })
-    else if (accion === 'consumirUno' && insumoId) void handleConsumirUno(insumoId, lugarId)
     else if (accion === 'consumir' && insumoId) setOverlay({ tipo: 'consumir', insumoId, lugarId })
     else if (accion === 'trasladar' && insumoId) {
       setOverlay({ tipo: 'trasladar', insumoId, origenId: lugarId })
@@ -250,6 +238,9 @@ export function InventarioView() {
 
   return (
     <div className="flex w-full flex-col gap-4 text-left">
+      {/* Spec 027 (FR-011): encabezado común. */}
+      <EncabezadoVista titulo="Inventario" Icono={Boxes} />
+
       <ResumenAlertasBanner
         totalCaducidad={totalCaducidad}
         totalStockBajo={totalStockBajo}
@@ -289,7 +280,7 @@ export function InventarioView() {
               titulo={`Insumos ${rango.desde}–${rango.hasta} de ${lista.total}`}
               tituloRef={tituloTablaRef}
               onOpen={setInsumoSeleccionadoId}
-              onConsumirUno={(id) => void handleConsumirUno(id)}
+              onConsumir={abrirConsumo}
               onAbrirMenu={(id) => setOverlay({ tipo: 'menu', insumoId: id })}
             />
             <Paginador
@@ -321,7 +312,7 @@ export function InventarioView() {
                     posibleDuplicado={posibleDuplicado}
                     desglose={desglose}
                     onOpen={setInsumoSeleccionadoId}
-                    onConsumirUno={(id) => void handleConsumirUno(id)}
+                    onConsumir={abrirConsumo}
                     onAbrirMenu={(id) => setOverlay({ tipo: 'menu', insumoId: id })}
                   />
                 </li>
@@ -338,18 +329,18 @@ export function InventarioView() {
       )}
 
       {resultados.length === 0 && insumos.length === 0 && (
-        <Card className="flex flex-col gap-2 px-3.5 py-3">
-          <p className="text-sm text-text-muted">
-            Aún no hay insumos en el inventario.
-          </p>
+        <Card>
+          <EstadoVacio Icono={Boxes} texto="Aún no hay insumos en el inventario." />
         </Card>
       )}
 
       {resultados.length === 0 && insumos.length > 0 && (
-        <Card className="flex flex-col gap-2 px-3.5 py-3">
-          <p className="text-sm text-text-muted">
-            Ningún insumo coincide con la búsqueda o los filtros.
-          </p>
+        <Card className="flex flex-col gap-2 px-3.5 pb-4">
+          <EstadoVacio
+            Icono={Search}
+            texto="Ningún insumo coincide con la búsqueda o los filtros."
+            compacto
+          />
           {hayFiltrosActivos && (
             <TouchButton
               type="button"
@@ -385,13 +376,6 @@ export function InventarioView() {
             setInsumoSeleccionadoId(insumoOverlay.id)
             cerrarOverlay()
           }}
-          onConsumirOtraCantidad={() =>
-            setOverlay(
-              esTodos
-                ? { tipo: 'elegirLugar', accion: 'consumir', insumoId: insumoOverlay.id }
-                : { tipo: 'consumir', insumoId: insumoOverlay.id },
-            )
-          }
           onTrasladar={
             hayVariosLugares(lugares) ? () => abrirTraslado(insumoOverlay.id) : undefined
           }
@@ -413,6 +397,7 @@ export function InventarioView() {
           <ConsumoForm
             insumoInicial={insumoOverlay}
             lugarId={overlay.lugarId}
+            cantidadInicial={1}
             onDone={cerrarOverlay}
           />
         </BottomSheet>

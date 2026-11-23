@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { BottomSheet } from '../../../components/ui/BottomSheet'
 import { Stepper } from '../../../components/ui/Stepper'
+import { IconField } from '../../../components/ui/IconField'
+import { User } from '../../../components/icons'
+import { MAX_PACIENTE } from '../lib/pacientes'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { etiquetaUnidad, formatearCantidad, unidadAdmiteDecimales } from '../../../lib/unidades'
 import { useAvisosStore } from '../../../stores/avisosStore'
 import { useInventoryStore } from '../../../stores/inventoryStore'
 import { nombreLugar, useLugarStore } from '../../../stores/lugarStore'
-import { useTratamientosStore } from '../../../stores/tratamientosStore'
 import { formatearCLP } from '../../insumos/lib/precio'
 import { computeStockLote } from '../../insumos/lib/stock'
 import { useCostosUnitarios } from '../../insumos/lib/useCostosUnitarios'
@@ -18,8 +20,8 @@ import {
 } from '../lib/montos'
 import type { TratamientoProyectado } from '../lib/proyeccion'
 import { esLoteVigente, registrarTratamiento, StockInsuficienteError } from '../lib/registro'
-import { formatearConSigno } from '../lib/textos'
-import { useInsumosPorId } from '../lib/useMontosTratamiento'
+import { formatearConSigno, textoPorcentaje } from '../lib/textos'
+import { useInsumosPorId, usePorcentajeAplicable } from '../lib/useMontosTratamiento'
 
 export interface RegistrarTratamientoSheetProps {
   tratamiento: TratamientoProyectado
@@ -44,7 +46,9 @@ export function RegistrarTratamientoSheet({
   const cambiosInsumo = useInventoryStore((s) => s.cambiosInsumo)
   const insumos = useInsumosPorId()
   const costos = useCostosUnitarios()
-  const porcentaje = useTratamientosStore((s) => s.porcentajes).get(lugarId) ?? null
+  // Spec 026 (FR-010/FR-012): el % de la categoría en el lugar o el general.
+  const origenPorcentaje = usePorcentajeAplicable()(tratamiento, lugarId)
+  const porcentaje = origenPorcentaje.valor
   const lugares = useLugarStore((s) => s.lugares)
   const agregarAviso = useAvisosStore((s) => s.agregar)
 
@@ -57,6 +61,8 @@ export function RegistrarTratamientoSheet({
     ),
   )
   const [error, setError] = useState<string | null>(null)
+  // Spec 028 (FR-001): opcional.
+  const [paciente, setPaciente] = useState('')
   const [isPending, setIsPending] = useState(false)
 
   const hoy = new Date()
@@ -105,7 +111,7 @@ export function RegistrarTratamientoSheet({
     setIsPending(true)
     setError(null)
     try {
-      const registro = await registrarTratamiento(tratamiento, { lugarId, cantidades })
+      const registro = await registrarTratamiento(tratamiento, { lugarId, cantidades, paciente })
       agregarAviso({
         tipo: 'tratamiento',
         movimientoId: registro.id,
@@ -166,7 +172,7 @@ export function RegistrarTratamientoSheet({
       <p className="text-sm text-text" aria-live="polite">
         {comision !== null && (
           <>
-            {ETIQUETA_GANANCIA_PROFESIONAL}:{' '}
+            {ETIQUETA_GANANCIA_PROFESIONAL} ({textoPorcentaje(origenPorcentaje)}):{' '}
             <span className="font-bold whitespace-nowrap">{formatearCLP(comision)}</span>
             {' · '}
           </>
@@ -186,6 +192,24 @@ export function RegistrarTratamientoSheet({
           </>
         )}
       </p>
+      {/* Spec 028 (FR-001): dato de salud, opcional; sin autocompletar del navegador. */}
+      <IconField
+        label="Paciente (nombre o N° de ficha)"
+        htmlFor="registro-paciente"
+        icon={<User size={18} />}
+        hint="Opcional. Solo lo ven tú y la administración."
+      >
+        <input
+          id="registro-paciente"
+          type="text"
+          maxLength={MAX_PACIENTE}
+          autoComplete="off"
+          data-sentry-mask
+          value={paciente}
+          onChange={(event) => setPaciente(event.target.value)}
+          className="h-full w-full border-none bg-transparent text-sm text-text outline-none"
+        />
+      </IconField>
       {error && (
         <p role="alert" className="text-sm text-danger">
           {error}

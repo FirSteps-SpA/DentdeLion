@@ -6,7 +6,7 @@ import {
   TEXTO_MOTIVO,
 } from '../lib/montos'
 import type { MontosTratamiento as Montos } from '../lib/useMontosTratamiento'
-import { textoComision, textoCosto, textoGanancia } from '../lib/textos'
+import { textoComision, textoCosto, textoGanancia, textoPorcentaje } from '../lib/textos'
 
 /**
  * Spec 016 (UI §4, DS §27) — bloque de montos: precio en el lugar y, como
@@ -24,7 +24,7 @@ export function MontosTratamiento({ montos }: { montos: Montos }) {
       </dd>
       <dt className="font-bold">
         {ETIQUETA_GANANCIA_PROFESIONAL}
-        {montos.porcentaje !== null && ` (${montos.porcentaje} %)`}
+        {textoPorcentaje(montos.origenPorcentaje) && ` (${textoPorcentaje(montos.origenPorcentaje)})`}
       </dt>
       <dd className="text-right text-base font-bold">{textoComision(montos)}</dd>
       <dt className="mt-2 text-text-muted">Costo de materiales</dt>

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { APP_NAME } from '../../lib/branding'
-import { Lock, Mail, Tooth, User } from '../../components/icons'
+import { Lock, Mail, User } from '../../components/icons'
+import { DienteLinea } from '../../components/decoracion'
 import { IconField } from '../../components/ui/IconField'
 import { TouchButton } from '../../components/ui/TouchButton'
 import { useLogin } from './useLogin'
@@ -71,7 +72,7 @@ export function AceptarInvitacion({ token, onSalir }: { token: string; onSalir: 
   return (
     <div className="flex w-full max-w-sm flex-col items-center gap-6 rounded-xl border border-border bg-surface p-6 text-left shadow-card md:p-8">
       <div className="flex flex-col items-center gap-2">
-        <Tooth size={48} className="text-brand" />
+        <DienteLinea size={64} destellos />
         <h1 className="text-h1 text-teal-dark">{APP_NAME}</h1>
       </div>
 

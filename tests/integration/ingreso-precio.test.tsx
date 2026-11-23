@@ -214,7 +214,7 @@ describe('costo unitario en la tabla (US3-4..6, FR-017)', () => {
       <InventarioTabla
         filas={insumos.map(fila)}
         onOpen={() => {}}
-        onConsumirUno={() => {}}
+        onConsumir={() => {}}
         onAbrirMenu={() => {}}
       />,
     )

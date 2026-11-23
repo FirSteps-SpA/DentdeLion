@@ -6,6 +6,7 @@ import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 import type { Vista } from './navegacion'
 import { useDisposicion } from './useDisposicion'
+import { OndasFondo } from '../components/decoracion'
 
 export interface AppShellProps {
   vista: Vista
@@ -28,6 +29,9 @@ const ANCHO_CONTENIDO = {
  * en el mismo `<main>`, en la misma posición del árbol — cambiar de ancho
  * cambia la envoltura pero no desmonta la vista, así que un formulario a medio
  * llenar o los filtros sobreviven (FR-015).
+ *
+ * Spec 027 (research.md R3): ondas decorativas detrás del contenido; el
+ * `<main>` sigue siendo el mismo nodo en cualquier disposición.
  */
 export function AppShell({
   vista,
@@ -51,15 +55,19 @@ export function AppShell({
           onAlternar={disposicion === 'tablet' ? alternarSidebar : undefined}
         />
       )}
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="relative flex min-w-0 flex-1 flex-col overflow-x-clip">
+        <OndasFondo />
         {movil ? (
-          <div className="mx-auto w-full max-w-[480px] px-4 pt-4">
+          <div className="relative mx-auto w-full max-w-[480px] px-4 pt-4">
             <AppHeader />
           </div>
         ) : (
           <TopBar />
         )}
-        <main className={`flex flex-col ${ANCHO_CONTENIDO[disposicion]}`}>
+        {/* Sin z-index propio: un contexto de apilamiento aquí dejaría las hojas
+            (fixed, z-50) por debajo de la barra inferior (z-20). Las ondas van
+            antes en el DOM, así que el contenido ya se pinta encima. */}
+        <main className={`relative flex flex-col ${ANCHO_CONTENIDO[disposicion]}`}>
           {children}
         </main>
       </div>

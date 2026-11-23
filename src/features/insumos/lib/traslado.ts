@@ -76,7 +76,7 @@ async function escribirPar(
 
 /**
  * Registra el traslado. Relee el stock dentro de la transacción (como
- * "Consumir 1") para que dos toques seguidos no sobregiren el lote.
+ * `registrarConsumo`) para que dos toques seguidos no sobregiren el lote.
  */
 export async function trasladar(
   insumo: Insumo,
