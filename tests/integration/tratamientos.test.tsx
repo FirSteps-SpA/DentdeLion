@@ -18,6 +18,12 @@ vi.mock('../../src/lib/db', async () => {
   }
 })
 
+const estimarMock = vi.hoisted(() => vi.fn())
+vi.mock('../../src/features/tratamientos/lib/estimacion', async (original) => ({
+  ...(await original<typeof import('../../src/features/tratamientos/lib/estimacion')>()),
+  estimarMateriales: estimarMock,
+}))
+
 import { db } from '../../src/lib/db'
 import { onMemoryDbChange } from '../helpers/memoryDb'
 import { useAuthStore } from '../../src/stores/authStore'
@@ -429,5 +435,89 @@ describe('categorías de tratamientos (spec 026)', () => {
 
     act(() => useLugarStore.setState({ lugarActivoId: LUGAR_2 }))
     expect(await within(detalle).findByText(/50 % · general del lugar/)).toBeInTheDocument()
+  })
+})
+
+describe('sugerir cantidades con IA (spec 029)', () => {
+  const enLinea = (valor: boolean) =>
+    Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => valor })
+
+  beforeEach(() => {
+    estimarMock.mockReset()
+    enLinea(true)
+  })
+  afterEach(() => enLinea(true))
+
+  it('muestra sugerencias por material y "Usar sugerencias" las copia (US1)', async () => {
+    estimarMock.mockResolvedValue([
+      { insumoId: 'art', cantidad: 2, nota: 'una pieza' },
+      { insumoId: 'res', cantidad: 1.5, nota: 'por superficie' },
+      { insumoId: 'otros', cantidad: null, nota: '' },
+    ])
+    const form = await crearRestauracion()
+    expect(within(form).getByText('Sugerencia orientativa con IA: revisa antes de guardar.')).toBeInTheDocument()
+    fireEvent.click(within(form).getByRole('button', { name: 'Sugerir cantidades' }))
+
+    expect(await within(form).findByText('Sugerido: 1,5 g · por superficie')).toBeInTheDocument()
+    expect(within(form).getByText('Sugerido: 2 cartuchos · una pieza')).toBeInTheDocument()
+    expect(within(form).getByText('Sin sugerencia')).toBeInTheDocument()
+    expect(estimarMock).toHaveBeenCalledWith('Restauración clase II', ['art', 'res', 'otros'])
+    // Nada cambia hasta "Usar sugerencias".
+    expect(within(form).getByLabelText('Resina A2 (g)')).toHaveValue(2)
+
+    fireEvent.click(within(form).getByRole('button', { name: 'Usar sugerencias' }))
+    expect(within(form).getByLabelText('Resina A2 (g)')).toHaveValue(1.5)
+    expect(within(form).getByLabelText(/^Articaína/)).toHaveValue(2)
+    expect(within(form).getByLabelText(/^Otros/)).toHaveValue(1)
+
+    fireEvent.click(within(form).getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    const guardado = useTratamientosStore.getState().tratamientos[0]
+    expect(guardado.materiales.find((m) => m.insumoId === 'res')?.cantidad).toBe(1.5)
+  })
+
+  it('cambiar el nombre o los materiales descarta las sugerencias (FR-004)', async () => {
+    estimarMock.mockResolvedValue([{ insumoId: 'res', cantidad: 1, nota: '' }])
+    const form = await crearRestauracion()
+    fireEvent.click(within(form).getByRole('button', { name: 'Sugerir cantidades' }))
+    expect(await within(form).findByText('Sugerido: 1 g')).toBeInTheDocument()
+
+    fireEvent.change(within(form).getByLabelText('Nombre'), { target: { value: 'Restauración clase I' } })
+    expect(within(form).queryByText('Sugerido: 1 g')).not.toBeInTheDocument()
+    expect(within(form).queryByRole('button', { name: 'Usar sugerencias' })).not.toBeInTheDocument()
+
+    fireEvent.change(within(form).getByLabelText('Nombre'), { target: { value: 'Restauración clase II' } })
+    expect(within(form).getByText('Sugerido: 1 g')).toBeInTheDocument()
+    fireEvent.click(within(form).getByRole('button', { name: 'Quitar Otros' }))
+    expect(within(form).queryByText('Sugerido: 1 g')).not.toBeInTheDocument()
+  })
+
+  it('sin conexión el botón queda deshabilitado con el motivo (US2-6)', async () => {
+    enLinea(false)
+    const form = await crearRestauracion()
+    expect(within(form).getByRole('button', { name: 'Sugerir cantidades' })).toBeDisabled()
+    expect(within(form).getByText('Necesita conexión.')).toBeInTheDocument()
+    expect(estimarMock).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['limite_diario', 'Se alcanzó el límite de 20 estimaciones por día. Intenta mañana.'],
+    ['no_reconocido', 'No se reconoció como un tratamiento dental.'],
+    ['no_configurado', 'La estimación no está disponible.'],
+    ['error', 'No se pudo estimar ahora; intenta más tarde.'],
+  ])('%s muestra su mensaje y no toca el formulario (FR-012)', async (codigo, mensaje) => {
+    estimarMock.mockResolvedValue(codigo)
+    const form = await crearRestauracion()
+    fireEvent.click(within(form).getByRole('button', { name: 'Sugerir cantidades' }))
+    expect(await within(form).findByRole('status')).toHaveTextContent(mensaje)
+    expect(within(form).getByLabelText('Resina A2 (g)')).toHaveValue(2)
+    expect(within(form).queryByRole('button', { name: 'Usar sugerencias' })).not.toBeInTheDocument()
+  })
+
+  it('sin nombre el botón explica qué falta', async () => {
+    const form = await crearRestauracion()
+    fireEvent.change(within(form).getByLabelText('Nombre'), { target: { value: ' ' } })
+    expect(within(form).getByRole('button', { name: 'Sugerir cantidades' })).toBeDisabled()
+    expect(within(form).getByText('Escribe el nombre del tratamiento.')).toBeInTheDocument()
   })
 })
