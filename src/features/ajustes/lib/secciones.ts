@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react'
-import { Archive, Bell, Factory, MapPin, Stethoscope, Tag, Truck, User, type IconProps } from '../../../components/icons'
+import { Archive, Bell, CircleHelp, Factory, MapPin, Stethoscope, Tag, Truck, User, type IconProps } from '../../../components/icons'
 import type { UsuarioActual } from '../../../lib/db'
 
 /**
@@ -9,6 +9,7 @@ import type { UsuarioActual } from '../../../lib/db'
  * Spec 026 (research.md R10): `'categoriasTratamiento'` después de `'lugares'`
  * (junto al % profesional de cada lugar); `'categorias'` pasa a llamarse
  * "Categorías de insumos" para distinguirlas.
+ * Spec 030 (research.md R5): `'guia'` al final, para ambos roles.
  */
 export type IdSeccion =
   | 'perfil'
@@ -19,6 +20,7 @@ export type IdSeccion =
   | 'proveedores'
   | 'marcas'
   | 'baja'
+  | 'guia'
 
 export interface SeccionAjustes {
   id: IdSeccion
@@ -77,6 +79,12 @@ export const SECCIONES_AJUSTES: readonly SeccionAjustes[] = [
     titulo: () => 'Insumos dados de baja',
     Icon: Archive,
     soloAdministracion: true,
+  },
+  {
+    id: 'guia',
+    titulo: () => 'Guía de uso',
+    Icon: CircleHelp,
+    soloAdministracion: false,
   },
 ]
 
@@ -166,5 +174,7 @@ export function resumenSeccion(id: IdSeccion, datos: DatosResumen): string | nul
         'insumos dados de baja',
         'Sin insumos dados de baja',
       )
+    case 'guia':
+      return 'Cómo usar cada pantalla'
   }
 }

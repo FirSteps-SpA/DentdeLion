@@ -1,6 +1,8 @@
 import type { ComponentType, ReactNode, Ref } from 'react'
 import type { IconProps } from '../icons'
 import { DienteLinea, IconoFondo } from '../decoracion'
+import { BotonAyuda } from '../../features/ayuda/components/BotonAyuda'
+import type { IdAyuda } from '../../features/ayuda/contenido'
 
 export interface EncabezadoVistaProps {
   titulo: ReactNode
@@ -15,12 +17,15 @@ export interface EncabezadoVistaProps {
   tituloRef?: Ref<HTMLHeadingElement>
   /** Clases del título (p. ej. `outline-none` cuando recibe foco). */
   tituloClassName?: string
+  /** Spec 030: agrega el "?" con la ayuda de esta pantalla. */
+  ayuda?: IdAyuda
 }
 
 /**
  * Spec 027 (FR-011, research.md R5, UI §2) — encabezado común de cada vista:
  * `h1`, subtítulo y acción opcionales, y a la derecha la ilustración
  * decorativa (el diente en Inicio, el ícono de la sección en las demás).
+ * Spec 030 (FR-001): con `ayuda`, el "?" va al final de las acciones.
  */
 export function EncabezadoVista({
   titulo,
@@ -30,6 +35,7 @@ export function EncabezadoVista({
   ilustracion,
   tituloRef,
   tituloClassName = '',
+  ayuda,
 }: EncabezadoVistaProps) {
   return (
     // `div`, no `header`: la barra superior es el único landmark "banner".
@@ -44,19 +50,24 @@ export function EncabezadoVista({
         </h1>
         {subtitulo && <div className="text-body text-text-muted">{subtitulo}</div>}
       </div>
-      <div className="relative z-10 flex flex-wrap items-center gap-2">{accion}</div>
+      <div className="relative z-10 flex flex-wrap items-center gap-2">
+        {accion}
+        {ayuda && <BotonAyuda id={ayuda} />}
+      </div>
       {ilustracion === 'diente' ? (
         <DienteLinea
           destellos
           size={88}
-          className="absolute -top-3 right-0 hidden opacity-90 md:block"
+          className={`absolute -top-3 hidden opacity-90 md:block ${ayuda ? 'right-14' : 'right-0'}`}
         />
       ) : (
         Icono && (
           <IconoFondo
             Icono={Icono}
             size={72}
-            className={`absolute top-1/2 -translate-y-1/2 hidden md:block ${accion ? 'right-48' : 'right-2'}`}
+            className={`absolute top-1/2 -translate-y-1/2 hidden md:block ${
+              accion ? (ayuda ? 'right-64' : 'right-48') : ayuda ? 'right-16' : 'right-2'
+            }`}
           />
         )
       )}

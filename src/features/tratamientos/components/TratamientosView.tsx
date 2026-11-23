@@ -78,6 +78,7 @@ export function TratamientosView() {
       <EncabezadoVista
         titulo="Tratamientos"
         Icono={Stethoscope}
+        ayuda="tratamientos"
         accion={
           esAdministrador &&
           pestana === 'tratamientos' && (

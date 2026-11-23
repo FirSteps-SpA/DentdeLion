@@ -63,6 +63,7 @@ export function ReportesView({ onNavegar }: { onNavegar?: (vista: Vista) => void
         titulo="Reportes"
         subtitulo={nombreLugar || undefined}
         Icono={ChartColumn}
+        ayuda="reportes"
         accion={<SelectorPeriodo periodo={periodo} onCambiar={setPeriodo} />}
       />
 

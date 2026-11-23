@@ -294,6 +294,13 @@ van el nombre del tratamiento y el nombre, unidad y presentación de los materia
 precios ni stock). Probar en local sin costo con `supabase functions serve` sin clave
 (`npm run test:rls`); una prueba real cuesta y requiere visto bueno.
 
+**Spec 030 (guía de uso):** solo front, sin `db push` ni cambios de datos. Botón "?" en el
+encabezado de las 7 vistas y de las 8 secciones de Ajustes, con la ayuda de esa pantalla (filtrada
+por rol), y Ajustes → "Guía de uso" con todas. Los textos están en
+`src/features/ayuda/contenido.ts`: **la clienta los revisa antes del release**. La primera vez que
+cada persona entra a cada pantalla en un dispositivo, la ayuda se abre sola (se recuerda en
+`localStorage`, no se sincroniza): avisar al equipo que, al actualizar, verá esas ayudas una vez.
+
 ## ¿Quedó bien configurado mi entorno?
 
 Checklist manual (sin script) — cada punto debe poder confirmarse a simple vista en menos de 2

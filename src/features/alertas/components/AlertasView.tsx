@@ -76,7 +76,7 @@ export function AlertasView() {
   return (
     <div className="flex w-full flex-col gap-6 text-left">
       {/* Spec 027 (FR-011, FR-012): encabezado común y secciones con ícono. */}
-      <EncabezadoVista titulo="Alertas" Icono={Bell} />
+      <EncabezadoVista titulo="Alertas" Icono={Bell} ayuda="alertas" />
 
       {/* Spec 013 FR-011: stock bajo y caducidad lado a lado en desktop. */}
       <div className="grid grid-cols-1 gap-4 desk:grid-cols-2 desk:items-start desk:gap-6">

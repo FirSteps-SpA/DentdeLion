@@ -505,7 +505,7 @@ describe('Índice de Ajustes (spec 019 US1)', () => {
   const tarjetas = () =>
     within(screen.getByRole('list', { name: 'Secciones de Ajustes' })).getAllByRole('button')
 
-  it('abre en el índice con las ocho tarjetas en orden y sus resúmenes', () => {
+  it('abre en el índice con las nueve tarjetas en orden y sus resúmenes', () => {
     useAuthStore.setState({ usuario: admin, isReady: true })
     categoriasT.seed([categoria('c1', 'Ortodoncia')])
     insumosT.seed([insumo('a', 'Anestesia local', { categoria: 'Ortodoncia' })])
@@ -523,6 +523,8 @@ describe('Índice de Ajustes (spec 019 US1)', () => {
       'ProveedoresSin proveedores',
       'MarcasSin marcas',
       'Insumos dados de bajaSin insumos dados de baja',
+      // Spec 030.
+      'Guía de usoCómo usar cada pantalla',
     ])
     expect(screen.getByRole('button', { name: 'Categorías de insumos' })).toHaveAccessibleDescription(
       `${CATEGORIAS_PRECARGADAS.length + 1} categorías`,
@@ -622,13 +624,14 @@ describe('Permisos por rol (spec 019 US2)', () => {
   const tarjetas = () =>
     within(screen.getByRole('list', { name: 'Secciones de Ajustes' })).getAllByRole('button')
 
-  it('el personal ve solo "Perfil" y "Notificaciones", con resúmenes de personal', () => {
+  it('el personal ve solo "Perfil", "Notificaciones" y la guía, con resúmenes de personal', () => {
     useAuthStore.setState({ usuario: personal, isReady: true })
     render(<AjustesView />)
 
     expect(tarjetas().map((b) => b.textContent)).toEqual([
       'PerfilPersonal Uno · Personal',
       'NotificacionesStock bajo y caducidad',
+      'Guía de usoCómo usar cada pantalla',
     ])
   })
 
@@ -671,7 +674,7 @@ describe('Permisos por rol (spec 019 US2)', () => {
 
     act(() => useAuthStore.setState({ usuario: { ...admin, rol: 'personal' } }))
 
-    await waitFor(() => expect(tarjetas()).toHaveLength(2))
+    await waitFor(() => expect(tarjetas()).toHaveLength(3))
     expect(window.location.hash).toBe('')
   })
 
