@@ -30,7 +30,7 @@ o ver el perfil hay que ir a Ajustes → Perfil, donde además el nombre no se p
 a pedido de la clienta: el acceso rápido desde el avatar es un atajo, y Ajustes → Perfil sigue siendo
 el lugar completo.
 
-En listas largas de inventario en vista de tabla (desktop/tablet), al bajar se pierde de vista qué
+En listas largas de inventario en vista de tabla (desktop), al bajar se pierde de vista qué
 columna es cuál.
 
 **Fuera de alcance**: cambiar correo o contraseña desde Perfil; foto de perfil; reactivar el escáner
@@ -114,7 +114,7 @@ cambian a "AP", y otro dispositivo de la misma persona ve el nombre nuevo tras s
 
 ### User Story 3 - Encabezado de la tabla fijo al bajar (Priority: P3)
 
-Como persona que revisa un inventario largo en desktop o tablet, quiero que los nombres de las
+Como persona que revisa un inventario largo en desktop (la vista de tabla solo existe desde 1200 px), quiero que los nombres de las
 columnas sigan visibles al bajar, para saber qué estoy leyendo.
 
 **Why this priority**: Es una comodidad. No bloquea ninguna tarea.
@@ -128,24 +128,26 @@ columnas sigan visibles al bajar, para saber qué estoy leyendo.
    **Then** la fila de encabezados queda fija justo debajo de la barra superior, con fondo opaco.
 2. **Given** una tabla más ancha que la pantalla, **When** se desplaza hacia el costado, **Then** el
    encabezado se mueve junto con las columnas.
-3. **Given** la tabla con paginación ("Ver más"), **When** se cargan más filas, **Then** el encabezado
-   sigue fijo.
+3. **Given** la tabla con paginación, **When** se cambia de página, **Then** el encabezado sigue
+   fijo.
 
 ---
 
 ### Edge Cases
 
-- **Conversión con una unidad que no admite decimales** (por ejemplo, cajas → unidades): el campo en
-  esa unidad redondea hacia arriba en el stock mínimo (para no avisar tarde) y muestra el valor exacto
-  en el stock inicial solo si es entero. Si no lo es, muestra el equivalente con hasta 2 decimales y
-  una nota "≈". Lo que se guarda siempre es la cantidad en la unidad de consumo.
+- **Conversión que no da un número exacto** (por ejemplo, 0,5 ml en jeringas de 3 ml): el campo
+  calculado muestra el equivalente con hasta 2 decimales y el prefijo "≈", aunque esa unidad no admita
+  decimales al escribirla. Nunca se redondea a entero: lo que se guarda es siempre la cantidad exacta
+  en la unidad de consumo.
 - **Contenido por unidad de compra vacío o 0**: el segundo campo queda deshabilitado con la ayuda
   "Completa cuánto trae cada <unidad>" hasta que haya un contenido válido.
 - **Stock mínimo vacío** (es opcional): ambos campos quedan vacíos. Borrar uno borra el otro.
 - **Cerrar sesión sin conexión con cambios pendientes**: mismo comportamiento y aviso que hoy en
   Ajustes → Perfil.
-- **Editar el nombre sin conexión**: se guarda en el dispositivo y se sube al sincronizar. Los
-  movimientos ya registrados conservan el nombre con que se hicieron, como hoy.
+- **Editar el nombre sin conexión**: no se permite. Se muestra "Necesitas conexión para cambiar tu
+  nombre", igual que el nombre de la clínica y la gestión del equipo.
+- **Historial con el nombre anterior**: el historial guarda quién hizo cada movimiento, no su nombre,
+  así que después del cambio todo el historial de esa persona se muestra con el nombre nuevo.
 - **Usuario desactivado mientras tiene el menú abierto**: al sincronizar se aplica el flujo de acceso
   desactivado que ya existe.
 - **Insumo antiguo con código de barras guardado**: el código se conserva sin cambios aunque el campo
@@ -191,8 +193,9 @@ columnas sigan visibles al bajar, para saber qué estoy leyendo.
 
 - **FR-012**: Todo control nuevo (avatar, opciones del menú, ejemplo plegable, campos dobles) DEBE
   tener un área táctil mínima de 48×48 px (Constitución III).
-- **FR-013**: Todo DEBE funcionar sin conexión (Constitución I). El cambio de nombre se sincroniza como
-  el resto de los datos.
+- **FR-013**: Todo DEBE funcionar sin conexión (Constitución I), salvo editar el nombre, que requiere
+  conexión como el resto de los cambios de perfil y equipo. Los demás dispositivos de la persona toman
+  el nombre nuevo en la siguiente sincronización.
 - **FR-014**: El menú del avatar DEBE poder usarse con teclado (abrir, recorrer opciones y cerrar con
   Escape) y lectores de pantalla.
 
@@ -215,7 +218,7 @@ columnas sigan visibles al bajar, para saber qué estoy leyendo.
   más).
 - **SC-004**: El cambio de nombre se ve en todos los dispositivos de la persona tras la siguiente
   sincronización.
-- **SC-005**: Con 100 filas en la tabla, el encabezado sigue visible durante todo el desplazamiento.
+- **SC-005**: En una página completa de la tabla, el encabezado sigue visible durante todo el desplazamiento.
 
 ## Assumptions
 
