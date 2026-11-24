@@ -19,6 +19,7 @@ import {
   CircleAlert as LucideCircleAlert,
   CircleCheck as LucideCircleCheck,
   CircleHelp as LucideCircleHelp,
+  Download as LucideDownload,
   CircleUserRound,
   Clock3,
   CloudOff as LucideCloudOff,
@@ -142,6 +143,7 @@ export const ChevronRight = deLucide(LucideChevronRight)
 export const Check = deLucide(LucideCheck)
 export const CircleCheck = deLucide(LucideCircleCheck)
 export const CircleHelp = deLucide(LucideCircleHelp)
+export const Download = deLucide(LucideDownload)
 export const CircleAlert = deLucide(LucideCircleAlert)
 export const AlertTriangle = deLucide(TriangleAlert)
 export const Clock = deLucide(Clock3)

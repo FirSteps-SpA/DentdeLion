@@ -335,6 +335,23 @@ quedan iguales, `authenticated` no puede ejecutar `reservar_estimacion` y la res
 rechaza la 21. Una 2.9.0 en caché sigue funcionando con el servidor nuevo (no usa la tabla ni la
 función). Si el front falla, se revierte solo el front.
 
+**Spec 031 (administración de la plataforma):** **con migración**
+(`20261126000000_administracion_plataforma.sql`) y **una Edge Function nueva**, `plataforma`. La
+migración quita las FKs de historial a `auth.users` (para poder borrar una cuenta conservando sus
+registros) y agrega tablas y funciones nuevas; ningún dato existente cambia. Orden: respaldo, ensayo
+sobre la restauración, `supabase db push` (**con visto bueno explícito**), `supabase functions deploy
+plataforma`, front. Después, agregar la cuenta del operador **a mano** (nunca en una migración: el
+repositorio es público):
+
+```sql
+insert into public.administradores_plataforma (usuario_id)
+select id from auth.users where lower(email) = lower('<correo del operador>');
+```
+
+El panel aparece en Ajustes → "Plataforma" solo para esas cuentas. Eliminar un cliente es
+**irreversible**: el panel descarga antes un respaldo JSON. Las acciones quedan en
+`auditoria_plataforma` (solo service role). El script `npm run alta-tenant` sigue como alternativa.
+
 ## ¿Quedó bien configurado mi entorno?
 
 Checklist manual (sin script) — cada punto debe poder confirmarse a simple vista en menos de 2

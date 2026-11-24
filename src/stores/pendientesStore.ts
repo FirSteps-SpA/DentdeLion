@@ -16,6 +16,8 @@ import {
 interface PendientesState {
   pendientes: PendientesPorAutor[]
   usuariosConocidos: UsuarioConocido[]
+  /** Spec 031: ids de cuentas eliminadas del tenant ("Usuario eliminado"). */
+  usuariosEliminados: string[]
   ahora: number
   subscribe: () => () => void
 }
@@ -25,6 +27,7 @@ const TICK_MS = 60_000
 export const usePendientesStore = create<PendientesState>((set) => ({
   pendientes: [],
   usuariosConocidos: [],
+  usuariosEliminados: [],
   ahora: Date.now(),
   subscribe: () => {
     const subPendientes = liveQuery(async () =>
@@ -45,10 +48,14 @@ export const usePendientesStore = create<PendientesState>((set) => ({
     const subUsuarios = liveQuery(() => db.usuariosConocidos.toArray()).subscribe({
       next: (usuariosConocidos) => set({ usuariosConocidos }),
     })
+    const subEliminados = liveQuery(() => db.usuariosEliminados.toArray()).subscribe({
+      next: (filas) => set({ usuariosEliminados: filas.map((f) => f.id) }),
+    })
     const tick = setInterval(() => set({ ahora: Date.now() }), TICK_MS)
     return () => {
       subPendientes.unsubscribe()
       subUsuarios.unsubscribe()
+      subEliminados.unsubscribe()
       clearInterval(tick)
     }
   },

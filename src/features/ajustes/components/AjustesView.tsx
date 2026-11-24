@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useAuthStore } from '../../../stores/authStore'
 import type { Vista } from '../../../app/navegacion'
 import { seccionesVisibles, type IdSeccion } from '../lib/secciones'
+import { useEsOperadorPlataforma } from '../../plataforma/lib/plataforma'
 import { useSeccionAjustes } from '../lib/seccionUrl'
 import { AjustesIndice } from './AjustesIndice'
 import { SeccionAjustesPantalla } from './SeccionAjustesPantalla'
@@ -22,14 +23,20 @@ export function AjustesView({ onNavegar }: { onNavegar?: (vista: Vista) => void 
   const [enfocar, setEnfocar] = useState<IdSeccion | null>(null)
   const scrollIndice = useRef(0)
 
+  // Spec 031: "Plataforma" solo para operadores; mientras el servidor
+  // responde (`null`) no se cierra una sección pedida por la URL.
+  const esOperador = useEsOperadorPlataforma(usuario?.id)
   const visible =
-    seccion !== null && !!usuario && seccionesVisibles(usuario.rol).some((s) => s.id === seccion)
+    seccion !== null &&
+    !!usuario &&
+    seccionesVisibles(usuario.rol, esOperador === true).some((s) => s.id === seccion)
+  const esperando = seccion === 'plataforma' && esOperador === null
 
   // Una sección que el rol no puede ver no se muestra ni un instante: se
   // renderiza el índice y se quita de la URL sin sumar entrada.
   useEffect(() => {
-    if (seccion !== null && usuario && !visible) cerrar({ reemplazar: true })
-  }, [seccion, usuario, visible, cerrar])
+    if (seccion !== null && usuario && !visible && !esperando) cerrar({ reemplazar: true })
+  }, [seccion, usuario, visible, esperando, cerrar])
 
   // Al volver al índice, misma posición de desplazamiento que al salir.
   const seccionAnterior = useRef(seccion)
@@ -51,5 +58,12 @@ export function AjustesView({ onNavegar }: { onNavegar?: (vista: Vista) => void 
   if (visible && seccion) {
     return <SeccionAjustesPantalla id={seccion} onVolver={() => cerrar()} />
   }
-  return <AjustesIndice onAbrir={abrirSeccion} enfocar={enfocar} onNavegar={onNavegar} />
+  return (
+    <AjustesIndice
+      onAbrir={abrirSeccion}
+      enfocar={enfocar}
+      onNavegar={onNavegar}
+      esOperador={esOperador === true}
+    />
+  )
 }

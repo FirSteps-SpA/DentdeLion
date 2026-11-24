@@ -20,6 +20,7 @@ describe('SECCIONES_AJUSTES', () => {
       'marcas',
       'baja',
       'guia',
+      'plataforma',
     ])
   })
 
@@ -38,6 +39,12 @@ describe('SECCIONES_AJUSTES', () => {
     expect(seccionesVisibles('personal').map((s) => s.id)).toEqual(['perfil', 'avisos', 'guia'])
   })
 
+  it('"Plataforma" solo para operadores, de cualquier rol (spec 031)', () => {
+    expect(seccionesVisibles('administrador').map((s) => s.id)).not.toContain('plataforma')
+    expect(seccionesVisibles('administrador', true).map((s) => s.id)).toContain('plataforma')
+    expect(seccionesVisibles('personal', true).map((s) => s.id)).toEqual(['perfil', 'avisos', 'guia', 'plataforma'])
+  })
+
   it('titula por rol solo las secciones con partes de administración', () => {
     const titulos = Object.fromEntries(
       SECCIONES_AJUSTES.map((s) => [s.id, [s.titulo(true), s.titulo(false)]]),
@@ -52,6 +59,7 @@ describe('SECCIONES_AJUSTES', () => {
       marcas: ['Marcas', 'Marcas'],
       baja: ['Insumos dados de baja', 'Insumos dados de baja'],
       guia: ['Guía de uso', 'Guía de uso'],
+      plataforma: ['Plataforma', 'Plataforma'],
     })
   })
 

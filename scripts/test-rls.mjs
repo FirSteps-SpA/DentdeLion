@@ -2122,6 +2122,10 @@ check(
   'plataforma: usuarios_eliminados lo ve su cliente y no otro',
   vistoNueva && Array.isArray(r.data) && !r.data.some((f) => f.usuario_id === segunda.id),
 )
+r = await http('POST', '/rest/v1/rpc/cuenta_eliminada', { body: { p_usuario: segunda.id } })
+const eliminadaSi = r.data
+r = await http('POST', '/rest/v1/rpc/cuenta_eliminada', { body: { p_usuario: admNueva.id } })
+check('plataforma: cuenta_eliminada (sin sesión) dice sí solo para la cuenta borrada', eliminadaSi === true && r.data === false, `${eliminadaSi}/${r.data}`)
 r = await plataforma(op.token, { accion: 'eliminar_usuario', usuarioId: admNueva.id, confirmacion: admNueva.email })
 check('plataforma: no se elimina a la única administradora', r.data?.codigo === 'unica_administradora', `${r.data?.codigo}`)
 

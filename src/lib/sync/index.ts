@@ -20,8 +20,11 @@ import {
   type CategoriaTratamiento,
   type PacienteRegistro,
   type Proveedor,
+  type UsuarioEliminado,
 } from '../db'
 import { fetchPerfilPropio } from '../supabase/perfiles'
+import { borrarTodosLosDatosLocales } from '../tenancy'
+import { marcarCuentaEliminada } from '../avisoCuentaEliminada'
 import {
   filaParaSubir,
   reproyectarInsumos,
@@ -2291,6 +2294,59 @@ async function subirPendientesPrevios(
 }
 
 /**
+ * Spec 031 (R5, FR-013): ¿la cuenta de esta sesión ya no existe? Si la
+ * sesión ya no se renueva, supabase-js la descarta y la consulta va con la
+ * clave pública. Cualquier duda (sin red, error, sesión vencida aún guardada)
+ * es "no": nunca se borra por una falla, a lo sumo se borra en otro ciclo.
+ */
+async function cuentaEliminada(client: SupabaseClient, usuarioId: string): Promise<boolean> {
+  try {
+    const { data, error } = await client.rpc('cuenta_eliminada', { p_usuario: usuarioId })
+    return !error && data === true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Spec 031: si el servidor confirma que la cuenta se eliminó, borra todo lo
+ * local y cierra la sesión; el login muestra el aviso. Devuelve si lo hizo.
+ */
+async function cerrarSiCuentaEliminada(client: SupabaseClient): Promise<boolean> {
+  const usuario = useAuthStore.getState().usuario
+  if (!usuario || !(await cuentaEliminada(client, usuario.id))) return false
+  await borrarTodosLosDatosLocales()
+  marcarCuentaEliminada()
+  await client.auth.signOut({ scope: 'local' }).catch(() => undefined)
+  useAuthStore.setState({ usuario: null, isReady: true })
+  return true
+}
+
+/**
+ * Spec 031 (R4): ids de cuentas eliminadas del tenant. Reemplaza las del
+ * dispositivo y borra esos nombres de `usuariosConocidos`: la UI los muestra
+ * como "Usuario eliminado".
+ */
+async function pullUsuariosEliminados(client: SupabaseClient, ciclo: CicloSync): Promise<void> {
+  const respuesta = await seleccionarTodo<{ usuario_id: string; tenant_id: string; eliminado_en: string } & Record<string, unknown>>(
+    client,
+    'usuarios_eliminados',
+    { clave: ['usuario_id'] },
+  )
+  ciclo.registrar('pull usuarios_eliminados', errorDe(respuesta))
+  if (respuesta.error || !respuesta.data) return
+  const filas = respuesta.data.map(
+    (r): UsuarioEliminado => ({ id: r.usuario_id, tenantId: r.tenant_id, eliminadoEn: r.eliminado_en }),
+  )
+  const tenantId = getTenantActualId()
+  await db.usuariosEliminados.bulkDelete(
+    (await db.usuariosEliminados.toArray()).filter((u) => u.tenantId === tenantId).map((u) => u.id),
+  )
+  await db.usuariosEliminados.bulkPut(filas)
+  await db.usuariosConocidos.bulkDelete(filas.map((f) => f.id))
+}
+
+/**
  * Spec 014 FR-021: estado del perfil en el servidor. Si una administradora lo
  * desactivó, se marca localmente (la app muestra "acceso desactivado"), se
  * hace el último envío y el ciclo se detiene sin borrar pendientes. Si lo
@@ -2300,7 +2356,11 @@ async function revisarPerfil(client: SupabaseClient): Promise<boolean> {
   const usuario = useAuthStore.getState().usuario
   if (!usuario) return true
   const perfil = await fetchPerfilPropio(client, usuario.id).catch(() => null)
-  if (!perfil) return !usuario.desactivadoEn
+  if (!perfil) {
+    // Spec 031: sin perfil puede ser una falla o una cuenta eliminada.
+    if (await cerrarSiCuentaEliminada(client)) return false
+    return !usuario.desactivadoEn
+  }
   await useAuthStore.getState().marcarDesactivado(perfil.desactivado_en ?? null)
   if (perfil.desactivado_en) {
     await subirPendientesPrevios(client, perfil.desactivado_en)
@@ -2321,12 +2381,13 @@ async function validarSesion(
   const { data, error } = await client.auth.getSession()
   if (error) {
     if (esFallaDeRed(error)) ciclo.marcarSinRed('sesion')
-    else ciclo.marcarSesionInvalida('sesion')
+    else if (!(await cerrarSiCuentaEliminada(client))) ciclo.marcarSesionInvalida('sesion')
     return false
   }
   const usuarioId = usuarioActualId()
   if (!data.session || !usuarioId || data.session.user.id !== usuarioId) {
-    ciclo.marcarSesionInvalida('sesion')
+    // Spec 031: una sesión que ya no se renueva puede ser de una cuenta eliminada.
+    if (!(await cerrarSiCuentaEliminada(client))) ciclo.marcarSesionInvalida('sesion')
     return false
   }
   if (!(await revisarPerfil(client))) {
@@ -2401,6 +2462,7 @@ async function ejecutarCiclo(
   await pullConfiguracionAlertas(client, ciclo)
   await pullTratamientosRealizados(client, ciclo)
   await pullPacientesRegistro(client, ciclo)
+  await pullUsuariosEliminados(client, ciclo)
   for (const loteId of await pullMovimientos(client, ciclo)) {
     loteIdsTocados.add(loteId)
   }

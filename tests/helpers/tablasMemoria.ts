@@ -26,4 +26,5 @@ export const tablasMemoria = [
   'marcas',
   'categoriasTratamiento',
   'pacientesRegistro',
+  'usuariosEliminados',
 ] as const

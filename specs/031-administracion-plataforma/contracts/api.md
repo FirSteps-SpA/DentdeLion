@@ -6,11 +6,12 @@
 |---|---|---|
 | `listar` | — | `{ clientes: [{ id, nombre, creadoEn, lugares, usuariosActivos, ultimaActividad }] }` |
 | `detalle` | `tenantId` | `{ cliente, usuarios: [{ id, nombre, correo, rol, desactivado }], invitaciones: [{ id, correo, rol, venceEn }] }` |
-| `crear_cliente` | `nombre`, `lugar`, `correo` | `{ tenantId, enlace }` |
-| `invitar` | `tenantId`, `correo`, `rol` | `{ enlace }` |
+| `crear_cliente` | `nombre`, `lugar`, `correo` | `{ tenantId, token, venceEn }` (la app arma el enlace) |
+| `invitar` | `tenantId`, `correo`, `rol` | `{ token, venceEn }` |
 | `eliminar_usuario` | `usuarioId`, `confirmacion` (= correo) | `{ ok: true }` |
 | `exportar_cliente` | `tenantId` | archivo JSON (`Content-Disposition: attachment`) |
 | `eliminar_cliente` | `tenantId`, `confirmacion` (= nombre) | `{ cuentasBorradas, cuentasPendientes: [id] }` |
+| `borrar_cuentas` | `usuarioIds` (1–100) | `{ cuentasPendientes }` — reintento; solo cuentas sin perfil, nunca la propia |
 
 Errores `{ codigo }`: `sin_sesion` 401, `sin_permiso` 403, `solicitud_invalida` 400,
 `no_encontrado` 404, `confirmacion_incorrecta` 409, `unica_administradora` 409, `propia_cuenta` 409,

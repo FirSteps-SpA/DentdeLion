@@ -76,6 +76,18 @@ create policy "usuarios_eliminados: los miembros del tenant los leen" on public.
   for select to authenticated
   using (tenant_id = public.tenant_actual());
 
+-- Dispositivos de cuentas eliminadas (R5, FR-013): cuando la sesión deja de
+-- valer, la app pregunta si su cuenta ya no existe para borrar sus datos
+-- locales solo en ese caso (no ante una sesión vencida o sin red). Solo
+-- responde sí o no para un uuid (no enumerable).
+create function public.cuenta_eliminada(p_usuario uuid) returns boolean
+  language sql stable security definer set search_path = public
+as $$
+  select not exists (select 1 from auth.users u where u.id = p_usuario)
+$$;
+revoke execute on function public.cuenta_eliminada(uuid) from public;
+grant execute on function public.cuenta_eliminada(uuid) to anon, authenticated;
+
 -- 4. Funciones de plataforma (solo service_role) ------------------------------
 
 -- Resumen de clientes para el panel (FR-004).

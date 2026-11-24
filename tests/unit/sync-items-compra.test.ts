@@ -29,6 +29,7 @@ vi.mock('../../src/lib/db', async () => {
       usuarioActual: new MemoryTable(),
       // Spec 028: el cierre de sesión y el sync usan la tabla de pacientes.
       pacientesRegistro: new MemoryTable(),
+      usuariosEliminados: new MemoryTable(),
       estadoSync: new MemoryTable(),
       usuariosConocidos: new MemoryTable(),
     }),

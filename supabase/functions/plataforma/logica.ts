@@ -6,7 +6,12 @@ export type Accion =
   | { accion: 'listar' }
   | { accion: 'detalle'; tenantId: string }
   | { accion: 'crear_cliente'; nombre: string; lugar: string; correo: string }
-  | { accion: 'invitar'; tenantId: string; correo: string; rol: 'administrador' | 'personal' }
+  | {
+      accion: 'invitar'
+      tenantId: string
+      correo: string
+      rol: 'administrador' | 'personal'
+    }
   | { accion: 'eliminar_usuario'; usuarioId: string; confirmacion: string }
   | { accion: 'exportar_cliente'; tenantId: string }
   | { accion: 'eliminar_cliente'; tenantId: string; confirmacion: string }
@@ -47,7 +52,8 @@ const texto = (v: unknown, max: number): string | null => {
   const t = v.trim().replace(/\s+/g, ' ')
   return t.length >= 1 && t.length <= max ? t : null
 }
-const uuid = (v: unknown): string | null => (typeof v === 'string' && UUID.test(v) ? v : null)
+const uuid = (v: unknown): string | null =>
+  typeof v === 'string' && UUID.test(v) ? v : null
 const correo = (v: unknown): string | null => {
   const t = texto(v, 254)?.toLowerCase() ?? null
   return t && CORREO.test(t) ? t : null
@@ -69,18 +75,27 @@ export function validarAccion(cuerpo: unknown): Accion | null {
       const nombre = texto(c.nombre, 80)
       const lugar = texto(c.lugar, 80)
       const mail = correo(c.correo)
-      return nombre && lugar && mail ? { accion: 'crear_cliente', nombre, lugar, correo: mail } : null
+      return nombre && lugar && mail
+        ? { accion: 'crear_cliente', nombre, lugar, correo: mail }
+        : null
     }
     case 'invitar': {
       const tenantId = uuid(c.tenantId)
       const mail = correo(c.correo)
-      const rol = c.rol === 'administrador' || c.rol === 'personal' ? c.rol : null
-      return tenantId && mail && rol ? { accion: 'invitar', tenantId, correo: mail, rol } : null
+      const rol =
+        c.rol === 'administrador' || c.rol === 'personal' ? c.rol : null
+      return tenantId && mail && rol
+        ? { accion: 'invitar', tenantId, correo: mail, rol }
+        : null
     }
     case 'eliminar_usuario': {
       const usuarioId = uuid(c.usuarioId)
       return usuarioId && typeof c.confirmacion === 'string'
-        ? { accion: 'eliminar_usuario', usuarioId, confirmacion: c.confirmacion }
+        ? {
+            accion: 'eliminar_usuario',
+            usuarioId,
+            confirmacion: c.confirmacion,
+          }
         : null
     }
     case 'eliminar_cliente': {
@@ -91,7 +106,9 @@ export function validarAccion(cuerpo: unknown): Accion | null {
     }
     case 'borrar_cuentas': {
       const ids = Array.isArray(c.usuarioIds) ? c.usuarioIds.map(uuid) : []
-      return ids.length >= 1 && ids.length <= 100 && ids.every((id) => id !== null)
+      return ids.length >= 1 &&
+        ids.length <= 100 &&
+        ids.every((id) => id !== null)
         ? { accion: 'borrar_cuentas', usuarioIds: ids as string[] }
         : null
     }

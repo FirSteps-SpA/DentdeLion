@@ -5,6 +5,7 @@ import { Mail, Lock } from '../../components/icons'
 import { DienteLinea } from '../../components/decoracion'
 import { IconField } from '../../components/ui/IconField'
 import { TouchButton } from '../../components/ui/TouchButton'
+import { tomarAvisoCuentaEliminada } from '../../lib/avisoCuentaEliminada'
 
 /** Email/password login form. Every control meets the ≥48x48px touch-target
  * convention (Constitution III, spec FR-007) via `IconField`/`TouchButton`. */
@@ -12,6 +13,8 @@ export function LoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const { signIn, error, isPending } = useLogin()
+  // Spec 031: si la sesión anterior era de una cuenta eliminada, se explica una vez.
+  const [cuentaEliminada] = useState(tomarAvisoCuentaEliminada)
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -26,6 +29,11 @@ export function LoginForm() {
         {/* Frase de marca del DS §43. */}
         <p className="text-body text-text-muted">Tu inventario. Tu tiempo. Tu ganancia.</p>
       </div>
+      {cuentaEliminada && (
+        <p role="status" className="w-full rounded-md bg-tinte-info p-3 text-sm text-text">
+          Tu cuenta fue eliminada de {APP_NAME} y sus datos se borraron de este dispositivo.
+        </p>
+      )}
       <h2 className="self-start text-h3 text-text">Inicia sesión</h2>
       <form onSubmit={handleSubmit} className="flex w-full flex-col gap-4 text-left">
       <IconField label="Correo" icon={<Mail size={18} />} htmlFor="login-email">

@@ -2,9 +2,7 @@ import { useState } from 'react'
 import type { Insumo, Lote } from '../../../lib/db'
 import { BottomSheet } from '../../../components/ui/BottomSheet'
 import { TouchButton } from '../../../components/ui/TouchButton'
-import { useAuthStore } from '../../../stores/authStore'
 import { useInventoryStore } from '../../../stores/inventoryStore'
-import { usePendientesStore } from '../../../stores/pendientesStore'
 import { compararCambios } from '../lib/proyeccion'
 import {
   corregirPrecioLote,
@@ -15,6 +13,7 @@ import {
   type PrecioIngreso,
 } from '../lib/precio'
 import { PrecioIngresoField } from './PrecioIngresoField'
+import { useNombreAutor } from '../../../stores/useNombreAutor'
 
 export interface EditarPrecioDialogProps {
   insumo: Insumo
@@ -50,8 +49,6 @@ function presentacionDelLote(insumo: Insumo, lote: Lote) {
  */
 export function EditarPrecioDialog({ insumo, lote, onClose }: EditarPrecioDialogProps) {
   const cambiosLote = useInventoryStore((s) => s.cambiosLote)
-  const usuario = useAuthStore((s) => s.usuario)
-  const conocidos = usePendientesStore((s) => s.usuariosConocidos)
   const vigente = precioVigenteLote(lote, cambiosLote)
   const { presentacion, presentaciones } = presentacionDelLote(insumo, lote)
   const [precio, setPrecio] = useState<PrecioIngreso>(
@@ -60,10 +57,7 @@ export function EditarPrecioDialog({ insumo, lote, onClose }: EditarPrecioDialog
   const [error, setError] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
   const fecha = new Intl.DateTimeFormat('es-CL', { dateStyle: 'medium', timeStyle: 'short' })
-  const autor = (id: string) =>
-    id === usuario?.id
-      ? usuario.nombre
-      : (conocidos.find((c) => c.id === id)?.nombre ?? 'otra persona')
+  const autor = useNombreAutor()
   const historial = cambiosLote
     .filter((cambio) => cambio.loteId === lote.id)
     .sort(compararCambios)

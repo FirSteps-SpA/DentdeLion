@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react'
-import { Archive, Bell, CircleHelp, Factory, MapPin, Stethoscope, Tag, Truck, User, type IconProps } from '../../../components/icons'
+import { Archive, Bell, Building, CircleHelp, Factory, MapPin, Stethoscope, Tag, Truck, User, type IconProps } from '../../../components/icons'
 import type { UsuarioActual } from '../../../lib/db'
 
 /**
@@ -21,6 +21,7 @@ export type IdSeccion =
   | 'marcas'
   | 'baja'
   | 'guia'
+  | 'plataforma'
 
 export interface SeccionAjustes {
   id: IdSeccion
@@ -29,6 +30,8 @@ export interface SeccionAjustes {
   Icon: ComponentType<IconProps>
   /** Oculta por completo para `personal` (FR-012). */
   soloAdministracion: boolean
+  /** Spec 031: solo para operadores de la plataforma (lo decide el servidor). */
+  soloOperadores?: boolean
 }
 
 export const SECCIONES_AJUSTES: readonly SeccionAjustes[] = [
@@ -86,10 +89,22 @@ export const SECCIONES_AJUSTES: readonly SeccionAjustes[] = [
     Icon: CircleHelp,
     soloAdministracion: false,
   },
+  {
+    id: 'plataforma',
+    titulo: () => 'Plataforma',
+    Icon: Building,
+    soloAdministracion: false,
+    soloOperadores: true,
+  },
 ]
 
-export function seccionesVisibles(rol: UsuarioActual['rol']): SeccionAjustes[] {
-  return SECCIONES_AJUSTES.filter((s) => rol === 'administrador' || !s.soloAdministracion)
+export function seccionesVisibles(
+  rol: UsuarioActual['rol'],
+  esOperador = false,
+): SeccionAjustes[] {
+  return SECCIONES_AJUSTES.filter(
+    (s) => (rol === 'administrador' || !s.soloAdministracion) && (esOperador || !s.soloOperadores),
+  )
 }
 
 export function esIdSeccion(valor: string): valor is IdSeccion {
@@ -176,5 +191,7 @@ export function resumenSeccion(id: IdSeccion, datos: DatosResumen): string | nul
       )
     case 'guia':
       return 'Cómo usar cada pantalla'
+    case 'plataforma':
+      return 'Clientes y usuarios de DentdeLion'
   }
 }
