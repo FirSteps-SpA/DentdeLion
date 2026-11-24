@@ -11,7 +11,9 @@ description: "Task list for 032-mejoras-ux-insumos-perfil"
 
 ## Phase 1: Setup
 
-- [ ] T001 Línea base: `npm run lint && npm test`
+- [x] T001 Línea base: `npm run lint && npm test`. Lint ok. 24 tests fallan en `develop` por
+  timeout (5 s) con la máquina cargada; aislados pasan casi todos y la falla restante también es por
+  timeout
 
 ## Phase 2: Foundational
 
@@ -83,13 +85,14 @@ Editar insumo.
 
 **Independent Test**: spec US3, quickstart §3.
 
-- [ ] T020 [US3] `src/features/insumos/components/InventarioTabla.tsx`: contenedor `overflow-x-clip`,
+- [x] T020 [US3] `src/features/insumos/components/InventarioTabla.tsx`: contenedor `overflow-x-clip`,
   `th` `sticky top-[72px] z-10 bg-surface` con borde inferior, Producto y Presentación pueden partirse
   (research R7, ui-contracts §6)
-- [ ] T021 [US3] Actualizar `tests/integration/inventario-tabla.test.tsx` (clases sticky en `th`,
+- [x] T021 [US3] Actualizar `tests/integration/inventario-tabla.test.tsx` (clases sticky en `th`,
   contenedor sin `overflow-x-auto`)
-- [ ] T022 [US3] Verificar a 1200 px con sidebar expandida que no se cortan columnas. Si se cortan,
-  aplicar la alternativa de research R7 y registrar la decisión en research.md
+- [x] T022 [US3] Verificar a 1200 px con sidebar expandida que no se cortan columnas. Si se cortan,
+  aplicar la alternativa de research R7 y registrar la decisión en research.md. Hecho: no cabía; la
+  alternativa se descartó y se aplicó el modo compacto (research R7, decisión final)
 
 ## Phase 6: Polish
 

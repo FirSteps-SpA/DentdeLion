@@ -59,6 +59,11 @@ Stock inicial
 
 ## §6 `InventarioTabla`
 
-Contenedor `overflow-x-clip`; `th` con `sticky top-[72px] z-10 bg-surface`; borde inferior del
-encabezado visible al quedar fijo (`shadow-[inset_0_-1px_0_var(--color-border)]`, porque el borde de
-la fila no acompaña al `th` fijo).
+`th` con `sticky top-[72px] z-10 bg-surface` y borde inferior como sombra
+(`shadow-[inset_0_-1px_0_var(--color-border)]`, porque el borde de la fila no acompaña al `th`
+fijo). Contenedor `overflow-x-clip` y `data-modo` según el ancho (research R7):
+
+- `normal`: como hoy.
+- `compacta`: `px-2.5`, encabezados en dos líneas, "Consumir" como ícono `PackageMinus` con
+  `aria-label` ("Consumir <insumo>" o el motivo si está deshabilitado) y `title`.
+- `desborda`: `overflow-x-auto`, sin `th` fijo.

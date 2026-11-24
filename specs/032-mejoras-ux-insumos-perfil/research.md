@@ -94,8 +94,26 @@ la tabla quepa en el ancho de contenido desde 1200 px.
 relativo a él, no a la página. `overflow: clip` no crea contenedor de scroll. La tabla solo existe en
 `desktop` (≥ 1200 px) con páginas de 25 filas (`TAMANO_PAGINA`).
 
-**Alternatives considered**: contenedor con `max-height` y scroll propio. Mantiene el scroll
-horizontal, pero crea un doble scroll vertical incómodo con mouse. La spec US3 AC2 (scroll horizontal)
-queda cubierta solo si la tabla no cabe. Con `clip` eso no ocurre si las columnas pueden partirse. Si
-en la verificación (quickstart §3) la tabla no cabe a 1200 px con sidebar expandida, se usa esta
-alternativa.
+**Verificación (T022, 2026-11-24)**: a 1440 px la tabla cabe y el encabezado queda fijo. A 1200 px con
+la sidebar expandida **no cabe**: la tabla necesita 1076 px y el contenedor tiene 895, así que se corta
+Acciones. Se probó la alternativa del contenedor con scroll propio: el encabezado se esconde detrás de
+la `TopBar` en cuanto baja la página y Acciones queda detrás de un scroll horizontal, así que se
+descartó.
+
+**Decision final (elegida por la clienta)**: modo según el ancho medido (`useModoTabla`, con
+`ResizeObserver`):
+
+| Modo | Cuándo | Cómo se ve |
+|---|---|---|
+| `normal` | La tabla cabe | Como hoy, con `th` fijo a la página |
+| `compacta` | No cabe en normal | Padding 10 px, encabezados en dos líneas y "Consumir" como ícono `PackageMinus` (con `aria-label` y `title`). `th` fijo a la página. A 1200 px cabe en los 895 px (con 12 px de padding necesitaba 901) |
+| `desborda` | Ni compacta cabe (nombres largos sin espacios) | `overflow-x-auto` como antes de esta spec, sin `th` fijo, para no cortar columnas |
+
+Se mide `offsetWidth` de la tabla (con `w-full` crece solo si su contenido mínimo no entra) contra
+`clientWidth` del contenedor. `scrollWidth` daba falsos positivos. La decisión parte del modo que
+está dibujado (`data-modo`), no del estado de React, porque el observador puede medir antes de que se
+pinte el cambio. Para volver a `normal` se compara con el ancho que necesitaba la normal, lo que evita
+el parpadeo.
+
+**Alternatives considered**: contenedor con `max-height` y scroll propio (descartado en la
+verificación); encabezado fijo solo cuando cabe (sin encabezado fijo entre 1200 y ~1400 px).
