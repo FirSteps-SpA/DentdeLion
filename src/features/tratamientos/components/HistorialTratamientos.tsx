@@ -14,7 +14,6 @@ import {
 import { usePacientesVisibles } from '../lib/usePacientes'
 import { useAuthStore } from '../../../stores/authStore'
 import { nombreLugar, useLugarStore } from '../../../stores/lugarStore'
-import { usePendientesStore } from '../../../stores/pendientesStore'
 import { useTratamientosStore } from '../../../stores/tratamientosStore'
 import { formatearCLP } from '../../insumos/lib/precio'
 import {
@@ -34,6 +33,7 @@ import {
 } from '../lib/montos'
 import { anularTratamiento } from '../lib/registro'
 import { formatearConSigno } from '../lib/textos'
+import { useNombreAutor } from '../../../stores/useNombreAutor'
 
 /**
  * Spec 016 US5 (contracts/ui-contracts.md §6, FR-019): tratamientos
@@ -52,7 +52,6 @@ export function HistorialTratamientos() {
   const lugares = useLugarStore((s) => s.lugares)
   const lugarActivoId = useLugarStore((s) => s.lugarActivoId)
   const usuario = useAuthStore((s) => s.usuario)
-  const conocidos = usePendientesStore((s) => s.usuariosConocidos)
   const [periodo, setPeriodo] = useState<Periodo>('hoy')
   const [error, setError] = useState<string | null>(null)
   // Al deshacer, el registro sale de la lista: el aviso confirma qué pasó.
@@ -84,8 +83,7 @@ export function HistorialTratamientos() {
   )
   const totales = totalesHistorial(registros)
   const fecha = new Intl.DateTimeFormat('es-CL', { dateStyle: 'medium', timeStyle: 'short' })
-  const autor = (id: string | null) =>
-    !id ? '' : id === usuario?.id ? usuario.nombre : (conocidos.find((c) => c.id === id)?.nombre ?? 'otra persona')
+  const autor = useNombreAutor()
 
   async function guardarEdicion(texto: string) {
     if (!editando) return

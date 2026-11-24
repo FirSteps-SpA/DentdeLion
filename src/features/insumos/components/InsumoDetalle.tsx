@@ -5,8 +5,6 @@ import { compararCambios } from '../lib/proyeccion'
 import { textoFactor } from '../lib/conversion'
 import { useInventoryStore } from '../../../stores/inventoryStore'
 import { nombreLugar, useLugarStore } from '../../../stores/lugarStore'
-import { usePendientesStore } from '../../../stores/pendientesStore'
-import { useAuthStore } from '../../../stores/authStore'
 import { Card } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { formatearPresentacion } from '../lib/presentacion'
@@ -17,6 +15,7 @@ import { useCostosUnitarios } from '../lib/useCostosUnitarios'
 import { EditarPrecioDialog } from './EditarPrecioDialog'
 import { useTratamientosStore } from '../../../stores/tratamientosStore'
 import { mapaPorId, nombreDelLote } from '../../proveedores/lib/proveedores'
+import { useNombreAutor } from '../../../stores/useNombreAutor'
 
 export interface InsumoDetalleProps {
   insumo: Insumo
@@ -44,10 +43,8 @@ export function InsumoDetalle({
   const lugares = useLugarStore((s) => s.lugares)
   // Autor: los nombres que el dispositivo conoce (spec 012 R7; `perfiles` no
   // deja leer los de otros).
-  const usuario = useAuthStore((s) => s.usuario)
-  const conocidos = usePendientesStore((s) => s.usuariosConocidos)
-  const autor = (id: string) =>
-    id === usuario?.id ? usuario.nombre : conocidos.find((c) => c.id === id)?.nombre
+  const nombreAutor = useNombreAutor('')
+  const autor = (id: string) => nombreAutor(id) || undefined
   const fecha = new Intl.DateTimeFormat('es-CL', { dateStyle: 'medium' })
   // Spec 015 (FR-012/FR-017, UI §4): costo del insumo y precio de cada lote.
   const costo = useCostosUnitarios().get(insumo.id)

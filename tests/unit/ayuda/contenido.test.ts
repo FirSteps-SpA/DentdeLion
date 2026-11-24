@@ -14,7 +14,7 @@ describe('contenido de la ayuda', () => {
     expect(new Set(ORDEN_AYUDAS).size).toBe(15)
     expect(Object.keys(AYUDAS).sort()).toEqual([...ORDEN_AYUDAS].sort())
     expect(ORDEN_AYUDAS.filter((id) => id.startsWith('ajustes:'))).toEqual(
-      SECCIONES_AJUSTES.filter((s) => s.id !== 'guia').map((s) => `ajustes:${s.id}`),
+      SECCIONES_AJUSTES.filter((s) => s.id !== 'guia' && s.id !== 'plataforma').map((s) => `ajustes:${s.id}`),
     )
   })
 

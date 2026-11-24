@@ -308,6 +308,17 @@ export interface PreferenciaNotificaciones {
  * (FR-012): `perfiles` no deja leer nombres de otros (research.md R7). Local,
  * nunca sincronizada; `logout` no la borra.
  */
+/**
+ * Spec 031 (research.md R4): cuentas eliminadas por la administración de la
+ * plataforma. Solo el id: sus registros siguen y se muestran como "Usuario
+ * eliminado".
+ */
+export interface UsuarioEliminado {
+  id: string
+  tenantId: string
+  eliminadoEn: string
+}
+
 export interface UsuarioConocido {
   id: string
   nombre: string
@@ -561,6 +572,7 @@ export const db = new Dexie('inDENToryDB') as Dexie & {
   itemsCompra: EntityTable<ItemCompra, 'id'>
   preferenciasNotificaciones: EntityTable<PreferenciaNotificaciones, 'id'>
   usuariosConocidos: EntityTable<UsuarioConocido, 'id'>
+  usuariosEliminados: EntityTable<UsuarioEliminado, 'id'>
   estadoSync: EntityTable<EstadoSync, 'id'>
   lugares: EntityTable<Lugar, 'id'>
   minimosLugar: Table<MinimoLugar, [string, string]>
@@ -902,6 +914,11 @@ db.version(15)
 // Version 16 (spec 028, data-model.md): paciente de cada tratamiento realizado.
 db.version(16).stores({
   pacientesRegistro: 'registroId, tenantId, sincronizado',
+})
+
+// Version 17 (spec 031, data-model.md): ids de cuentas eliminadas del tenant.
+db.version(17).stores({
+  usuariosEliminados: 'id, tenantId',
 })
 
 export type { EntityTable }

@@ -13,13 +13,15 @@ interface AjustesIndiceProps {
   /** Tarjeta que recibe el foco al montar (la sección de la que se vuelve). */
   enfocar?: IdSeccion | null
   onNavegar?: (vista: Vista) => void
+  /** Spec 031: muestra la tarjeta "Plataforma". */
+  esOperador?: boolean
 }
 
 /**
  * Índice de Ajustes (spec 019 FR-001–004, UI §2): una tarjeta por sección
  * visible para el rol, con su resumen; en móvil, Compras y Reportes arriba.
  */
-export function AjustesIndice({ onAbrir, enfocar, onNavegar }: AjustesIndiceProps) {
+export function AjustesIndice({ onAbrir, enfocar, onNavegar, esOperador = false }: AjustesIndiceProps) {
   const usuario = useAuthStore((s) => s.usuario)
   const resumenes = useResumenesAjustes()
   const refs = useRef(new Map<IdSeccion, HTMLButtonElement>())
@@ -54,7 +56,7 @@ export function AjustesIndice({ onAbrir, enfocar, onNavegar }: AjustesIndiceProp
           aria-label="Secciones de Ajustes"
           className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-3 xl:grid-cols-3"
         >
-          {seccionesVisibles(usuario.rol).map((seccion) => (
+          {seccionesVisibles(usuario.rol, esOperador).map((seccion) => (
             <li key={seccion.id}>
               <TarjetaSeccion
                 ref={(nodo) => {

@@ -1966,8 +1966,11 @@ check(
 )
 r = await http('GET', '/rest/v1/estimaciones_ia?select=id', { token: perB.token })
 check('estimación: personal no lee el registro', Array.isArray(r.data) && r.data.length === 0)
-r = await http('GET', '/rest/v1/estimaciones_ia?select=id', { token: adm.token })
-check('estimación: otra administración no ve las ajenas', Array.isArray(r.data) && r.data.length === 0)
+r = await http('GET', '/rest/v1/estimaciones_ia?select=tenant_id', { token: adm.token })
+check(
+  'estimación: otra administración no ve las ajenas',
+  Array.isArray(r.data) && r.data.every((f) => f.tenant_id !== TENANT_B),
+)
 r = await http('POST', '/rest/v1/estimaciones_ia', {
   token: adm.token,
   body: { tenant_id: TENANT_1, usuario_id: adm.id, tratamiento: 'X', materiales: 1 },
@@ -2011,6 +2014,161 @@ check(
     r.data?.codigo === 'no_configurado' &&
     (await leer(`estimaciones_ia?tenant_id=eq.${TENANT_1}&select=id`)).length === estimacionesAntes,
   `HTTP ${r.status} ${r.data?.codigo}`,
+)
+
+// Spec 031 — administración de la plataforma (contracts/api.md §controles).
+const plataforma = (token, body) => http('POST', '/functions/v1/plataforma', { token, body })
+const op = await crearUsuario('operador', 'administrador')
+await http('POST', '/rest/v1/administradores_plataforma', { key: SVC, body: { usuario_id: op.id } })
+
+// 1–2. Tablas y funciones de plataforma cerradas para la API.
+for (const tabla of ['administradores_plataforma', 'auditoria_plataforma']) {
+  r = await http('GET', `/rest/v1/${tabla}?select=*`, { token: op.token })
+  check(`plataforma: nadie lee ${tabla} por la API`, r.status >= 400 || (Array.isArray(r.data) && r.data.length === 0), `HTTP ${r.status}`)
+}
+r = await http('POST', '/rest/v1/administradores_plataforma', { token: adm.token, body: { usuario_id: adm.id } })
+check('plataforma: nadie se agrega como operador por la API', r.status >= 400, `HTTP ${r.status}`)
+for (const fn of ['resumen_clientes', 'eliminar_cliente', 'eliminar_usuario', 'crear_cliente', 'exportar_cliente']) {
+  r = await http('POST', `/rest/v1/rpc/${fn}`, { token: op.token, body: {} })
+  check(`plataforma: ${fn} no se llama por la API`, r.status >= 400, `HTTP ${r.status}`)
+}
+r = await http('POST', '/rest/v1/rpc/es_operador_plataforma', { token: op.token, body: {} })
+const esOp = r.data
+r = await http('POST', '/rest/v1/rpc/es_operador_plataforma', { token: adm.token, body: {} })
+check('plataforma: es_operador_plataforma distingue al operador', esOp === true && r.data === false, `${esOp}/${r.data}`)
+
+// 3. Acceso a la función.
+r = await plataforma(undefined, { accion: 'listar' })
+check('plataforma: sin sesión da sin_sesion', r.data?.codigo === 'sin_sesion', `HTTP ${r.status}`)
+r = await plataforma(adm.token, { accion: 'listar' })
+check('plataforma: una administradora de cliente da sin_permiso', r.status === 403 && r.data?.codigo === 'sin_permiso', `HTTP ${r.status}`)
+r = await plataforma(op.token, { accion: 'listar' })
+check(
+  'plataforma: el operador lista los clientes',
+  r.status === 200 && r.data.clientes.some((c) => c.id === TENANT_1),
+  `HTTP ${r.status}`,
+)
+
+// 4. Crear cliente.
+const contarTenants = async () => (await leer('tenants?select=id')).length
+const tenantsAntes = await contarTenants()
+r = await plataforma(op.token, { accion: 'crear_cliente', nombre: `Cliente ${run}`, lugar: 'Sede', correo: adm.email })
+check(
+  'plataforma: un correo de otro cliente no crea nada',
+  r.data?.codigo === 'correo_en_otro_tenant' && (await contarTenants()) === tenantsAntes,
+  `HTTP ${r.status} ${r.data?.codigo}`,
+)
+const correoNueva = `nueva-${run}@test.local`
+r = await plataforma(op.token, { accion: 'crear_cliente', nombre: `Cliente ${run}`, lugar: 'Sede', correo: correoNueva })
+const tenantNuevo = r.data?.tenantId
+check('plataforma: crea cliente con lugar e invitación', r.status === 200 && typeof r.data?.token === 'string', `HTTP ${r.status} ${r.data?.codigo ?? ''}`)
+check(
+  'plataforma: el cliente nuevo tiene su lugar, sus 9 categorías y la invitación pendiente',
+  (await leer(`lugares?tenant_id=eq.${tenantNuevo}&select=id`)).length === 1 &&
+    (await leer(`categorias_tratamiento?tenant_id=eq.${tenantNuevo}&select=id`)).length === 9 &&
+    (await leer(`invitaciones?tenant_id=eq.${tenantNuevo}&estado=eq.pendiente&select=id`)).length === 1,
+)
+const entrar = async (token, correo, nombre) => {
+  await aceptar({ token, nombre, password: NUEVA_CLAVE })
+  const t = await http('POST', '/auth/v1/token?grant_type=password', { body: { email: correo, password: NUEVA_CLAVE } })
+  return { id: t.data?.user?.id, email: correo, token: t.data?.access_token }
+}
+const admNueva = await entrar(r.data.token, correoNueva, 'Nueva')
+check('plataforma: la administradora invitada entra al cliente nuevo', typeof admNueva.token === 'string')
+
+r = await plataforma(op.token, { accion: 'invitar', tenantId: tenantNuevo, correo: `segunda-${run}@test.local`, rol: 'administrador' })
+const segunda = await entrar(r.data?.token, `segunda-${run}@test.local`, 'Segunda')
+check('plataforma: invitar a un cliente existente funciona', typeof segunda.token === 'string', `HTTP ${r.status}`)
+
+r = await plataforma(op.token, { accion: 'detalle', tenantId: tenantNuevo })
+check(
+  'plataforma: el detalle lista usuarios con correo',
+  r.status === 200 && r.data.usuarios.length === 2 && r.data.usuarios.some((u) => u.correo === correoNueva),
+  `HTTP ${r.status}`,
+)
+
+// La segunda administradora registra: insumo, lote e ingreso.
+const insumoNuevo = randomUUID()
+const loteNuevo = randomUUID()
+await http('POST', '/rest/v1/insumos', {
+  token: segunda.token,
+  body: { id: insumoNuevo, nombre: 'Gasa', categoria: 'Curación', unidad_medida: 'unidad', permite_decimales: false, stock_minimo: 1 },
+})
+await http('POST', '/rest/v1/lotes', { token: segunda.token, body: { id: loteNuevo, insumo_id: insumoNuevo, numero_lote: 'N1', proveedor: 'P' } })
+r = await http('POST', '/rest/v1/movimientos', {
+  token: segunda.token,
+  body: { id: randomUUID(), tipo: 'ingreso', lote_id: loteNuevo, cantidad: 5, usuario_id: segunda.id, creado_en: ahora },
+})
+check('plataforma: la segunda administradora registra un ingreso', r.status === 201, `HTTP ${r.status}`)
+
+// 5. Eliminar usuario.
+r = await plataforma(op.token, { accion: 'eliminar_usuario', usuarioId: op.id, confirmacion: op.email })
+check('plataforma: no se elimina la propia cuenta', r.data?.codigo === 'propia_cuenta', `${r.data?.codigo}`)
+r = await plataforma(op.token, { accion: 'eliminar_usuario', usuarioId: segunda.id, confirmacion: 'otro@correo.cl' })
+check('plataforma: sin la confirmación correcta no se elimina', r.data?.codigo === 'confirmacion_incorrecta', `${r.data?.codigo}`)
+r = await plataforma(op.token, { accion: 'eliminar_usuario', usuarioId: segunda.id, confirmacion: segunda.email.toUpperCase() })
+check('plataforma: elimina un usuario', r.status === 200 && r.data?.ok === true, `HTTP ${r.status} ${r.data?.codigo ?? ''}`)
+const login2 = await http('POST', '/auth/v1/token?grant_type=password', { body: { email: segunda.email, password: NUEVA_CLAVE } })
+check('plataforma: el usuario eliminado ya no entra', login2.status >= 400, `HTTP ${login2.status}`)
+check(
+  'plataforma: sus registros siguen (insumo, lote e ingreso con su id)',
+  (await leer(`insumos?id=eq.${insumoNuevo}&select=id`)).length === 1 &&
+    (await leer(`movimientos?lote_id=eq.${loteNuevo}&usuario_id=eq.${segunda.id}&select=id`)).length === 1,
+)
+r = await http('GET', `/rest/v1/usuarios_eliminados?select=usuario_id`, { token: admNueva.token })
+const vistoNueva = Array.isArray(r.data) && r.data.some((f) => f.usuario_id === segunda.id)
+r = await http('GET', `/rest/v1/usuarios_eliminados?select=usuario_id`, { token: adm.token })
+check(
+  'plataforma: usuarios_eliminados lo ve su cliente y no otro',
+  vistoNueva && Array.isArray(r.data) && !r.data.some((f) => f.usuario_id === segunda.id),
+)
+r = await http('POST', '/rest/v1/rpc/cuenta_eliminada', { body: { p_usuario: segunda.id } })
+const eliminadaSi = r.data
+r = await http('POST', '/rest/v1/rpc/cuenta_eliminada', { body: { p_usuario: admNueva.id } })
+check('plataforma: cuenta_eliminada (sin sesión) dice sí solo para la cuenta borrada', eliminadaSi === true && r.data === false, `${eliminadaSi}/${r.data}`)
+r = await plataforma(op.token, { accion: 'eliminar_usuario', usuarioId: admNueva.id, confirmacion: admNueva.email })
+check('plataforma: no se elimina a la única administradora', r.data?.codigo === 'unica_administradora', `${r.data?.codigo}`)
+
+// 6. Eliminar cliente.
+r = await plataforma(op.token, { accion: 'eliminar_cliente', tenantId: TENANT_1, confirmacion: 'x' })
+const opTenantNombre = (await leer(`tenants?id=eq.${TENANT_1}&select=nombre`))[0].nombre
+r = await plataforma(op.token, { accion: 'eliminar_cliente', tenantId: TENANT_1, confirmacion: opTenantNombre })
+check('plataforma: no se elimina el propio cliente', r.data?.codigo === 'propio_cliente', `${r.data?.codigo}`)
+r = await plataforma(op.token, { accion: 'exportar_cliente', tenantId: tenantNuevo })
+check(
+  'plataforma: el respaldo trae todas las tablas del cliente y sus usuarios',
+  r.status === 200 && r.data?.tablas?.movimientos?.length === 1 && r.data?.tablas?.insumos?.length === 1 &&
+    r.data?.usuarios?.length === 1 && r.data?.cliente?.id === tenantNuevo,
+  `HTTP ${r.status}`,
+)
+const tablasTenant = (await http('POST', '/rest/v1/rpc/exportar_cliente', { key: SVC, body: { p_tenant: TENANT_1 } })).data
+const conteoTenant1 = JSON.stringify(Object.fromEntries(Object.entries(tablasTenant.tablas).map(([t, f]) => [t, f.length])))
+r = await plataforma(op.token, { accion: 'eliminar_cliente', tenantId: tenantNuevo, confirmacion: 'otro nombre' })
+check('plataforma: sin el nombre exacto no se elimina el cliente', r.data?.codigo === 'confirmacion_incorrecta', `${r.data?.codigo}`)
+r = await plataforma(op.token, { accion: 'eliminar_cliente', tenantId: tenantNuevo, confirmacion: `  cliente ${run} ` })
+check('plataforma: elimina el cliente', r.status === 200 && r.data?.cuentasPendientes?.length === 0, `HTTP ${r.status} ${r.data?.codigo ?? ''}`)
+const restos = (await http('POST', '/rest/v1/rpc/exportar_cliente', { key: SVC, body: { p_tenant: tenantNuevo } }))
+check('plataforma: el cliente eliminado ya no existe', restos.status >= 400, `HTTP ${restos.status}`)
+const tablasConTenant = Object.keys(tablasTenant.tablas)
+let filasRestantes = 0
+for (const t of tablasConTenant) filasRestantes += (await leer(`${t}?tenant_id=eq.${tenantNuevo}&select=tenant_id`)).length
+check(`plataforma: ninguna de las ${tablasConTenant.length} tablas con tenant_id conserva filas suyas`, filasRestantes === 0, `${filasRestantes} filas`)
+const login3 = await http('POST', '/auth/v1/token?grant_type=password', { body: { email: correoNueva, password: NUEVA_CLAVE } })
+check('plataforma: las cuentas del cliente eliminado no entran', login3.status >= 400, `HTTP ${login3.status}`)
+const tablasTenant1Despues = (await http('POST', '/rest/v1/rpc/exportar_cliente', { key: SVC, body: { p_tenant: TENANT_1 } })).data
+check(
+  'plataforma: otro cliente queda igual',
+  JSON.stringify(Object.fromEntries(Object.entries(tablasTenant1Despues.tablas).map(([t, f]) => [t, f.length]))) === conteoTenant1,
+)
+
+// 7. Auditoría.
+const auditoria = await leer(`auditoria_plataforma?operador_id=eq.${op.id}&select=accion`)
+check(
+  'plataforma: las acciones quedan en la auditoría',
+  ['crear_cliente', 'invitar', 'eliminar_usuario', 'exportar_cliente', 'eliminar_cliente'].every((a) =>
+    auditoria.some((f) => f.accion === a),
+  ),
+  auditoria.map((f) => f.accion).join(','),
 )
 
 r = await http('GET', '/rest/v1/insumos?select=id')

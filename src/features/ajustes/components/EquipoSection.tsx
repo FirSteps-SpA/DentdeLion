@@ -309,7 +309,7 @@ function FormularioInvitacion({
   )
 }
 
-function EnlaceInvitacion({
+export function EnlaceInvitacion({
   invitacion,
   tenant,
 }: {

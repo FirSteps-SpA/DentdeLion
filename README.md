@@ -335,6 +335,46 @@ quedan iguales, `authenticated` no puede ejecutar `reservar_estimacion` y la res
 rechaza la 21. Una 2.9.0 en caché sigue funcionando con el servidor nuevo (no usa la tabla ni la
 función). Si el front falla, se revierte solo el front.
 
+**Spec 031 (administración de la plataforma):** **con migración**
+(`20261126000000_administracion_plataforma.sql`) y **una Edge Function nueva**, `plataforma`. La
+migración quita las FKs de historial a `auth.users` (para poder borrar una cuenta conservando sus
+registros) y agrega tablas y funciones nuevas; ningún dato existente cambia. Orden: respaldo, ensayo
+sobre la restauración, `supabase db push` (**con visto bueno explícito**), `supabase functions deploy
+plataforma`, front. Después, agregar la cuenta del operador **a mano** (nunca en una migración: el
+repositorio es público):
+
+```sql
+insert into public.administradores_plataforma (usuario_id)
+select id from auth.users where lower(email) = lower('<correo del operador>');
+```
+
+El panel aparece en Ajustes → "Plataforma" solo para esas cuentas. Eliminar un cliente es
+**irreversible**: el panel descarga antes un respaldo JSON. Las acciones quedan en
+`auditoria_plataforma` (solo service role). El script `npm run alta-tenant` sigue como alternativa.
+
+**Release 2.11.0 (spec 031):** **con migración** y **una Edge Function nueva**. Pasos:
+
+1. Respaldo de producción (`respaldo.sh`).
+2. `supabase db push --linked` (**con visto bueno explícito**): aplica solo
+   `20261126000000_administracion_plataforma`. Comprobar en producción: 24 tablas (nuevas
+   `administradores_plataforma`, `auditoria_plataforma` y `usuarios_eliminados`, vacías), el resto con
+   los mismos conteos que el respaldo, y que la única FK de `public` a `auth.users` sea
+   `perfiles_id_fkey` en cascada.
+3. `supabase functions deploy plataforma --project-ref <ref>`; comprobar que sin sesión responde
+   `sin_sesion`.
+4. Merge del PR `release/2.11.0` a `main` (Netlify publica el front), tag `2.11.0` y merge de vuelta
+   a `develop`.
+5. Agregar la cuenta del operador con el SQL de la spec 031 (arriba) y activarle 2FA.
+6. Comprobar con esa cuenta: Ajustes → "Plataforma" lista los clientes; con una cuenta de la clínica,
+   la tarjeta no aparece.
+
+Ensayado el 2026-11-23 sobre la restauración de un respaldo de producción tomado después de la 2.10.0
+y del alta de "First Steps (dev)" (21 tablas, 434 filas): 24 tablas, 434 filas iguales; permisos
+correctos; `eliminar_cliente` sobre la clínica en una transacción revertida borró todo y pasó la
+verificación; el propio cliente del operador se rechaza. Una 2.10.0 en caché sigue funcionando con el
+servidor nuevo (no usa las tablas nuevas; sin la tabla local de eliminados, muestra "otra persona").
+Si el front falla, se revierte solo el front.
+
 ## ¿Quedó bien configurado mi entorno?
 
 Checklist manual (sin script) — cada punto debe poder confirmarse a simple vista en menos de 2

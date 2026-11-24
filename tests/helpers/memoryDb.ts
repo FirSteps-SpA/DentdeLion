@@ -171,6 +171,8 @@ export function createMemoryDb<Tables extends Record<string, MemoryTable<any>>>(
   const dentroDeTransaccion = new AsyncLocalStorage<true>()
   return {
     ...tables,
+    /** Como `db.tables` de Dexie (spec 031: borrar todo lo local). */
+    tables: Object.values(tables),
     /**
      * Snapshots every table before running `fn` and restores them if it
      * rejects — mirroring the atomic rollback a real Dexie `rw` transaction

@@ -105,6 +105,7 @@ export async function aislarDatosLocales(tenantId: string): Promise<void> {
       db.marcas,
       db.categoriasTratamiento,
       db.pacientesRegistro,
+      db.usuariosEliminados,
     ],
     async () => {
       const ajeno = (fila: { tenantId?: string }) => fila.tenantId !== tenantId
@@ -210,12 +211,28 @@ export async function aislarDatosLocales(tenantId: string): Promise<void> {
       await db.pacientesRegistro.bulkDelete(
         pacientesAjenos.filter((p) => p.sincronizado).map((p) => p.registroId),
       )
+      // Spec 031: los ids de cuentas eliminadas de otro tenant no sirven aquí.
+      await db.usuariosEliminados.bulkDelete(
+        (await db.usuariosEliminados.toArray()).filter(ajeno).map((u) => u.id),
+      )
       const config = await db.configuracionAlertas.get('global')
       if (config && ajeno(config)) await db.configuracionAlertas.delete('global')
       // `lugarActivo` no se toca: si el guardado es de otro tenant, `lugarStore`
       // ya no lo encuentra entre los lugares del tenant y usa el principal.
     },
   )
+}
+
+/**
+ * Spec 031 (R5, FR-013): la cuenta de esta sesión fue eliminada en la
+ * plataforma. Se borra todo lo local, también los pendientes (ya no hay a
+ * nombre de quién subirlos). Solo se llama cuando el servidor confirmó que la
+ * cuenta no existe.
+ */
+export async function borrarTodosLosDatosLocales(): Promise<void> {
+  await db.transaction('rw', db.tables, async () => {
+    for (const tabla of db.tables) await tabla.clear()
+  })
 }
 
 /**

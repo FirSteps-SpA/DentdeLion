@@ -17,8 +17,11 @@ export type IdVistaAyuda =
   | 'alertas'
   | 'ajustes'
 
-/** Las secciones de Ajustes con ayuda propia ("Guía de uso" no la lleva: ya es la guía). */
-export type IdSeccionAyuda = Exclude<IdSeccion, 'guia'>
+/**
+ * Las secciones de Ajustes con ayuda propia: "Guía de uso" no la lleva (ya es
+ * la guía) ni "Plataforma" (spec 031, solo operadores de First Steps).
+ */
+export type IdSeccionAyuda = Exclude<IdSeccion, 'guia' | 'plataforma'>
 
 export type IdAyuda = IdVistaAyuda | `ajustes:${IdSeccionAyuda}`
 
