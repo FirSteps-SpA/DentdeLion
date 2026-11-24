@@ -217,8 +217,10 @@ Box 2 queda en 0. Después se trasladan 3 ml de Box 1 a Box 2 con el traslado de
   aclaración "Stock compartido con <lugares>".
 - **FR-016**: Los traslados DEBEN ofrecer como destino solo lugares de otra bodega, y validar el stock
   contra el stock común de la bodega de origen (014 FR-024).
-- **FR-017**: El servidor DEBE validar consumos y traslados contra el stock común de la bodega, no
-  contra el del lugar.
+- **FR-017**: La validación de consumos, ajustes y traslados contra el stock disponible DEBE usar el
+  stock común de la bodega, en el dispositivo (como hoy: el servidor no valida stock). Un sobregiro
+  que aparezca al sincronizar DEBE detectarse sobre el stock común de la bodega y marcarse **En
+  revisión**.
 
 **Comunes**
 
