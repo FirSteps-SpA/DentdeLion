@@ -155,11 +155,11 @@ describe('alta con presentación (US1-1, US1-7)', () => {
     const onCreated = renderAlta()
     await llenarNombreYCategoria('Articaína 4%')
 
-    fireEvent.change(screen.getByLabelText('Unidad de consumo'), {
+    fireEvent.change(screen.getByLabelText('¿Cómo lo usas?'), {
       target: { value: 'cartucho' },
     })
-    fireEvent.change(screen.getByLabelText('Se compra por'), { target: { value: 'caja' } })
-    fireEvent.change(screen.getByLabelText(/^Contenido/), { target: { value: '50' } })
+    fireEvent.change(screen.getByLabelText('¿Cómo lo compras?'), { target: { value: 'caja' } })
+    fireEvent.change(screen.getByLabelText(/^¿Cuánto trae cada/), { target: { value: '50' } })
     expect(screen.getByText('Caja × 50 cartuchos')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
@@ -175,7 +175,7 @@ describe('alta con presentación (US1-1, US1-7)', () => {
     useAuthStore.setState({ usuario: personal, isReady: true })
     const onCreated = renderAlta()
     await llenarNombreYCategoria('Kit de blanqueamiento')
-    fireEvent.change(screen.getByLabelText('Unidad de consumo'), { target: { value: 'kit' } })
+    fireEvent.change(screen.getByLabelText('¿Cómo lo usas?'), { target: { value: 'kit' } })
 
     expect(screen.queryByLabelText(/^Contenido/)).not.toBeInTheDocument()
     expect(screen.getByText(/^Presentación:/)).toHaveTextContent('Presentación: Kit')
@@ -193,8 +193,8 @@ describe('alta con presentación (US1-1, US1-7)', () => {
     useAuthStore.setState({ usuario: personal, isReady: true })
     const onCreated = renderAlta()
     await llenarNombreYCategoria('Guantes')
-    fireEvent.change(screen.getByLabelText('Unidad de consumo'), { target: { value: 'unidad' } })
-    fireEvent.change(screen.getByLabelText('Se compra por'), { target: { value: 'caja' } })
+    fireEvent.change(screen.getByLabelText('¿Cómo lo usas?'), { target: { value: 'unidad' } })
+    fireEvent.change(screen.getByLabelText('¿Cómo lo compras?'), { target: { value: 'caja' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
     expect(await screen.findByText(/Indica cuántas unidades trae/)).toBeInTheDocument()
@@ -221,10 +221,10 @@ describe('edición de la presentación (US1-3, FR-006, FR-007)', () => {
     render(<EditarInsumoForm insumo={articaina} onGuardado={onGuardado} onCancelar={() => {}} />)
 
     // Con movimientos, la unidad de consumo no se edita aquí (FR-007a).
-    expect(screen.queryByLabelText('Unidad de consumo')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('¿Cómo lo usas?')).not.toBeInTheDocument()
     expect(screen.getByText(/Convertir unidad/)).toBeInTheDocument()
 
-    fireEvent.change(screen.getByLabelText(/^Contenido/), { target: { value: '100' } })
+    fireEvent.change(screen.getByLabelText(/^¿Cuánto trae cada/), { target: { value: '100' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
     await waitFor(() => expect(onGuardado).toHaveBeenCalled())
 

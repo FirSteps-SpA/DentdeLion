@@ -19,19 +19,22 @@ Sin tablas ni columnas nuevas. Sin cambio de versión de Dexie.
 ## Estado de formulario: cantidad doble (solo cliente)
 
 ```ts
-interface CantidadDoble {
-  consumo: number | null        // lo que se guarda (null = vacío; solo en el mínimo, que es opcional)
-  ultimoEditado: 'compra' | 'consumo'
-  textoEditado: string          // lo escrito tal cual, para no reformatear mientras se tipea
+interface CantidadTecleada {
+  cantidad: number | null   // lo escrito (null = vacío; solo en los mínimos, que son opcionales)
+  unidad: string            // en qué unidad se escribió: la de compra o la de consumo
 }
 ```
 
-Reglas:
-- `compra = consumo / contenido` y `consumo = compra × contenido`. El campo derivado se muestra con
-  ≤ 2 decimales y "≈" si `|derivado − redondeado| > 1e-9`.
-- Escribir en la unidad de compra respeta `unidadAdmiteDecimales(unidadCompra)`, y en la de consumo
-  respeta `unidadAdmiteDecimales(unidadMedida)`. El valor derivado nunca se redondea a entero.
-- Al cambiar `contenido`, se conserva el valor de `ultimoEditado` y se recalcula el otro. Si lo último
-  editado fue la compra, `consumo` cambia.
-- `contenido` vacío o ≤ 0: solo el campo de consumo queda habilitado.
-- Alta: `stockInicial = consumo` y `unidadStockInicial = unidadMedida`. `stockMinimo = consumo`.
+Reglas (`src/features/insumos/lib/cantidadDoble.ts`):
+- `aConsumo`: `compra × contenido` si se escribió en la unidad de compra, o la misma cantidad si se
+  escribió en la de consumo. Una unidad que ya no es de la presentación se toma como de consumo.
+- `equivalente`: lo escrito en la otra unidad con ≤ 2 decimales, `exacto: false` → "≈". Nunca se
+  redondea a entero.
+- Al escribir se rechazan los decimales si la unidad no los admite. El calculado puede tenerlos.
+- Al cambiar `contenido` se conserva lo escrito y se recalcula el otro.
+- Sin `contenido` válido: el campo de compra queda deshabilitado.
+- **Stock inicial (Alta)**: se guarda tal como se escribió (`stockInicial` + `unidadStockInicial`).
+  Así el lote conserva `cantidadIngresada`/`unidadIngresada` exactos ("3 jeringas"), como en spec 015.
+- **Mínimos (Alta y Editar)**: se guardan en unidad de consumo (`aConsumo`). En Alta, si se escribió
+  en la de compra, el formulario recuerda lo escrito para recalcular el mínimo si cambia el contenido.
+- Con unidades iguales, el campo es el `Stepper` de siempre (con − y +).

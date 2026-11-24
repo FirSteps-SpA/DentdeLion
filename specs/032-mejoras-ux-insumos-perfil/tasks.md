@@ -27,25 +27,25 @@ Editar insumo.
 
 **Independent Test**: spec US1, quickstart §1 (ácido fosfórico: 3 jeringas ↔ 9 ml, 0,5 ml ↔ ≈ 0,17).
 
-- [ ] T002 [P] [US1] Conversión pura (compra↔consumo, "≈", ≤ 2 decimales, contenido cambiado según
+- [x] T002 [P] [US1] Conversión pura (compra↔consumo, "≈", ≤ 2 decimales, contenido cambiado según
   `ultimoEditado`, vacío, contenido inválido) en `src/features/insumos/lib/cantidadDoble.ts`
   (data-model § Cantidad doble)
-- [ ] T003 [US1] `src/components/ui/CantidadDobleField.tsx` según ui-contracts §3 (dos `NumeroInput`
+- [x] T003 [US1] `src/features/insumos/components/CantidadDobleField.tsx` según ui-contracts §3 (dos `NumeroInput`
   ≥ 48 px, `aria-label` por unidad, derivado con `aria-live`, un solo campo con unidades iguales,
   segundo deshabilitado sin contenido válido)
-- [ ] T004 [P] [US1] `tests/unit/CantidadDobleField.test.tsx`: conversión en ambos sentidos, "≈",
+- [x] T004 [P] [US1] `tests/unit/CantidadDobleField.test.tsx`: conversión en ambos sentidos, "≈",
   respeta `unidadAdmiteDecimales` al escribir, el derivado no se redondea a entero, vaciar el mínimo
   vacía ambos, recalcula al cambiar el contenido
-- [ ] T005 [P] [US1] Rótulos, ayudas y "Igual que como lo uso" en
+- [x] T005 [P] [US1] Rótulos, ayudas y "Igual que como lo uso" en
   `src/features/insumos/components/PresentacionFields.tsx` (ui-contracts §1)
-- [ ] T006 [P] [US1] `MOSTRAR_CODIGO_BARRAS = false` en `src/lib/scanner/` (research R4)
-- [ ] T007 [US1] `src/features/insumos/components/AltaMaterialView.tsx`: ejemplo plegable
+- [x] T006 [P] [US1] `MOSTRAR_CODIGO_BARRAS = false` en `src/lib/scanner/` (research R4)
+- [x] T007 [US1] `src/features/insumos/components/AltaMaterialView.tsx`: ejemplo plegable
   (ui-contracts §2), stock inicial y mínimo con `CantidadDobleField` (`unidadStockInicial` =
   `unidadMedida`, research R1), ayuda del mínimo, sin campo ni verificación de código
-- [ ] T008 [US1] `src/features/insumos/components/EditarInsumoForm.tsx`: mínimo del catálogo y del
+- [x] T008 [US1] `src/features/insumos/components/EditarInsumoForm.tsx`: mínimo del catálogo y del
   lugar con `CantidadDobleField`, sin "Código de fabricante" (se conserva el valor original al
   guardar)
-- [ ] T009 [US1] Actualizar `tests/integration/alta-material.test.tsx` y
+- [x] T009 [US1] Actualizar `tests/integration/alta-material.test.tsx` y
   `tests/integration/presentacion.test.tsx` (rótulos, sin código, caso del ácido fosfórico extremo a
   extremo, la cantidad guardada en unidad de consumo) y agregar un caso de Editar que conserva
   `codigoFabricante`

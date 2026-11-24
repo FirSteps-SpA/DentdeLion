@@ -2,13 +2,14 @@
 
 ## R1 — Campos dobles de cantidad (FR-004/005)
 
-**Decision**: un componente nuevo `CantidadDobleField` con dos `NumeroInput` lado a lado (compra |
-consumo), sin botones +/−. El valor controlado es **siempre la cantidad en unidad de consumo** más
-`ultimoEditado: 'compra' | 'consumo'`. El campo editado muestra lo que la persona escribió; el otro se
-calcula (`consumo = compra × contenido`, `compra = consumo / contenido`) y se muestra con hasta 2
-decimales y "≈" si no es exacto. Al cambiar el contenido se recalcula el campo no editado (spec US1
-AC5). Con unidad de compra igual a la de consumo, o contenido inválido, se ve un solo campo (AC6) o el
-segundo deshabilitado (edge case).
+**Decision**: un componente nuevo `CantidadDobleField` (en `features/insumos/components`) con dos
+`NumeroInput` lado a lado (compra | consumo), sin botones +/−. El valor controlado es **lo escrito y
+en qué unidad** (`CantidadTecleada`). El otro campo se calcula y se muestra con hasta 2 decimales y
+"≈" si no es exacto. Al cambiar el contenido se recalcula el campo no editado (spec US1 AC5). Con
+unidades iguales se usa el `Stepper` de siempre. Sin contenido válido, el campo de compra queda
+deshabilitado. Los inputs usan `step="any"` (con un `step` entero, un valor calculado decimal
+bloquearía el envío del formulario) y los decimales no permitidos se rechazan al escribir. Detalle en
+data-model.md.
 
 **Rationale**: dos steppers con ± no caben lado a lado en 480 px sin quedar bajo 48 px. Guardar en
 unidad de consumo evita la ambigüedad actual de `unidadStockInicial`.
@@ -17,9 +18,10 @@ unidad de consumo evita la ambigüedad actual de `unidadStockInicial`.
 descarta porque lo usan Ingreso y la recepción de Compras, que quedan fuera de alcance. Además, el
 selector es justo lo que la idea pide reemplazar.
 
-**Compatibilidad**: `AltaMaterialInput.unidadStockInicial` se fija a la unidad de consumo al usar el
-campo doble. `stockInicialDe`/`convertirIngreso` siguen igual, así que el movimiento de ingreso
-inicial (con `presentaciones` en el snapshot) no cambia.
+**Compatibilidad**: el stock inicial se guarda en la unidad en que se escribió
+(`stockInicial` + `unidadStockInicial`). `stockInicialDe`/`convertirIngreso` siguen igual, así que el
+lote conserva `cantidadIngresada`/`unidadIngresada` exactos. Los mínimos se guardan en unidad de
+consumo. En Alta, el mínimo va antes que el stock inicial, como hasta ahora (`ORDEN_CAMPOS`).
 
 ## R2 — Dónde se aplica el campo doble
 

@@ -83,7 +83,7 @@ src/app/App.tsx, src/app/AppShell.tsx                      # pasar irASeccionAju
 src/app/MenuPerfil.tsx                                     # nuevo
 src/app/AppHeader.tsx, src/app/TopBar.tsx                  # avatar → MenuPerfil; comentario spec 011
 src/features/ajustes/components/PerfilSection.tsx          # Editar nombre
-src/components/ui/CantidadDobleField.tsx                   # nuevo
+src/features/insumos/components/CantidadDobleField.tsx     # nuevo
 src/features/insumos/lib/cantidadDoble.ts                  # conversión pura (testeable)
 src/features/insumos/components/PresentacionFields.tsx     # rótulos y ayudas
 src/features/insumos/components/AltaMaterialView.tsx       # ejemplo, campos dobles, sin código

@@ -637,6 +637,50 @@ describe('Edición — marca (spec 023)', () => {
   })
 })
 
+/** Spec 032 US1 (FR-004..FR-006). */
+describe('Edición — mínimo en dos unidades y código oculto (spec 032)', () => {
+  it('escribe el mínimo en jeringas, guarda en mL y conserva el código guardado', async () => {
+    insumosT.seed(
+      insumosT.all().map((i) =>
+        i.id === 'a'
+          ? {
+              ...i,
+              unidadMedida: 'mL',
+              unidadCompra: 'jeringa',
+              contenido: 3,
+              permiteDecimales: true,
+              codigoFabricante: '7790001',
+              stockMinimo: null,
+            }
+          : i,
+      ),
+    )
+    reflejarStore()
+    useAuthStore.setState({ usuario: admin })
+    render(<Harness />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Más opciones de Anestesia' }))
+    fireEvent.click(screen.getByText('Editar'))
+    const form = screen.getByRole('dialog', { name: 'Editar insumo' })
+    expect(within(form).queryByLabelText(/Código de fabricante/)).not.toBeInTheDocument()
+
+    fireEvent.change(within(form).getByLabelText('Stock mínimo en jeringas'), {
+      target: { value: '1' },
+    })
+    expect(within(form).getByLabelText('Stock mínimo en mL')).toHaveValue(3)
+    fireEvent.click(within(form).getByRole('button', { name: 'Guardar' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(cambiosT.all()).toEqual([
+      expect.objectContaining({ campo: 'stockMinimo', valorAnterior: null, valorNuevo: 3 }),
+    ])
+    expect(insumosT.all().find((i) => i.id === 'a')).toMatchObject({
+      stockMinimo: 3,
+      codigoFabricante: '7790001',
+    })
+  })
+})
+
 /** Spec 024 US2 (FR-005..FR-008). */
 describe('Edición — stock por lote (spec 024)', () => {
   function abrirEdicion(nombre: string): HTMLElement {
