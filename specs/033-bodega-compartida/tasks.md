@@ -14,32 +14,39 @@ sirve. Las fases siguen ese orden de ejecución; las prioridades de la spec no c
 
 ## Phase 1: Setup
 
-- [ ] T001 Línea base: `npm run lint && npx tsc -b && npx vitest run --testTimeout=20000` y
+- [x] T001 Línea base: `npm run lint && npx tsc -b && npx vitest run --testTimeout=20000` y
   `npm run test:rls` (anotar las fallas previas conocidas: timeouts por carga y "estimación: sin
-  clave…")
+  clave…"). Resultado (2026-11-24): lint y tipos ok; 1365/1369. Las 4 que fallan son por carga:
+  `enviar-pedido`, `inventario-paginacion` ("Ver más"), `tratamientos` (crear) y `reportes/rendimiento`
+  < 300 ms. `test:rls`: solo falla "estimación: sin clave…"
 
 ## Phase 2: Foundational (bloquea todas las historias)
 
 **Checkpoint**: con todos los lugares en `bodegaId = null` nada cambia (FR-019). La suite actual
 debe seguir en verde al terminar esta fase.
 
-- [ ] T002 Migración `supabase/migrations/20261128000000_bodega_compartida.sql`: `bodega_id`, índice y
-  check `lugares_bodega_no_es_lugar` (contracts/api.md). Aplicar con `supabase migration up --local`
-- [ ] T003 Controles 1–6 de contracts/api.md en `scripts/test-rls.mjs`; `npm run test:rls` en verde
+- [x] T002 Migración `supabase/migrations/20261128000000_bodega_compartida.sql`: `bodega_id`, índice y
+  check `lugares_bodega_no_es_lugar` (contracts/api.md). Aplicada con `psql` dentro del contenedor
+  local más la fila en `schema_migrations`, porque `migration up` se negaba: la base local tiene la
+  `20261127…` de la spec 032, que no está en esta rama
+- [x] T003 Controles 1–6 de contracts/api.md en `scripts/test-rls.mjs`; `npm run test:rls` en verde
   (salvo las fallas previas de T001)
-- [ ] T004 [P] `Lugar.bodegaId` en `src/lib/db/index.ts` (sin versión nueva de Dexie) y mapeo
+- [x] T004 [P] `Lugar.bodegaId` en `src/lib/db/index.ts` (sin versión nueva de Dexie) y mapeo
   `bodega_id` en `toLugarRow`/`fromLugarRow` de `src/lib/sync/index.ts`. Test de ida y vuelta, con
   una fila sin la clave igual a `null`
-- [ ] T005 [P] Consultas de bodega en `src/stores/lugarStore.ts`: `bodegaDe`, `lugaresDeBodega`
+- [x] T005 [P] Consultas de bodega en `src/stores/lugarStore.ts`: `bodegaDe`, `lugaresDeBodega`
   (solo activos, memoizado) y `rotuloBodega` (data-model § Bodega), con
-  `tests/unit/bodega.test.ts`
-- [ ] T006 Stock por conjunto en `src/features/insumos/lib/stock.ts`: `lotesEnBodega` y
+  `tests/unit/bodega.test.ts`. Se agregaron `comparteBodega` y `bodegasActivas` para US1/US2
+- [x] T006 Stock por conjunto en `src/features/insumos/lib/stock.ts`: `lotesEnBodega` y
   `stockLoteEnBodega` (reemplazan las versiones por lugar, que quedan como caso de un elemento)
-- [ ] T007 `datosDeBodega` en `src/features/insumos/lib/vistaLugar.ts` (filtro por `Set`, research
+- [x] T007 `datosDeBodega` en `src/features/insumos/lib/vistaLugar.ts` (filtro por `Set`, research
   R2). `useInventarioDeLugar` usa la bodega del lugar activo
-- [ ] T008 Mínimo efectivo de la bodega (el mayor) en `src/features/insumos/lib/minimos.ts`
-  (research R4), con `tests/unit/minimos-bodega.test.ts`
-- [ ] T009 Correr la suite completa: sin regresiones con bodegas propias (FR-019)
+- [x] T008 Mínimo efectivo de la bodega (el mayor) en `src/features/insumos/lib/minimos.ts`
+  (research R4). Los tests quedaron en `tests/unit/stockPorLugar.test.ts` (describe "bodega
+  compartida"), junto a los de la vista por lugar, para reutilizar sus datos
+- [x] T009 Correr la suite completa: sin regresiones con bodegas propias (FR-019). Resultado:
+  lint y tipos ok; 1375/1377. Las 2 que fallan (`enviar-pedido` y `reportes/rendimiento`) son las de
+  la línea base y pasan aisladas
 
 ## Phase 3: US2 — Consumir y reponer desde cualquier lugar de la bodega (P1) 🎯
 

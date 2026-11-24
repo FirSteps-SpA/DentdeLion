@@ -2171,6 +2171,81 @@ check(
   auditoria.map((f) => f.accion).join(','),
 )
 
+// ---------------------------------------------------------------------------
+// Spec 033 — lugares que comparten bodega (contracts/api.md)
+// ---------------------------------------------------------------------------
+
+const LUGAR_C1 = randomUUID()
+const LUGAR_C2 = randomUUID()
+const BODEGA = randomUUID()
+await http('POST', '/rest/v1/lugares', {
+  key: SVC,
+  body: [
+    { id: LUGAR_C1, tenant_id: TENANT_1, nombre: `Box C1 ${run}` },
+    { id: LUGAR_C2, tenant_id: TENANT_1, nombre: `Box C2 ${run}` },
+  ],
+})
+const bodegaDe = async (id) => (await leer(`lugares?id=eq.${id}&select=bodega_id`))[0]?.bodega_id
+
+// 1. Administración junta dos lugares.
+r = await http('PATCH', `/rest/v1/lugares?id=in.(${LUGAR_C1},${LUGAR_C2})`, {
+  token: adm.token,
+  body: { bodega_id: BODEGA },
+})
+check(
+  'bodega: administración pone el mismo bodega_id a dos lugares',
+  r.status === 200 && (await bodegaDe(LUGAR_C1)) === BODEGA && (await bodegaDe(LUGAR_C2)) === BODEGA,
+  `HTTP ${r.status}`,
+)
+
+// 2. Personal no cambia la bodega.
+r = await http('PATCH', `/rest/v1/lugares?id=eq.${LUGAR_C1}`, {
+  token: per.token,
+  body: { bodega_id: randomUUID() },
+})
+check('bodega: personal no cambia bodega_id', (await bodegaDe(LUGAR_C1)) === BODEGA, `HTTP ${r.status}`)
+
+// 3. La bodega nunca es el id de un lugar.
+r = await http('PATCH', `/rest/v1/lugares?id=eq.${LUGAR_C1}`, {
+  token: adm.token,
+  body: { bodega_id: LUGAR_C1 },
+})
+check(
+  'bodega: bodega_id igual al id del lugar se rechaza',
+  r.status >= 400 && (await bodegaDe(LUGAR_C1)) === BODEGA,
+  `HTTP ${r.status}`,
+)
+
+// 4. Un cliente 2.11 sube el lugar sin la clave bodega_id: se conserva.
+r = await http('POST', '/rest/v1/lugares', {
+  token: adm.token,
+  prefer: 'resolution=merge-duplicates,return=representation',
+  body: {
+    id: LUGAR_C1,
+    tenant_id: TENANT_1,
+    nombre: `Box C1 ${run}`,
+    desactivado_en: null,
+    proveedor_predeterminado_id: null,
+  },
+})
+check(
+  'bodega: upsert sin bodega_id (cliente 2.11) la conserva',
+  r.status < 300 && (await bodegaDe(LUGAR_C1)) === BODEGA,
+  `HTTP ${r.status}`,
+)
+
+// 5. Otro tenant no ve el lugar ni su bodega.
+r = await http('GET', `/rest/v1/lugares?id=eq.${LUGAR_C1}&select=bodega_id`, { token: admB.token })
+check('bodega: otro tenant no lee el lugar', Array.isArray(r.data) && r.data.length === 0, `HTTP ${r.status}`)
+
+// 6. Un traslado de separación entre lugares de la misma bodega se acepta.
+const tSep = randomUUID()
+r = await http('POST', '/rest/v1/movimientos', {
+  token: per.token,
+  body: [mitad('traslado_salida', LUGAR_C1, tSep, 1), mitad('traslado_entrada', LUGAR_C2, tSep, 1)],
+})
+check('bodega: el traslado de separación dentro de la bodega se acepta', r.status === 201, `HTTP ${r.status}`)
+
 r = await http('GET', '/rest/v1/insumos?select=id')
 check(
   'sin sesión no se lee el inventario',

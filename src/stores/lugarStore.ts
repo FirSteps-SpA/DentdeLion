@@ -104,3 +104,66 @@ export function lugarParaEscribirOFallar(explicito?: string): string {
 export function nombreLugar(lugares: Lugar[], id: string): string {
   return lugares.find((lugar) => lugar.id === id)?.nombre ?? 'Lugar'
 }
+
+/**
+ * Spec 033 (data-model.md § Bodega): la bodega de un lugar es su `bodegaId`
+ * o, si no comparte, su propio id.
+ */
+export function bodegaDe(lugar: Lugar): string {
+  return lugar.bodegaId ?? lugar.id
+}
+
+const cacheBodegas = new WeakMap<Lugar[], Map<string, Set<string>>>()
+
+/**
+ * Spec 033: ids de los lugares **activos** que comparten bodega con `lugarId`
+ * (incluido él). Un lugar sin bodega compartida, o que no está en `lugares`,
+ * da solo su propio id: así toda la lógica por bodega es idéntica a la de un
+ * lugar cuando nadie comparte (FR-019). Memoizado por arreglo de lugares.
+ */
+export function lugaresDeBodega(lugarId: string, lugares: Lugar[]): Set<string> {
+  let porLugar = cacheBodegas.get(lugares)
+  if (!porLugar) {
+    porLugar = new Map()
+    cacheBodegas.set(lugares, porLugar)
+  }
+  const enCache = porLugar.get(lugarId)
+  if (enCache) return enCache
+  const lugar = lugares.find((l) => l.id === lugarId)
+  const conjunto = new Set<string>([lugarId])
+  if (lugar && !lugar.desactivadoEn) {
+    const bodega = bodegaDe(lugar)
+    for (const otro of lugaresActivos(lugares)) {
+      if (bodegaDe(otro) === bodega) conjunto.add(otro.id)
+    }
+  }
+  porLugar.set(lugarId, conjunto)
+  return conjunto
+}
+
+/** Spec 033: si el lugar comparte su stock con otro lugar activo. */
+export function comparteBodega(lugarId: string, lugares: Lugar[]): boolean {
+  return lugaresDeBodega(lugarId, lugares).size > 1
+}
+
+/**
+ * Spec 033: las bodegas de los lugares activos, cada una con sus lugares en el
+ * orden de `lugaresActivos`; las bodegas, en el orden de su primer lugar.
+ */
+export function bodegasActivas(lugares: Lugar[]): Lugar[][] {
+  const grupos = new Map<string, Lugar[]>()
+  for (const lugar of lugaresActivos(lugares)) {
+    const bodega = bodegaDe(lugar)
+    grupos.set(bodega, [...(grupos.get(bodega) ?? []), lugar])
+  }
+  return [...grupos.values()]
+}
+
+/** Spec 033: "Box 1 + Box 2", en el orden de `lugaresActivos`. */
+export function rotuloBodega(lugarIds: Iterable<string>, lugares: Lugar[]): string {
+  const ids = new Set(lugarIds)
+  return lugaresActivos(lugares)
+    .filter((lugar) => ids.has(lugar.id))
+    .map((lugar) => lugar.nombre)
+    .join(' + ')
+}

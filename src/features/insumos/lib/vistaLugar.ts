@@ -3,12 +3,13 @@ import type { Insumo, ItemCompra, Lote, Lugar, MinimoLugar, Movimiento } from '.
 import { useInventoryStore } from '../../../stores/inventoryStore'
 import {
   lugaresActivos,
+  lugaresDeBodega,
   useLugarStore,
   type SeleccionLugar,
 } from '../../../stores/lugarStore'
 import { computeEstadoInsumo, type Estado } from './estado'
-import { minimoEfectivo } from './minimos'
-import { lotesEnLugar } from './stock'
+import { minimoEfectivoBodega } from './minimos'
+import { lotesEnBodega } from './stock'
 
 /** Lo que leen las vistas de inventario, alertas, compras e Inicio. */
 export interface DatosInventario {
@@ -33,15 +34,30 @@ export function datosDeLugar(
   minimosLugar: MinimoLugar[],
   lugarId: string,
 ): DatosInventario {
-  const movimientos = datos.movimientos.filter((movimiento) => movimiento.lugarId === lugarId)
+  return datosDeBodega(datos, minimosLugar, new Set([lugarId]))
+}
+
+/**
+ * Spec 033 (research.md R2): la vista de una bodega, es decir, la de un lugar
+ * generalizada a un conjunto de lugares (`lugaresDeBodega`). Movimientos,
+ * lotes visibles e ítems de compra de cualquiera de ellos; mínimo de la bodega
+ * (`minimoEfectivoBodega`). Con un solo lugar es exactamente `datosDeLugar`
+ * (FR-019).
+ */
+export function datosDeBodega(
+  datos: DatosInventario,
+  minimosLugar: MinimoLugar[],
+  lugarIds: ReadonlySet<string>,
+): DatosInventario {
+  const movimientos = datos.movimientos.filter((movimiento) => lugarIds.has(movimiento.lugarId))
   return {
     insumos: datos.insumos.map((insumo) => {
-      const stockMinimo = minimoEfectivo(insumo, lugarId, minimosLugar)
+      const stockMinimo = minimoEfectivoBodega(insumo, lugarIds, minimosLugar)
       return stockMinimo === insumo.stockMinimo ? insumo : { ...insumo, stockMinimo }
     }),
-    lotes: lotesEnLugar(datos.lotes, datos.movimientos, lugarId),
+    lotes: lotesEnBodega(datos.lotes, datos.movimientos, lugarIds),
     movimientos,
-    itemsCompra: datos.itemsCompra.filter((item) => item.lugarId === lugarId),
+    itemsCompra: datos.itemsCompra.filter((item) => lugarIds.has(item.lugarId)),
   }
 }
 
@@ -59,13 +75,16 @@ export function useInventarioDeLugar(): DatosInventario & {
   const movimientos = useInventoryStore((s) => s.movimientos)
   const itemsCompra = useInventoryStore((s) => s.itemsCompra)
   const minimosLugar = useInventoryStore((s) => s.minimosLugar)
+  const lugares = useLugarStore((s) => s.lugares)
   const lugarActivoId = useLugarStore((s) => s.lugarActivoId)
 
   return useMemo(() => {
     const todos = { insumos, lotes, movimientos, itemsCompra }
     if (!lugarActivoId || lugarActivoId === 'todos') return { ...todos, lugarActivoId }
-    return { ...datosDeLugar(todos, minimosLugar, lugarActivoId), lugarActivoId }
-  }, [insumos, lotes, movimientos, itemsCompra, minimosLugar, lugarActivoId])
+    // Spec 033: el lugar activo ve el stock de toda su bodega.
+    const bodega = lugaresDeBodega(lugarActivoId, lugares)
+    return { ...datosDeBodega(todos, minimosLugar, bodega), lugarActivoId }
+  }, [insumos, lotes, movimientos, itemsCompra, minimosLugar, lugares, lugarActivoId])
 }
 
 /** Los datos de un lugar, con el lugar al que pertenecen (`null` sin lugar resuelto). */
@@ -117,7 +136,8 @@ export function vistasDeLugar(
     vistas: [
       {
         lugar: lugares.find((lugar) => lugar.id === lugarActivoId) ?? null,
-        datos: datosDeLugar(datos, minimosLugar, lugarActivoId),
+        // Spec 033: el stock de la bodega del lugar activo.
+        datos: datosDeBodega(datos, minimosLugar, lugaresDeBodega(lugarActivoId, lugares)),
       },
     ],
   }

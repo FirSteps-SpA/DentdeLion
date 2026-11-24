@@ -901,6 +901,8 @@ interface LugarRow {
   creado_en: string
   /** Spec 021 (R2). */
   proveedor_predeterminado_id?: string | null
+  /** Spec 033 (R1): null = bodega propia. */
+  bodega_id?: string | null
 }
 
 function toLugarRow(lugar: Lugar): LugarRow {
@@ -911,6 +913,7 @@ function toLugarRow(lugar: Lugar): LugarRow {
     desactivado_en: lugar.desactivadoEn,
     creado_en: lugar.creadoEn,
     proveedor_predeterminado_id: lugar.proveedorPredeterminadoId,
+    bodega_id: lugar.bodegaId ?? null,
   }
 }
 
@@ -923,6 +926,7 @@ function fromLugarRow(row: LugarRow): Lugar {
     creadoEn: row.creado_en,
     sincronizado: true,
     proveedorPredeterminadoId: row.proveedor_predeterminado_id ?? null,
+    bodegaId: row.bodega_id ?? null,
   }
 }
 

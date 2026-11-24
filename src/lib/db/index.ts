@@ -349,6 +349,11 @@ export interface Lugar {
   sincronizado: boolean
   /** Spec 021 (research.md R2) — proveedor activo que viene elegido al registrar aquí. */
   proveedorPredeterminadoId: string | null
+  /**
+   * Spec 033 (data-model.md) — bodega compartida: los lugares con el mismo
+   * valor usan un solo stock. `null` (o ausente, en filas viejas) = bodega propia.
+   */
+  bodegaId?: string | null
 }
 
 /**
