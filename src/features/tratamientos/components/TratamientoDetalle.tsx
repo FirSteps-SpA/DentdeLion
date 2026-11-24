@@ -3,13 +3,13 @@ import { TouchButton } from '../../../components/ui/TouchButton'
 import { X } from '../../../components/icons'
 import { etiquetaUnidad, formatearCantidad } from '../../../lib/unidades'
 import { useAuthStore } from '../../../stores/authStore'
-import { usePendientesStore } from '../../../stores/pendientesStore'
 import { useTratamientosStore } from '../../../stores/tratamientosStore'
 import { formatearCLP } from '../../insumos/lib/precio'
 import type { TratamientoProyectado } from '../lib/proyeccion'
 import type { MontosTratamiento as Montos } from '../lib/useMontosTratamiento'
 import { MontosTratamiento } from './MontosTratamiento'
 import { nombreCategoriaTratamiento } from '../lib/categorias'
+import { useNombreAutor } from '../../../stores/useNombreAutor'
 
 const CAMPO: Record<string, string> = {
   nombre: 'Nombre',
@@ -42,12 +42,10 @@ export function TratamientoDetalle({
 }: TratamientoDetalleProps) {
   const usuario = useAuthStore((s) => s.usuario)
   const esAdministrador = usuario?.rol === 'administrador'
-  const conocidos = usePendientesStore((s) => s.usuariosConocidos)
   const cambios = useTratamientosStore((s) => s.cambiosTratamiento)
   const categorias = useTratamientosStore((s) => s.categorias)
   const fecha = new Intl.DateTimeFormat('es-CL', { dateStyle: 'medium' })
-  const autor = (id: string) =>
-    id === usuario?.id ? usuario.nombre : (conocidos.find((c) => c.id === id)?.nombre ?? '')
+  const autor = useNombreAutor('')
   const historial = cambios
     .filter((c) => c.tratamientoId === tratamiento.id && c.rechazadoEn === null)
     .sort((a, b) => b.creadoEn.localeCompare(a.creadoEn))

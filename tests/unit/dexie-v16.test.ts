@@ -50,7 +50,7 @@ describe('Dexie v16 (spec 028)', () => {
 
     const { db } = await import('../../src/lib/db')
     await db.open()
-    expect(db.verno).toBe(16)
+    expect(db.verno).toBe(17) // la v16 corre dentro de la cadena hasta la última versión
     expect(await db.tratamientosRealizados.count()).toBe(1)
     expect(await db.pacientesRegistro.count()).toBe(0)
     await db.pacientesRegistro.put({

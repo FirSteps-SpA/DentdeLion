@@ -16,6 +16,7 @@ import { ProveedoresSection } from './ProveedoresSection'
 import { MarcasSection } from './MarcasSection'
 import { CategoriasTratamientoSection } from './CategoriasTratamientoSection'
 import { GuiaUsoSection } from '../../ayuda/components/GuiaUsoSection'
+import { PlataformaSection } from '../../plataforma/components/PlataformaSection'
 
 /**
  * Subpantalla de una sección de Ajustes (spec 019 FR-004/007, UI §3):
@@ -61,7 +62,7 @@ export function SeccionAjustesPantalla({
           tituloRef={titulo}
           tituloClassName="outline-none"
           // Spec 030: cada sección con su "?", salvo la guía, que ya es la ayuda.
-          ayuda={id === 'guia' ? undefined : `ajustes:${id}`}
+          ayuda={id === 'guia' || id === 'plataforma' ? undefined : `ajustes:${id}`}
         />
       </div>
 
@@ -89,6 +90,7 @@ export function SeccionAjustesPantalla({
       {id === 'marcas' && <MarcasSection />}
       {id === 'baja' && <InsumosBajaSection sinTitulo />}
       {id === 'guia' && <GuiaUsoSection />}
+      {id === 'plataforma' && <PlataformaSection />}
     </div>
   )
 }

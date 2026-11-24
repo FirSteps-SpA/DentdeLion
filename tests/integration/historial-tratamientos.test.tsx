@@ -17,6 +17,7 @@ vi.mock('../../src/lib/supabase', () => ({
 import { db } from '../../src/lib/db'
 import { onMemoryDbChange } from '../helpers/memoryDb'
 import { useAuthStore } from '../../src/stores/authStore'
+import { usePendientesStore } from '../../src/stores/pendientesStore'
 import { useLugarStore } from '../../src/stores/lugarStore'
 import { useTratamientosStore } from '../../src/stores/tratamientosStore'
 import { HistorialTratamientos } from '../../src/features/tratamientos/components/HistorialTratamientos'
@@ -135,6 +136,22 @@ describe('historial de tratamientos (US5)', () => {
     render(<HistorialTratamientos />)
     expect(screen.getByText('Tratamiento b')).toBeInTheDocument()
     expect(screen.queryByText('Tratamiento a')).not.toBeInTheDocument()
+  })
+
+  it('el autor de una cuenta eliminada se muestra como "Usuario eliminado" (spec 031)', () => {
+    realizadosT.seed([
+      registro('x', new Date(2026, 9, 15, 9), { usuarioId: 'borrada' }),
+      registro('y', new Date(2026, 9, 15, 10), { usuarioId: 'conocida' }),
+    ])
+    reflejar()
+    usePendientesStore.setState({
+      usuariosConocidos: [{ id: 'conocida', nombre: 'Rosa', vistoEn: 'x' }],
+      usuariosEliminados: ['borrada'],
+    })
+    render(<HistorialTratamientos />)
+    expect(screen.getByText(/· Usuario eliminado/)).toBeInTheDocument()
+    expect(screen.getByText(/· Rosa/)).toBeInTheDocument()
+    usePendientesStore.setState({ usuariosConocidos: [], usuariosEliminados: [] })
   })
 
   it('en "Todos" muestra el lugar de cada registro', () => {

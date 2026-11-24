@@ -17,12 +17,11 @@ import { BottomSheet } from '../../../components/ui/BottomSheet'
 import { Card } from '../../../components/ui/Card'
 import { IconField } from '../../../components/ui/IconField'
 import { TouchButton } from '../../../components/ui/TouchButton'
-import { useAuthStore } from '../../../stores/authStore'
-import { usePendientesStore } from '../../../stores/pendientesStore'
 import { useTratamientosStore } from '../../../stores/tratamientosStore'
 import { fijarPorcentajeLugar } from '../../tratamientos/lib/catalogo'
 import { compararCambios } from '../../insumos/lib/proyeccion'
 import { NumeroInput } from '../../../components/ui/NumeroInput'
+import { useNombreAutor } from '../../../stores/useNombreAutor'
 
 type Modo =
   | { tipo: 'crear' }
@@ -43,8 +42,7 @@ export function LugaresSection({ sinTitulo = false }: { sinTitulo?: boolean } = 
   // Spec 016 US4 (FR-012, Q2): % profesional por lugar, con su historial.
   const porcentajes = useTratamientosStore((s) => s.porcentajes)
   const cambiosTratamiento = useTratamientosStore((s) => s.cambiosTratamiento)
-  const usuario = useAuthStore((s) => s.usuario)
-  const conocidos = usePendientesStore((s) => s.usuariosConocidos)
+  const autor = useNombreAutor()
   const [porcentajeInput, setPorcentajeInput] = useState('')
 
   const [nombreTenant, setNombreTenant] = useState<string | null>(null)
@@ -300,9 +298,7 @@ export function LugaresSection({ sinTitulo = false }: { sinTitulo?: boolean } = 
                   <li key={c.id}>
                     {c.valorAnterior === null ? 'sin %' : `${c.valorAnterior} %`} →{' '}
                     {c.valorNuevo === null ? 'sin %' : `${c.valorNuevo} %`} ·{' '}
-                    {c.usuarioId === usuario?.id
-                      ? usuario.nombre
-                      : (conocidos.find((k) => k.id === c.usuarioId)?.nombre ?? 'otra persona')}{' '}
+                    {autor(c.usuarioId)}{' '}
                     ·{' '}
                     {new Intl.DateTimeFormat('es-CL', { dateStyle: 'medium' }).format(
                       new Date(c.creadoEn),
