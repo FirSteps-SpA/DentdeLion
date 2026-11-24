@@ -44,6 +44,15 @@ usuarios por lugar; bodegas entre tenants distintos; varias bodegas para un mism
 
 - Q: ¿Qué caso de "insumos compartidos" se resuelve? → A: Lugares que comparten bodega (un solo stock
   consumible desde varios lugares).
+- Q: Al separar un lugar de una bodega compartida, ¿cómo se reparte el stock común? → A: El stock queda
+  entero en los lugares que siguen en la bodega; el lugar separado empieza en 0 y se reparte después
+  con el traslado de siempre.
+- Q: En "Valor del inventario" por lugar, ¿cómo se muestra una bodega compartida? → A: Como una sola
+  fila rotulada con sus lugares ("Box 1 + Box 2"). Al filtrar por uno de ellos se ve el valor de toda
+  la bodega, con esa aclaración.
+- Q: ¿El stock mínimo es uno por bodega o cada lugar conserva el suyo sobre el stock común? → A: Uno
+  por bodega e insumo. Al juntar lugares con mínimos distintos se elige cuál queda (por defecto, el
+  mayor).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -105,6 +114,8 @@ historial muestra el consumo en Box 2 y el ingreso en Box 1.
    de los lugares que la comparten.
 6. **Given** los reportes de consumo, gasto y costo por tratamiento, **When** se filtran por un lugar
    de una bodega compartida, **Then** muestran solo lo que se consumió o compró en ese lugar.
+   En cambio, "Valor del inventario" muestra el valor de toda la bodega, con la aclaración "Stock
+   compartido con <lugares>" (FR-015).
 7. **Given** el formulario de traslado en un lugar con bodega compartida, **When** se elige el destino,
    **Then** no aparecen los lugares de la misma bodega (no tiene sentido trasladar dentro de la misma
    bodega), pero sí los demás.
@@ -114,22 +125,23 @@ historial muestra el consumo en Box 2 y el ingreso en Box 1.
 ### User Story 3 - Dejar de compartir bodega (Priority: P2)
 
 Como administradora, quiero separar un lugar de una bodega compartida (por ejemplo, porque el box se
-cambió de piso), y decidir con qué stock se queda.
+cambió de piso). El stock común se queda en la bodega y el lugar separado parte de cero.
 
 **Why this priority**: Se usa poco, pero sin esto la configuración sería irreversible.
 
-**Independent Test**: Con Box 1 y Box 2 compartiendo 10 ml, separar Box 2. Por defecto Box 1 conserva
-los 10 ml y Box 2 queda en 0. Después se trasladan 3 ml de Box 1 a Box 2 con el traslado de siempre.
+**Independent Test**: Con Box 1 y Box 2 compartiendo 10 ml, separar Box 2. Box 1 conserva los 10 ml y
+Box 2 queda en 0. Después se trasladan 3 ml de Box 1 a Box 2 con el traslado de siempre.
 
 **Acceptance Scenarios**:
 
 1. **Given** un lugar en una bodega compartida, **When** la administradora elige "Dejar de compartir
-   bodega", **Then** ve una confirmación que explica cómo queda el stock (ver FR-009) antes de aplicar.
+   bodega", **Then** ve una confirmación que explica que el stock común se queda en la bodega y el lugar
+   separado empieza en 0 (FR-009), antes de aplicar.
 2. **Given** se confirma, **When** se mira el inventario de cada lugar, **Then** el lugar separado
-   queda con su propio stock según FR-009 y el resto de la bodega conserva el stock común.
+   queda en 0 y el resto de la bodega conserva el stock común completo.
 3. **Given** se separó un lugar, **When** se mira el historial, **Then** los movimientos anteriores
-   siguen intactos con su lugar original, y el reparto del stock queda registrado como movimientos con
-   autor y fecha.
+   siguen intactos con su lugar original, y el saldo que el lugar separado tenía por sus propios
+   movimientos queda pasado a la bodega como movimientos nuevos con autor y fecha.
 4. **Given** una bodega de dos lugares, **When** se separa uno, **Then** ninguno de los dos queda
    compartiendo bodega.
 5. **Given** se desactiva un lugar que comparte bodega, **When** se confirma, **Then** primero se
@@ -179,13 +191,12 @@ los 10 ml y Box 2 queda en 0. Después se trasladan 3 ml de Box 1 a Box 2 con el
 - **FR-006**: El stock mínimo DEBE ser uno por bodega e insumo. Al juntar lugares con mínimos
   distintos, la administradora elige cuál queda (por defecto, el mayor).
 - **FR-007**: Una administradora DEBE poder separar un lugar de su bodega compartida.
-- **FR-008**: Separar NO DEBE modificar movimientos anteriores, y el reparto de stock que resulte DEBE
-  quedar registrado como movimientos nuevos con autor, fecha y lugar.
+- **FR-008**: Separar NO DEBE modificar movimientos anteriores. Para dejar el lugar separado en 0, su
+  saldo propio por lote (lo que suman sus movimientos) DEBE pasarse a la bodega como movimientos
+  nuevos con autor, fecha y lugar, en la misma operación que la separación.
 - **FR-009**: Al separar un lugar, el stock común DEBE quedar entero en los lugares que siguen en la
-  bodega y el lugar separado DEBE empezar en 0, salvo que la administradora indique cantidades para
-  llevarse en el mismo paso (registradas como traslados). [NEEDS CLARIFICATION: ¿Basta con "el lugar
-  separado empieza en 0 y se traslada después", o hace falta repartir lote por lote en la misma
-  pantalla de separación?]
+  bodega y el lugar separado DEBE empezar en 0. La pantalla de separación es solo una confirmación
+  (sin reparto). El stock se reparte después con el traslado de siempre.
 - **FR-010**: Desactivar un lugar que comparte bodega DEBE separarlo primero según FR-007 a FR-009.
 
 **Operación diaria (US2)**
@@ -200,9 +211,10 @@ los 10 ml y Box 2 queda en 0. Después se trasladan 3 ml de Box 1 a Box 2 con el
 - **FR-014**: En "Todos los lugares", el stock y las alertas de una bodega compartida DEBEN contarse
   una vez y rotularse con sus lugares.
 - **FR-015**: Los reportes de consumo, gasto, costo por tratamiento e indicadores de Inicio DEBEN
-  seguir pudiendo filtrarse por lugar según el lugar de cada movimiento. El valor del inventario por
-  lugar DEBE mostrarse por bodega. [NEEDS CLARIFICATION: en el reporte "valor del inventario", ¿se
-  muestra la bodega como una sola fila o se reparte entre sus lugares?]
+  seguir pudiendo filtrarse por lugar según el lugar de cada movimiento. En "Valor del inventario", una
+  bodega compartida DEBE aparecer como una sola fila rotulada con sus lugares ("Box 1 + Box 2"), sin
+  repartir su valor. Al filtrar por uno de sus lugares DEBE mostrarse el valor de toda la bodega con la
+  aclaración "Stock compartido con <lugares>".
 - **FR-016**: Los traslados DEBEN ofrecer como destino solo lugares de otra bodega, y validar el stock
   contra el stock común de la bodega de origen (014 FR-024).
 - **FR-017**: El servidor DEBE validar consumos y traslados contra el stock común de la bodega, no
@@ -241,7 +253,8 @@ los 10 ml y Box 2 queda en 0. Después se trasladan 3 ml de Box 1 a Box 2 con el
 - **SC-003**: Con bodega compartida no hace falta registrar traslados entre sus lugares. Medido con la
   clienta: 0 traslados internos en el primer mes.
 - **SC-004**: Los totales por lugar de los reportes de consumo y gasto no cambian al juntar o separar
-  lugares.
+  lugares. En "Valor del inventario", la suma de las filas (bodegas y lugares independientes) es igual
+  al total del tenant, sin contar dos veces el stock compartido.
 - **SC-005**: Los tenants sin bodega compartida no ven diferencias en ninguna pantalla ni en los
   tiempos de carga.
 
@@ -251,10 +264,11 @@ los 10 ml y Box 2 queda en 0. Después se trasladan 3 ml de Box 1 a Box 2 con el
   (014 FR-015). Si en el futuro se restringe el acceso por lugar, ver un lugar de una bodega implica ver
   el stock común.
 - Separar un lugar es poco frecuente, así que se acepta que requiera traslados manuales para repartir
-  el stock (sujeto a la aclaración de FR-009).
+  el stock (FR-009).
 - Los niveles de aviso de caducidad y el umbral de pendientes siguen siendo uno por tenant (014
   FR-012).
 - Los mínimos por lugar que existan al juntar se convierten en el mínimo de la bodega según la elección
   de FR-006. Los lugares que no comparten bodega conservan su mínimo tal cual.
+- Al separar un lugar, este parte con el mismo mínimo que tenía la bodega, y se puede cambiar después.
 - Requiere cambios de base de datos y de sincronización (pertenencia de lugar a bodega, mínimos por
   bodega y validación de stock en el servidor). Se detallan en el plan.
