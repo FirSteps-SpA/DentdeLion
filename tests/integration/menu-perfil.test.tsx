@@ -90,6 +90,11 @@ describe.each([
       'Cerrar sesión',
     ])
     expect(within(menu()).getByRole('menuitem', { name: 'Ver perfil' })).toHaveFocus()
+    // Constitución III: avatar y opciones de al menos 48 × 48 px.
+    expect(avatar()).toHaveClass('touch-target')
+    for (const item of within(menu()).getAllByRole('menuitem')) {
+      expect(item).toHaveClass('touch-target')
+    }
   })
 
   it('Escape cierra y devuelve el foco al avatar; ↓/↑ recorren las opciones', () => {

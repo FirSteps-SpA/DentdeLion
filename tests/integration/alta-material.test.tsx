@@ -481,6 +481,7 @@ describe('AltaMaterialView — US2 (stock inicial + primer lote)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Material' }))
     await screen.findByLabelText('Nombre del material')
 
+    expect(screen.getByText('Ver un ejemplo')).toHaveClass('touch-target')
     fireEvent.click(screen.getByText('Ver un ejemplo'))
     expect(screen.getByText(/Stock inicial: 3 jeringas = 9 mL/)).toBeInTheDocument()
 

@@ -98,12 +98,18 @@ Editar insumo.
 
 ## Phase 6: Polish
 
-- [ ] T023 [P] Guía y ayuda en `src/features/ayuda/contenido.ts`: "completa nombre, categoría y cómo
+- [x] T023 [P] Guía y ayuda en `src/features/ayuda/contenido.ts`: "completa nombre, categoría y cómo
   lo usas", atajo del avatar en "Perfil y equipo", editar nombre; ajustar
   `tests/integration/ayuda.test.tsx` si cambia
-- [ ] T024 [P] Revisar áreas táctiles ≥ 48 px (avatar, ítems del menú, `summary`, inputs dobles) en
+- [x] T024 [P] Revisar áreas táctiles ≥ 48 px (avatar, ítems del menú, `summary`, inputs dobles) en
   móvil 390 px
-- [ ] T025 `npm run lint && npm run build && npm test`; `test:rls`; recorrido de quickstart §1–§3
+- [x] T025 `npm run lint && npm run build && npm test`; `test:rls`; recorrido de quickstart §1–§3. Resultado
+  (2026-11-24): lint y build ok; suite 1400/1402 con `--testTimeout=20000` (las 2 que fallan,
+  `enviar-pedido` y `reportes/rendimiento` de < 300 ms, pasan aisladas: carga de la máquina, load
+  ~12); `test:rls` con los 6 controles de spec 032 en verde y 1 control previo ajeno en falla
+  ("estimación: sin clave…", spec 029: `supabase/.env` define una clave, así que la función local
+  no está "sin configurar"). Recorrido con el driver: tabla a 1200/1440 px, alta y edición a 390 px,
+  menú del avatar a 390/1280 px
 
 ## Dependencies
 

@@ -85,6 +85,10 @@ describe('CantidadDobleField (spec 032 US1)', () => {
   it('muestra los dos campos lado a lado y convierte en vivo hacia ambos lados', () => {
     render(<Campo presentacion={JERINGA} inicial={{ cantidad: 0, unidad: 'jeringa' }} />)
 
+    // Constitución III: cada campo ocupa al menos 48 × 48 px.
+    expect(enJeringas().parentElement).toHaveClass('touch-target')
+    expect(enML().parentElement).toHaveClass('touch-target')
+
     fireEvent.change(enJeringas(), { target: { value: '3' } })
     expect(enML()).toHaveValue(9)
     expect(screen.getByTestId('consumo')).toHaveTextContent('9')
