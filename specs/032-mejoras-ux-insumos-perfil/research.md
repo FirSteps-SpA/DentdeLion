@@ -119,3 +119,16 @@ el parpadeo.
 
 **Alternatives considered**: contenedor con `max-height` y scroll propio (descartado en la
 verificación); encabezado fijo solo cuando cabe (sin encabezado fijo entre 1200 y ~1400 px).
+
+## R8 — Títulos en el nombre (agregado al implementar US2)
+
+**Decision**: las iniciales del avatar y el saludo de Inicio saltan las palabras abreviadas con punto
+("Dra. Ana Pérez" → "AP" y "¡Hola, Ana!"), salvo que el nombre sea solo eso
+(`src/app/iniciales.ts`). Antes daban "DA" y "¡Hola, Dra.!".
+
+**Rationale**: al poder editar su nombre, es esperable que dentistas agreguen "Dr."/"Dra.". El ejemplo
+de la spec (US2) ya suponía "AP".
+
+**Otros ajustes**: `AppHeader`/`TopBar` reciben `onVerPerfil` opcional. Sin él (tests que los
+renderizan solos), el menú no ofrece "Ver perfil".
+

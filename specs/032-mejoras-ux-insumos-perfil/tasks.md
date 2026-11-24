@@ -56,27 +56,29 @@ Editar insumo.
 
 **Independent Test**: spec US2, quickstart §2.
 
-- [ ] T010 [US2] Migración `supabase/migrations/20261127000000_nombre_propio.sql` con
+- [x] T010 [US2] Migración `supabase/migrations/20261127000000_nombre_propio.sql` con
   `actualizar_mi_nombre` (contracts/api.md: 1–80, `nombre_invalido`, 42501 si está desactivado,
   grants)
-- [ ] T011 [US2] Controles 1–5 de contracts/api.md en `scripts/test-rls.mjs`; `supabase db reset &&
-  npm run test:rls` en verde
-- [ ] T012 [P] [US2] `guardarNombrePropio(nombre)` (rpc, mensajes "Escribe tu nombre." / "Necesitas
+- [x] T011 [US2] Controles 1–5 de contracts/api.md en `scripts/test-rls.mjs`; `supabase db reset &&
+  npm run test:rls` en verde. Hecho con `supabase migration up --local` (sin reset): los 6 controles
+  nuevos pasan; falla 1 control previo ajeno ("estimación: sin clave da no_configurado", spec 029),
+  que depende de la configuración local de la función de IA
+- [x] T012 [P] [US2] `guardarNombrePropio(nombre)` (rpc, mensajes "Escribe tu nombre." / "Necesitas
   conexión para cambiar tu nombre.") en `src/lib/supabase/perfiles.ts`
-- [ ] T013 [P] [US2] `actualizarNombre` (usuarioActual + `usuariosConocidos`) en
+- [x] T013 [P] [US2] `actualizarNombre` (usuarioActual + `usuariosConocidos`) en
   `src/stores/authStore.ts`, y `revisarPerfil` que refresca el nombre en `src/lib/sync/index.ts`
-- [ ] T014 [US2] "Editar nombre" con Guardar/Cancelar en
+- [x] T014 [US2] "Editar nombre" con Guardar/Cancelar en
   `src/features/ajustes/components/PerfilSection.tsx` (ui-contracts §5)
-- [ ] T015 [P] [US2] `irASeccionAjustes(id)` en `src/app/useVista.ts` (setVista('mas') +
+- [x] T015 [P] [US2] `irASeccionAjustes(id)` en `src/app/useVista.ts` (setVista('mas') +
   `abrirSeccion` + `popstate`, research R6), y pasarla por `src/app/App.tsx` y `src/app/AppShell.tsx`
-- [ ] T016 [US2] `src/app/MenuPerfil.tsx` (ui-contracts §4: `role="menu"`, teclado, click fuera,
+- [x] T016 [US2] `src/app/MenuPerfil.tsx` (ui-contracts §4: `role="menu"`, teclado, click fuera,
   foco)
-- [ ] T017 [US2] Usar `MenuPerfil` en `src/app/AppHeader.tsx` y `src/app/TopBar.tsx`; actualizar el
+- [x] T017 [US2] Usar `MenuPerfil` en `src/app/AppHeader.tsx` y `src/app/TopBar.tsx`; actualizar el
   comentario de spec 011 en `AppHeader`
-- [ ] T018 [P] [US2] `tests/integration/menu-perfil.test.tsx`: abre/cierra (Escape, click fuera), el
+- [x] T018 [P] [US2] `tests/integration/menu-perfil.test.tsx`: abre/cierra (Escape, click fuera), el
   foco vuelve al avatar, Ver perfil abre Perfil desde otra vista y con Ajustes ya montado en otra
   sección, Cerrar sesión, móvil y desktop
-- [ ] T019 [P] [US2] `tests/integration/perfil-nombre.test.tsx`: personal guarda su nombre, las
+- [x] T019 [P] [US2] `tests/integration/perfil-nombre.test.tsx`: personal guarda su nombre, las
   iniciales cambian, vacío da error, sin conexión da error, el sync con otro nombre lo refresca
 
 ## Phase 5: US3 — Encabezado de la tabla fijo (P3)
