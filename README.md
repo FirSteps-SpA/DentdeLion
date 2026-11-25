@@ -398,6 +398,30 @@ lleva su lugar y se suma igual), pero el equipo vería cifras distintas. Avisar 
 y dejar de compartir bodega se hace en Ajustes → "Lugares de trabajo" (solo administración), y
 separar un lugar lo deja en 0 con traslados que quedan en el historial.
 
+**Release 2.12.0 (specs 032 y 033, PR #34 y #35):** **con dos migraciones**, sin Edge Functions
+nuevas ni versión nueva de Dexie. Pasos:
+
+1. Respaldo de producción (`respaldo.sh`).
+2. `supabase db push --linked` (**con visto bueno explícito**): aplica
+   `20261127000000_nombre_propio` y `20261128000000_bodega_compartida`. Comprobar en producción: mismas
+   tablas y conteos que el respaldo, todos los lugares con `bodega_id` vacío, y que `anon` no puede
+   ejecutar `actualizar_mi_nombre` y `authenticated` sí.
+3. Merge del PR `release/2.12.0` a `main` (Netlify publica el front), tag `2.12.0` y merge de vuelta
+   a `develop`.
+4. Comprobar en la app: "Editar nombre" en el perfil guarda el nombre, y Ajustes → "Lugares de
+   trabajo" muestra "Compartir bodega" (solo administración, con dos lugares o más).
+5. **No compartir bodegas** hasta que todos los equipos de la clínica tengan la 2.12.0 (nota de la
+   spec 033, arriba).
+
+Ensayado el 2026-11-25 sobre la restauración de un respaldo de producción tomado antes del release
+(24 tablas, 1239 filas; copia en `~/backups/dentdelion/2026-11-25-pre212`): las dos migraciones
+aplican sin error, 24 tablas y 1239 filas iguales, `perfiles` y `lugares` sin cambios (fuera de la
+columna nueva), los 6 lugares con `bodega_id` vacío; el check rechaza `bodega_id = id` y el índice
+existe; `actualizar_mi_nombre` cambia solo el nombre propio (recortado), rechaza nombres vacíos o de
+más de 80 caracteres y sin sesión responde `sin_permiso`. Una 2.11.0 en caché sigue funcionando con el
+servidor nuevo (no usa la función y no envía `bodega_id`, que se conserva). Si el front falla, se
+revierte solo el front.
+
 ## ¿Quedó bien configurado mi entorno?
 
 Checklist manual (sin script) — cada punto debe poder confirmarse a simple vista en menos de 2
