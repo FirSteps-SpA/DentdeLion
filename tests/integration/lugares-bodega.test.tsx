@@ -216,3 +216,60 @@ describe('compartir bodega en Ajustes → Lugares (spec 033 US1)', () => {
     expect(SECCIONES_AJUSTES.find((s) => s.id === 'lugares')?.soloAdministracion).toBe(true)
   })
 })
+
+describe('dejar de compartir bodega (spec 033 US3)', () => {
+  beforeEach(() => {
+    lugaresT.seed([
+      { ...lugar1, bodegaId: 'b' },
+      { ...lugar2, bodegaId: 'b' },
+    ])
+    minimosT.seed([minimo(LUGAR_1, 5), minimo(LUGAR_2, 5)])
+    reflejar()
+  })
+
+  const stockEn = (lugarId: string) =>
+    movimientosT
+      .all()
+      .filter((m) => m.lugarId === lugarId)
+      .reduce(
+        (t, m) =>
+          ['ingreso', 'traslado_entrada'].includes(m.tipo) ? t + m.cantidad : t - m.cantidad,
+        0,
+      )
+
+  it('confirma, deja Box Las Condes en 0 y Clínica con las 3 jeringas', async () => {
+    render(<LugaresSection />)
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Dejar de compartir bodega de Box Las Condes' }),
+    )
+    const confirmacion = await screen.findByRole('dialog', { name: '¿Dejar de compartir bodega?' })
+    expect(confirmacion).toHaveTextContent(
+      'El stock común se queda en Clínica. Box Las Condes empezará en 0; podrás trasladarle stock después.',
+    )
+    fireEvent.click(within(confirmacion).getByRole('button', { name: 'Dejar de compartir' }))
+
+    await waitFor(() => expect(screen.queryByText(/Comparte bodega con/)).not.toBeInTheDocument())
+    expect(stockEn(LUGAR_2)).toBe(0)
+    expect(stockEn(LUGAR_1)).toBe(3)
+    expect(movimientosT.all().slice(0, movimientosIniciales.length)).toEqual(movimientosIniciales)
+  })
+
+  it('desactivar un lugar de la bodega avisa que primero se separa, y lo hace', async () => {
+    render(<LugaresSection />)
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Desactivar' })[1])
+    const confirmacion = await screen.findByRole('dialog', {
+      name: '¿Desactivar Box Las Condes?',
+    })
+    expect(confirmacion).toHaveTextContent('Primero se separará de la bodega')
+    fireEvent.click(within(confirmacion).getByRole('button', { name: 'Desactivar' }))
+
+    await waitFor(() =>
+      expect(lugaresT.all().find((l) => l.id === LUGAR_2)?.desactivadoEn).toBeTruthy(),
+    )
+    expect(lugaresT.all().map((l) => l.bodegaId ?? null)).toEqual([null, null])
+    expect(stockEn(LUGAR_1)).toBe(3)
+    expect(stockEn(LUGAR_2)).toBe(0)
+  })
+})

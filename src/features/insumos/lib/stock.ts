@@ -64,6 +64,16 @@ export function stockLoteEnBodega(
 }
 
 /**
+ * Spec 033 (research.md R6): ids de los lotes con algún movimiento en el
+ * lugar, para buscar sus saldos propios al separarlo de una bodega. Solo lee
+ * ids; las cantidades se leen normalizadas con `movimientosNormalizadosDeLote`.
+ */
+export async function lotesConMovimientosEnLugar(lugarId: string): Promise<Set<string>> {
+  const delLugar = await db.movimientos.filter((m) => m.lugarId === lugarId).toArray()
+  return new Set(delLugar.map((m) => m.loteId))
+}
+
+/**
  * Lotes visibles en un lugar (data-model.md): los dados de alta ahí, más los
  * que tienen movimientos ahí (llegaron por traslado). Así un lote recién
  * creado se ve aunque aún no tenga stock, y uno que solo pasó por el lugar se

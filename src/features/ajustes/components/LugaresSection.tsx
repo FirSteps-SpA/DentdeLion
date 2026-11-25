@@ -9,7 +9,7 @@ import {
   useLugarStore,
 } from '../../../stores/lugarStore'
 import { stockLoteEnBodega } from '../../insumos/lib/stock'
-import { compartirBodega, resumenDeJuntar } from '../../insumos/lib/bodega'
+import { compartirBodega, resumenDeJuntar, separarDeBodega } from '../../insumos/lib/bodega'
 import {
   crearLugar,
   desactivarLugar,
@@ -33,10 +33,11 @@ import { useNombreAutor } from '../../../stores/useNombreAutor'
 type Modo =
   | { tipo: 'crear' }
   | { tipo: 'renombrar'; lugar: Lugar }
-  | { tipo: 'desactivar'; lugar: Lugar; conStock: number }
+  | { tipo: 'desactivar'; lugar: Lugar; conStock: number; compartidaCon: string | null }
   | { tipo: 'porcentaje'; lugar: Lugar }
   | { tipo: 'compartir'; lugar: Lugar }
   | { tipo: 'confirmarCompartir'; lugar: Lugar; conId: string }
+  | { tipo: 'separar'; lugar: Lugar; compartidaCon: string }
   | null
 
 /**
@@ -45,7 +46,8 @@ type Modo =
  * reactivar lugares. Solo administradores (la monta `AjustesView`).
  *
  * Spec 033 (US1, ui-contracts §1): "Comparte bodega con …" y "Compartir
- * bodega con…", con una confirmación que resume el efecto y unifica mínimos.
+ * bodega con…", con una confirmación que resume el efecto y unifica mínimos;
+ * "Dejar de compartir bodega" y desactivar separando primero (US3).
  */
 export function LugaresSection({ sinTitulo = false }: { sinTitulo?: boolean } = {}) {
   const lugares = useLugarStore((s) => s.lugares)
@@ -153,8 +155,10 @@ export function LugaresSection({ sinTitulo = false }: { sinTitulo?: boolean } = 
 
   function pedirDesactivar(lugar: Lugar) {
     const conStock = insumosConStock(lugar.id)
-    if (conStock > 0) {
-      abrir({ tipo: 'desactivar', lugar, conStock })
+    const con = compartidaCon(lugar)
+    // Spec 033 (FR-010): si comparte bodega, siempre se confirma la separación.
+    if (conStock > 0 || con) {
+      abrir({ tipo: 'desactivar', lugar, conStock, compartidaCon: con })
       return
     }
     void ejecutar(() => desactivarLugar(lugar.id))
@@ -255,6 +259,18 @@ export function LugaresSection({ sinTitulo = false }: { sinTitulo?: boolean } = 
                   %
                 </TouchButton>
                 {desactivado && <Badge variant="warning-30">Desactivado</Badge>}
+                {con && (
+                  <TouchButton
+                    type="button"
+                    variant="ghost"
+                    onClick={() => abrir({ tipo: 'separar', lugar, compartidaCon: con })}
+                    aria-label={`Dejar de compartir bodega de ${lugar.nombre}`}
+                    className="px-3 text-xs"
+                  >
+                    <Undo size={16} />
+                    Dejar de compartir bodega
+                  </TouchButton>
+                )}
                 {!desactivado && bodegas.length > 1 && (
                   <TouchButton
                     type="button"
@@ -533,13 +549,55 @@ export function LugaresSection({ sinTitulo = false }: { sinTitulo?: boolean } = 
         </BottomSheet>
       )}
 
+      {modo?.tipo === 'separar' && (
+        <BottomSheet
+          titulo="¿Dejar de compartir bodega?"
+          onClose={() => setModo(null)}
+        >
+          <div data-sheet-body className="flex flex-col gap-3">
+            <p className="text-sm text-text">
+              El stock común se queda en {modo.compartidaCon}. {modo.lugar.nombre} empezará en 0;
+              podrás trasladarle stock después.
+            </p>
+            <p className="text-xs text-text-muted">
+              Lo que {modo.lugar.nombre} tenía por sus propios movimientos se registra como
+              traslados a la bodega. El historial no cambia.
+            </p>
+            {error && (
+              <p role="alert" className="text-sm text-danger">
+                {error}
+              </p>
+            )}
+            <TouchButton
+              type="button"
+              disabled={ocupado}
+              onClick={() => void ejecutar(() => separarDeBodega(modo.lugar.id))}
+            >
+              Dejar de compartir
+            </TouchButton>
+            <TouchButton type="button" variant="ghost" onClick={() => setModo(null)}>
+              Cancelar
+            </TouchButton>
+          </div>
+        </BottomSheet>
+      )}
+
       {modo?.tipo === 'desactivar' && (
         <BottomSheet titulo={`¿Desactivar ${modo.lugar.nombre}?`} onClose={() => setModo(null)}>
           <div data-sheet-body className="flex flex-col gap-3">
-            <p className="text-sm text-text">
-              Tiene {modo.conStock === 1 ? '1 insumo' : `${modo.conStock} insumos`} con stock. Su
-              stock dejará de verse en el selector. El historial se conserva y puedes reactivarlo.
-            </p>
+            {modo.compartidaCon ? (
+              <p className="text-sm text-text">
+                Comparte bodega con {modo.compartidaCon}. Primero se separará de la bodega: el
+                stock común se queda en {modo.compartidaCon}. El historial se conserva y puedes
+                reactivarlo.
+              </p>
+            ) : (
+              <p className="text-sm text-text">
+                Tiene {modo.conStock === 1 ? '1 insumo' : `${modo.conStock} insumos`} con stock. Su
+                stock dejará de verse en el selector. El historial se conserva y puedes
+                reactivarlo.
+              </p>
+            )}
             {error && (
               <p role="alert" className="text-sm text-danger">
                 {error}

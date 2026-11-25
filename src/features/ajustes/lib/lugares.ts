@@ -1,7 +1,8 @@
 import { db, type Lugar } from '../../../lib/db'
 import { getSupabaseStatus } from '../../../lib/supabase'
 import { tenantActualOFallar, useAuthStore } from '../../../stores/authStore'
-import { lugaresActivos } from '../../../stores/lugarStore'
+import { comparteBodega, lugaresActivos } from '../../../stores/lugarStore'
+import { separarDeBodega, tablasSeparar } from '../../insumos/lib/bodega'
 
 /**
  * Gestión de lugares de trabajo (spec 014 US4, FR-011). Solo administradores
@@ -67,16 +68,24 @@ export async function renombrarLugar(id: string, nombre: string): Promise<void> 
   await db.lugares.update(id, { nombre: nombre.trim(), sincronizado: false })
 }
 
-/** Conserva el historial; no se permite con el último lugar activo (FR-005). */
+/**
+ * Conserva el historial; no se permite con el último lugar activo (FR-005).
+ * Spec 033 (FR-010): si comparte bodega, primero se separa (su saldo pasa a la
+ * bodega), en la misma transacción.
+ */
 export async function desactivarLugar(id: string): Promise<void> {
   exigirAdministrador()
-  const activos = lugaresActivos(await lugaresDelTenant())
-  if (activos.length <= 1 && activos.some((lugar) => lugar.id === id)) {
-    throw new Error('Debe quedar al menos un lugar de trabajo activo.')
-  }
-  await db.lugares.update(id, {
-    desactivadoEn: new Date().toISOString(),
-    sincronizado: false,
+  await db.transaction('rw', tablasSeparar(), async () => {
+    const lugares = await lugaresDelTenant()
+    const activos = lugaresActivos(lugares)
+    if (activos.length <= 1 && activos.some((lugar) => lugar.id === id)) {
+      throw new Error('Debe quedar al menos un lugar de trabajo activo.')
+    }
+    if (comparteBodega(id, lugares)) await separarDeBodega(id)
+    await db.lugares.update(id, {
+      desactivadoEn: new Date().toISOString(),
+      sincronizado: false,
+    })
   })
 }
 

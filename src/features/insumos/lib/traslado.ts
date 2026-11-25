@@ -63,7 +63,12 @@ async function lugaresDelTenant(): Promise<Lugar[]> {
   return db.lugares.where('tenantId').equals(tenantActualOFallar()).toArray()
 }
 
-async function escribirPar(
+/**
+ * Escribe las dos mitades del traslado, sin validar: lo llaman `trasladar`,
+ * `deshacerTraslado` y, dentro de la bodega, `separarDeBodega` (spec 033 R6).
+ * Debe correr dentro de una transacción que incluya `movimientos`.
+ */
+export async function escribirPar(
   input: TrasladoInput & { unidad?: string },
   movimientoOrigenId?: string,
 ): Promise<[Movimiento, Movimiento]> {

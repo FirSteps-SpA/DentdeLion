@@ -131,15 +131,20 @@ unifica mínimos.
 
 **Independent Test**: spec US3, quickstart §3.
 
-- [ ] T025 [US3] `separarDeBodega(lugarId)` en `src/features/insumos/lib/bodega.ts` (research R6,
+- [x] T025 [US3] `separarDeBodega(lugarId)` en `src/features/insumos/lib/bodega.ts` (research R6,
   data-model § Movimientos al separar): traslados por saldo propio ±, `bodegaId = null` y también el
-  del último lugar si queda solo, en una transacción
-- [ ] T026 [P] [US3] `tests/unit/separar-bodega.test.ts`: saldo positivo, negativo y cero, bodega de
+  del último lugar si queda solo, en una transacción. El traslado sale de `escribirPar`
+  (`traslado.ts`, ahora exportado), contra el primer lugar activo que queda en la bodega
+- [x] T026 [P] [US3] `tests/unit/separar-bodega.test.ts`: saldo positivo, negativo y cero, bodega de
   dos y de tres lugares, historial intacto, stock final (Box 2 = 0, el resto = total), mínimo que
-  conserva el separado
-- [ ] T027 [US3] UI "Dejar de compartir bodega" y desactivar con separación previa en
-  `LugaresSection.tsx` (FR-007/010, ui-contracts §1)
-- [ ] T028 [P] [US3] Casos de separar y desactivar en `tests/integration/lugares-bodega.test.tsx`
+  conserva el separado. También desactivar con separación previa (`desactivarLugar` separa en la
+  misma transacción). Checkpoint: lint y tipos ok; 1426/1427 (falla solo el rendimiento de
+  `inventario-tabla` por carga, pasa aislado). `lecturas-movimientos` pidió leer los lotes del
+  lugar desde `stock.ts` (`lotesConMovimientosEnLugar`)
+- [x] T027 [US3] UI "Dejar de compartir bodega" y desactivar con separación previa en
+  `LugaresSection.tsx` (FR-007/010, ui-contracts §1). Recorrido con el driver (móvil): juntar y
+  separar Box 2 → Clínica conserva 3 cajas y Box 2 queda en 0 ("Sin stock")
+- [x] T028 [P] [US3] Casos de separar y desactivar en `tests/integration/lugares-bodega.test.tsx`
 
 ## Phase 6: Polish
 

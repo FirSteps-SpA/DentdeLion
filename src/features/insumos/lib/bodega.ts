@@ -1,8 +1,14 @@
 import { db, type Insumo, type Lote, type Lugar, type MinimoLugar, type Movimiento } from '../../../lib/db'
 import { tenantActualOFallar, useAuthStore } from '../../../stores/authStore'
-import { lugaresDeBodega, rotuloBodega } from '../../../stores/lugarStore'
+import { lugaresActivos, lugaresDeBodega, rotuloBodega } from '../../../stores/lugarStore'
 import { minimoEfectivoBodega } from './minimos'
-import { stockLoteEnBodega } from './stock'
+import {
+  lotesConMovimientosEnLugar,
+  movimientosNormalizadosDeLote,
+  stockLoteEnBodega,
+  stockLoteEnLugar,
+} from './stock'
+import { escribirPar } from './traslado'
 
 /**
  * Spec 033 — configuración de bodegas compartidas (research.md R5/R6,
@@ -139,5 +145,52 @@ export async function compartirBodega(
     }
     if (filas.length > 0) await db.minimosLugar.bulkPut(filas)
     return bodegaId
+  })
+}
+
+/** Tablas que toca `separarDeBodega`; quien la anide en su transacción debe incluirlas. */
+export function tablasSeparar() {
+  return [db.lugares, db.movimientos, db.lotes, db.insumos, db.cambiosInsumo]
+}
+
+/**
+ * Spec 033 (US3, FR-007..FR-009, research.md R6, data-model § Movimientos al
+ * separar): separa `lugarId` de su bodega compartida en una transacción Dexie.
+ * Por cada lote con saldo propio ≠ 0 en el lugar (lo que suman **sus**
+ * movimientos) escribe un traslado que lo lleva a 0, contra otro lugar activo
+ * de la bodega: así el lugar separado empieza en 0 y la bodega conserva todo
+ * el stock común, sin tocar movimientos anteriores. Luego deja `bodegaId =
+ * null` en el lugar, y también en el último que quede solo. Conserva sus
+ * mínimos, que ya son los de la bodega. Devuelve cuántos traslados escribió.
+ */
+export async function separarDeBodega(lugarId: string): Promise<number> {
+  exigirAdministrador()
+  const tenantId = tenantActualOFallar()
+  return db.transaction('rw', tablasSeparar(), async () => {
+    const lugares = await db.lugares.where('tenantId').equals(tenantId).toArray()
+    const bodega = lugaresDeBodega(lugarId, lugares)
+    if (bodega.size < 2) throw new Error('Ese lugar no comparte bodega.')
+    const destino = lugaresActivos(lugares).find((l) => l.id !== lugarId && bodega.has(l.id))
+    if (!destino) throw new Error('Ese lugar no comparte bodega.')
+
+    const loteIds = await lotesConMovimientosEnLugar(lugarId)
+    let traslados = 0
+    for (const loteId of loteIds) {
+      const saldo = stockLoteEnLugar(await movimientosNormalizadosDeLote(loteId), loteId, lugarId)
+      if (Math.abs(saldo) <= 1e-9) continue
+      await escribirPar(
+        saldo > 0
+          ? { loteId, origenId: lugarId, destinoId: destino.id, cantidad: saldo }
+          : { loteId, origenId: destino.id, destinoId: lugarId, cantidad: -saldo },
+      )
+      traslados++
+    }
+
+    await db.lugares.update(lugarId, { bodegaId: null, sincronizado: false })
+    const restantes = [...bodega].filter((id) => id !== lugarId)
+    if (restantes.length === 1) {
+      await db.lugares.update(restantes[0], { bodegaId: null, sincronizado: false })
+    }
+    return traslados
   })
 }
