@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { Movimiento } from '../../src/lib/db'
+import type { Lugar, Movimiento } from '../../src/lib/db'
 
 let movimientosMock: Movimiento[] = []
+let lugaresMock: Lugar[] = []
 const updateLote = vi.fn(async (id: string, changes: unknown) => {
   void id
   void changes
@@ -10,6 +11,7 @@ const updateLote = vi.fn(async (id: string, changes: unknown) => {
 
 vi.mock('../../src/lib/db', () => ({
   db: {
+    lugares: { toArray: async () => lugaresMock },
     movimientos: {
       where: () => ({
         equals: () => ({
@@ -26,7 +28,8 @@ vi.mock('../../src/lib/db', () => ({
 }))
 
 import { reconcileOverdraft } from '../../src/lib/sync/reconcileOverdraft'
-import { LUGAR_1, TENANT_1 } from '../helpers/tenancy'
+import { lugar1, lugar2 } from '../helpers/lugarFalso'
+import { LUGAR_1, LUGAR_2, TENANT_1 } from '../helpers/tenancy'
 
 function makeMovimiento(overrides: Partial<Movimiento>): Movimiento {
   return {
@@ -50,6 +53,7 @@ function makeMovimiento(overrides: Partial<Movimiento>): Movimiento {
 afterEach(() => {
   vi.clearAllMocks()
   movimientosMock = []
+  lugaresMock = []
 })
 
 describe('reconcileOverdraft', () => {
@@ -88,5 +92,51 @@ describe('reconcileOverdraft', () => {
     // delete/mutate movimientos, so the input array is necessarily untouched.
     expect(movimientosMock).toEqual(movimientos)
     expect(updateLote).toHaveBeenCalledTimes(1)
+  })
+
+  // Spec 033 (R3, T012): el sobregiro se mide contra el stock común.
+  describe('bodega compartida', () => {
+    it('no marca un consumo en Box 2 de un lote ingresado en Box 1', async () => {
+      lugaresMock = [
+        { ...lugar1, bodegaId: 'b' },
+        { ...lugar2, bodegaId: 'b' },
+      ]
+      movimientosMock = [
+        makeMovimiento({ tipo: 'ingreso', cantidad: 5, lugarId: LUGAR_1 }),
+        makeMovimiento({ tipo: 'consumo', cantidad: 3, lugarId: LUGAR_2 }),
+      ]
+
+      await reconcileOverdraft('lote-1')
+
+      expect(updateLote).not.toHaveBeenCalled()
+    })
+
+    it('dos consumos sin conexión en dos lugares que superan el común → En revisión', async () => {
+      lugaresMock = [
+        { ...lugar1, bodegaId: 'b' },
+        { ...lugar2, bodegaId: 'b' },
+      ]
+      movimientosMock = [
+        makeMovimiento({ tipo: 'ingreso', cantidad: 5, lugarId: LUGAR_1 }),
+        makeMovimiento({ tipo: 'consumo', cantidad: 4, lugarId: LUGAR_1 }),
+        makeMovimiento({ tipo: 'consumo', cantidad: 3, lugarId: LUGAR_2 }),
+      ]
+
+      await reconcileOverdraft('lote-1')
+
+      expect(updateLote).toHaveBeenCalledWith('lote-1', { estado: 'revision' })
+    })
+
+    it('sin bodega compartida, el mismo consumo en Box 2 sí se marca (FR-019)', async () => {
+      lugaresMock = [lugar1, lugar2]
+      movimientosMock = [
+        makeMovimiento({ tipo: 'ingreso', cantidad: 5, lugarId: LUGAR_1 }),
+        makeMovimiento({ tipo: 'consumo', cantidad: 3, lugarId: LUGAR_2 }),
+      ]
+
+      await reconcileOverdraft('lote-1')
+
+      expect(updateLote).toHaveBeenCalledWith('lote-1', { estado: 'revision' })
+    })
   })
 })

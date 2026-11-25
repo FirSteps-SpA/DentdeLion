@@ -20,6 +20,7 @@ import {
   type FilaStockLote,
 } from '../lib/ajusteStock'
 import { darDeBajaInsumo } from '../lib/catalogo'
+import { minimoPropioBodega } from '../lib/minimos'
 import { ICONO_ESTADO } from '../lib/estadoIconos'
 import { computeStockLote } from '../lib/stock'
 import { ConfirmarBajaDialog } from './ConfirmarBajaDialog'
@@ -27,7 +28,12 @@ import { SelectorMarca } from '../../marcas/components/SelectorMarca'
 import { Card } from '../../../components/ui/Card'
 import { IconField } from '../../../components/ui/IconField'
 import { TouchButton } from '../../../components/ui/TouchButton'
-import { hayVariosLugares, nombreLugar, useLugarStore } from '../../../stores/lugarStore'
+import {
+  hayVariosLugares,
+  lugaresDeBodega,
+  nombreEnTodos,
+  useLugarStore,
+} from '../../../stores/lugarStore'
 import { PresentacionFields } from './PresentacionFields'
 import { CantidadDobleField } from './CantidadDobleField'
 import { aConsumo, type CantidadTecleada, type PresentacionDoble } from '../lib/cantidadDoble'
@@ -165,9 +171,10 @@ export function EditarInsumoForm({
     hayVariosLugares(lugares) && lugarActivoId && lugarActivoId !== 'todos'
       ? lugarActivoId
       : null
-  const minimoLugarActual = lugarMinimo
-    ? (minimosLugar.find((m) => m.insumoId === insumo.id && m.lugarId === lugarMinimo)
-        ?.stockMinimo ?? null)
+  // Spec 033 (R4): en una bodega compartida, el mínimo es de la bodega.
+  const bodegaMinimo = lugarMinimo ? lugaresDeBodega(lugarMinimo, lugares) : null
+  const minimoLugarActual = bodegaMinimo
+    ? minimoPropioBodega(insumo.id, bodegaMinimo, minimosLugar)
     : null
   // Spec 032 (R1): los mínimos se escriben en unidad de compra o de consumo;
   // se guardan en consumo (`aConsumo`), y parten en consumo.
@@ -411,8 +418,10 @@ export function EditarInsumoForm({
         <div className="flex flex-col gap-1">
           <CantidadDobleField
             id="editar-minimo-lugar"
-            label={`Stock mínimo en ${nombreLugar(lugares, lugarMinimo)}`}
-            ayuda="Vacío = usar el mínimo del catálogo en este lugar."
+            label={`Stock mínimo en ${nombreEnTodos(lugarMinimo, lugares)}`}
+            ayuda={`Vacío = usar el mínimo del catálogo ${
+              bodegaMinimo && bodegaMinimo.size > 1 ? 'en estos lugares' : 'en este lugar'
+            }.`}
             presentacion={presentacionDoble}
             valor={minimoLugar}
             onChange={setMinimoLugar}

@@ -1,6 +1,6 @@
 import { BottomSheet } from '../components/ui/BottomSheet'
 import { CircleCheck, MapPin } from '../components/icons'
-import { lugaresActivos, useLugarStore } from '../stores/lugarStore'
+import { etiquetaEnSelector, lugaresActivos, useLugarStore } from '../stores/lugarStore'
 
 export interface ElegirLugarSheetProps {
   titulo?: string
@@ -46,7 +46,7 @@ export function ElegirLugarSheet({
         {opciones.map((lugar) => (
           <OpcionLugar
             key={lugar.id}
-            nombre={lugar.nombre}
+            nombre={etiquetaEnSelector(lugar, lugares)}
             elegido={seleccionado === lugar.id}
             onClick={() => onElegir(lugar.id)}
           />

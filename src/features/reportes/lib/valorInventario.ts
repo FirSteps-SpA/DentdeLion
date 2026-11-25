@@ -13,6 +13,25 @@ export interface ValorEnFecha {
 
 export interface ValorInventario extends ValorEnFecha {
   variacion: Variacion
+  /**
+   * Spec 033 (FR-015): con un lugar de una bodega compartida, los otros
+   * lugares de la bodega ("Box 1"), porque el valor es el del stock común.
+   */
+  compartidoCon?: string
+  /** Spec 033 (FR-015): en "Todos" con alguna bodega compartida, una fila por bodega. */
+  desglose?: { nombre: string; valor: ValorEnFecha }[]
+}
+
+/**
+ * Spec 033 (research.md R7): un lugar, `'todos'` o el conjunto de lugares de
+ * una bodega (`lugaresDeBodega`), que suma el stock común sin contarlo dos veces.
+ */
+export type FiltroValor = FiltroLugar | ReadonlySet<string>
+
+function incluyeLugar(filtro: FiltroValor, lugarId: string): boolean {
+  if (filtro === 'todos') return true
+  if (typeof filtro === 'string') return lugarId === filtro
+  return filtro.has(lugarId)
 }
 
 /**
@@ -27,7 +46,7 @@ export function valorInventario(
   movimientos: Movimiento[],
   lotes: Lote[],
   indice: IndiceCostos,
-  filtro: FiltroLugar,
+  filtro: FiltroValor,
   fecha: Date,
 ): ValorEnFecha {
   const limite = fecha.getTime()
@@ -35,7 +54,7 @@ export function valorInventario(
   const porLote = new Map<string, Movimiento[]>()
   for (const movimiento of movimientos) {
     if (Date.parse(movimiento.creadoEn) >= limite) continue
-    if (filtro !== 'todos' && movimiento.lugarId !== filtro) continue
+    if (!incluyeLugar(filtro, movimiento.lugarId)) continue
     const grupo = porLote.get(movimiento.loteId)
     if (grupo) grupo.push(movimiento)
     else porLote.set(movimiento.loteId, [movimiento])
@@ -64,7 +83,7 @@ export function valorInventarioConVariacion(
   movimientos: Movimiento[],
   lotes: Lote[],
   indice: IndiceCostos,
-  filtro: FiltroLugar,
+  filtro: FiltroValor,
   ahora: Date,
 ): ValorInventario {
   const actual = valorInventario(movimientos, lotes, indice, filtro, new Date(ahora.getTime() + 1))

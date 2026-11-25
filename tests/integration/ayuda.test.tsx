@@ -74,6 +74,17 @@ describe('"?" en cada pantalla (US1)', () => {
     expect(hoja.closest('.z-10')).toBeNull()
   })
 
+  it('Lugares explica compartir y dejar de compartir bodega (spec 033 T029)', () => {
+    render(<EncabezadoVista titulo="Lugares de trabajo" ayuda="ajustes:lugares" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Ayuda de Lugares de trabajo' }))
+    const hoja = screen.getByRole('dialog', { name: 'Ayuda: Lugares de trabajo' })
+    expect(within(hoja).getByRole('heading', { name: 'Compartir bodega' })).toBeInTheDocument()
+    expect(
+      within(hoja).getByRole('heading', { name: 'Dejar de compartir bodega' }),
+    ).toBeInTheDocument()
+    expect(within(hoja).getByText(/primero se separa/)).toBeInTheDocument()
+  })
+
   it('personal no ve "?" en una pantalla solo de administración', () => {
     useAuthStore.setState({ usuario: personal })
     render(<EncabezadoVista titulo="Lugares de trabajo" ayuda="ajustes:lugares" />)

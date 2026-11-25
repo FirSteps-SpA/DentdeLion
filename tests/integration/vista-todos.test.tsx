@@ -146,7 +146,7 @@ describe('vista "Todos" (spec 014 US3)', () => {
     render(<InventarioView />)
 
     expect(screen.getByText('5 cartuchos')).toBeInTheDocument()
-    expect(screen.getByText('Clínica 2 · Box Las Condes 3')).toBeInTheDocument()
+    expect(screen.getByText('Clínica: 2 · Box Las Condes: 3')).toBeInTheDocument()
   })
 
   it('"Consumir" pide el lugar y registra en el elegido, sin salir de "Todos" (spec 025)', async () => {

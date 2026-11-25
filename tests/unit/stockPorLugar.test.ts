@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest'
 import type { Insumo, ItemCompra, Lote, MinimoLugar, Movimiento } from '../../src/lib/db'
 import {
   computeStockLote,
+  lotesEnBodega,
   lotesEnLugar,
+  stockLoteEnBodega,
   stockLoteEnLugar,
 } from '../../src/features/insumos/lib/stock'
-import { minimoEfectivo } from '../../src/features/insumos/lib/minimos'
-import { datosDeLugar } from '../../src/features/insumos/lib/vistaLugar'
+import { minimoEfectivo, minimoEfectivoBodega } from '../../src/features/insumos/lib/minimos'
+import { datosDeBodega, datosDeLugar } from '../../src/features/insumos/lib/vistaLugar'
 import { computeInsumosStockBajo } from '../../src/features/alertas/lib/stockBajo'
 import { LUGAR_1, LUGAR_2, TENANT_1 } from '../helpers/tenancy'
 
@@ -137,5 +139,47 @@ describe('datosDeLugar (SC-003)', () => {
     const conConsumo = { ...datos, movimientos: [...movimientos, mov('a', LUGAR_1, 'consumo', 6)] }
     const lugar2 = datosDeLugar(conConsumo, [], LUGAR_2)
     expect(stockLoteEnLugar(lugar2.movimientos, 'a', LUGAR_2)).toBe(4)
+  })
+})
+
+/** Spec 033 T006–T008 (research.md R2/R4, FR-012, FR-019). */
+describe('bodega compartida: stock, lotes y mínimo comunes', () => {
+  const ambos = new Set([LUGAR_1, LUGAR_2])
+  const minimos: MinimoLugar[] = [
+    { insumoId: 'i1', lugarId: LUGAR_1, tenantId: TENANT_1, stockMinimo: 3, sincronizado: true },
+    { insumoId: 'i1', lugarId: LUGAR_2, tenantId: TENANT_1, stockMinimo: 8, sincronizado: true },
+  ]
+  const items = [
+    { id: 'c1', lugarId: LUGAR_1 },
+    { id: 'c2', lugarId: LUGAR_2 },
+  ] as ItemCompra[]
+  const datos = { insumos: [insumo], lotes, movimientos, itemsCompra: items }
+
+  it('el stock de un lote en la bodega suma sus lugares; el saldo propio sigue por lugar', () => {
+    // Lote a: 10 en lugar 1, 4 trasladados al lugar 2 → 6 + 4 = 10 en la bodega.
+    expect(stockLoteEnBodega(movimientos, 'a', ambos)).toBe(10)
+    expect(stockLoteEnLugar(movimientos, 'a', LUGAR_1)).toBe(6)
+    expect(lotesEnBodega(lotes, movimientos, ambos).map((l) => l.id)).toEqual(['a', 'b'])
+  })
+
+  it('el mínimo de la bodega es el mayor de sus lugares (null si ninguno)', () => {
+    expect(minimoEfectivoBodega(insumo, ambos, minimos)).toBe(8)
+    expect(minimoEfectivoBodega({ ...insumo, stockMinimo: null }, ambos, [])).toBeNull()
+    expect(minimoEfectivoBodega(insumo, new Set([LUGAR_1]), minimos)).toBe(3)
+  })
+
+  it('la vista de la bodega junta movimientos, lotes, compras y usa el mínimo común', () => {
+    const bodega = datosDeBodega(datos, minimos, ambos)
+    expect(bodega.movimientos).toHaveLength(movimientos.length)
+    expect(bodega.itemsCompra.map((i) => i.id)).toEqual(['c1', 'c2'])
+    expect(bodega.insumos[0].stockMinimo).toBe(8)
+    // 12 cajas en total (10 de a + 2 de b), mínimo 8 → sin alerta de stock bajo.
+    expect(computeInsumosStockBajo(bodega.insumos, bodega.lotes, bodega.movimientos)).toEqual([])
+  })
+
+  it('con un solo lugar es idéntica a la vista del lugar (FR-019)', () => {
+    expect(datosDeBodega(datos, minimos, new Set([LUGAR_2]))).toEqual(
+      datosDeLugar(datos, minimos, LUGAR_2),
+    )
   })
 })

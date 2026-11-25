@@ -375,6 +375,20 @@ verificación; el propio cliente del operador se rechaza. Una 2.10.0 en caché s
 servidor nuevo (no usa las tablas nuevas; sin la tabla local de eliminados, muestra "otra persona").
 Si el front falla, se revierte solo el front.
 
+**Spec 033 (lugares que comparten bodega):** **con migración**
+(`20261128000000_bodega_compartida.sql`: solo agrega la columna `lugares.bodega_id`, vacía, con su
+índice y un check; ningún dato existente cambia) y sin versión nueva de Dexie. Orden: respaldo,
+`supabase db push --linked` (**con visto bueno explícito**), front. Comprobar en producción que todos
+los lugares quedan con `bodega_id` vacío: sin bodegas compartidas, todo funciona igual que antes.
+
+**No configurar bodegas compartidas hasta que todos los dispositivos del cliente tengan la versión
+nueva** (abrir la app una vez con red en cada equipo). Una versión anterior ve el stock de cada lugar
+por separado: en un lugar sin stock propio rechazaría un consumo por "stock insuficiente", y no
+excluiría de los traslados a los lugares de la misma bodega. Los datos no se dañan (cada movimiento
+lleva su lugar y se suma igual), pero el equipo vería cifras distintas. Avisar a la clínica: compartir
+y dejar de compartir bodega se hace en Ajustes → "Lugares de trabajo" (solo administración), y
+separar un lugar lo deja en 0 con traslados que quedan en el historial.
+
 ## ¿Quedó bien configurado mi entorno?
 
 Checklist manual (sin script) — cada punto debe poder confirmarse a simple vista en menos de 2

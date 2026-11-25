@@ -104,3 +104,109 @@ export function lugarParaEscribirOFallar(explicito?: string): string {
 export function nombreLugar(lugares: Lugar[], id: string): string {
   return lugares.find((lugar) => lugar.id === id)?.nombre ?? 'Lugar'
 }
+
+/**
+ * Spec 033 (data-model.md § Bodega): la bodega de un lugar es su `bodegaId`
+ * o, si no comparte, su propio id.
+ */
+export function bodegaDe(lugar: Lugar): string {
+  return lugar.bodegaId ?? lugar.id
+}
+
+const cacheBodegas = new WeakMap<Lugar[], Map<string, Set<string>>>()
+
+/**
+ * Spec 033: ids de los lugares **activos** que comparten bodega con `lugarId`
+ * (incluido él). Un lugar sin bodega compartida, o que no está en `lugares`,
+ * da solo su propio id: así toda la lógica por bodega es idéntica a la de un
+ * lugar cuando nadie comparte (FR-019). Memoizado por arreglo de lugares.
+ */
+export function lugaresDeBodega(lugarId: string, lugares: Lugar[]): Set<string> {
+  let porLugar = cacheBodegas.get(lugares)
+  if (!porLugar) {
+    porLugar = new Map()
+    cacheBodegas.set(lugares, porLugar)
+  }
+  const enCache = porLugar.get(lugarId)
+  if (enCache) return enCache
+  const lugar = lugares.find((l) => l.id === lugarId)
+  const conjunto = new Set<string>([lugarId])
+  if (lugar && !lugar.desactivadoEn) {
+    const bodega = bodegaDe(lugar)
+    for (const otro of lugaresActivos(lugares)) {
+      if (bodegaDe(otro) === bodega) conjunto.add(otro.id)
+    }
+  }
+  porLugar.set(lugarId, conjunto)
+  return conjunto
+}
+
+/** Spec 033: si el lugar comparte su stock con otro lugar activo. */
+export function comparteBodega(lugarId: string, lugares: Lugar[]): boolean {
+  return lugaresDeBodega(lugarId, lugares).size > 1
+}
+
+/**
+ * Spec 033: las bodegas de los lugares activos, cada una con sus lugares en el
+ * orden de `lugaresActivos`; las bodegas, en el orden de su primer lugar.
+ */
+export function bodegasActivas(lugares: Lugar[]): Lugar[][] {
+  const grupos = new Map<string, Lugar[]>()
+  for (const lugar of lugaresActivos(lugares)) {
+    const bodega = bodegaDe(lugar)
+    grupos.set(bodega, [...(grupos.get(bodega) ?? []), lugar])
+  }
+  return [...grupos.values()]
+}
+
+/** Spec 033: "Box 1 + Box 2", en el orden de `lugaresActivos`. */
+export function rotuloBodega(lugarIds: Iterable<string>, lugares: Lugar[]): string {
+  const ids = new Set(lugarIds)
+  return lugaresActivos(lugares)
+    .filter((lugar) => ids.has(lugar.id))
+    .map((lugar) => lugar.nombre)
+    .join(' + ')
+}
+
+/**
+ * Spec 033: `lugaresDeBodega` con los lugares que tiene cargados la store, para
+ * la lógica que no recibe la lista: validar contra el stock común una
+ * operación registrada en `lugarId` (research.md R3) o escribir el mínimo en
+ * toda la bodega (R4). Sin bodegas compartidas es `{lugarId}`.
+ */
+export function bodegaSegunStore(lugarId: string): Set<string> {
+  return lugaresDeBodega(lugarId, useLugarStore.getState().lugares)
+}
+
+/**
+ * Spec 033: el lugar que representa a la bodega de `lugarId`, el primero de
+ * sus lugares en el orden de `lugaresActivos` (el mismo que encabeza su vista
+ * en "Todos"). Sirve de clave estable para lo que es de la bodega, como un
+ * sugerido de Compras. Sin bodega compartida es el propio lugar.
+ */
+export function representanteDeBodega(lugarId: string, lugares: Lugar[]): string {
+  const bodega = lugaresDeBodega(lugarId, lugares)
+  if (bodega.size === 1) return lugarId
+  return lugaresActivos(lugares).find((lugar) => bodega.has(lugar.id))?.id ?? lugarId
+}
+
+/**
+ * Spec 033: el nombre con que "Todos" muestra el lugar: el rótulo de su bodega
+ * ("Box 1 + Box 2") si la comparte, o su nombre.
+ */
+export function nombreEnTodos(lugarId: string, lugares: Lugar[]): string {
+  const bodega = lugaresDeBodega(lugarId, lugares)
+  return bodega.size > 1 ? rotuloBodega(bodega, lugares) : nombreLugar(lugares, lugarId)
+}
+
+/**
+ * Spec 033 (ui-contracts §2): cómo se lista un lugar en el selector, "Box 2 ·
+ * bodega con Box 1" si comparte bodega. La pastilla del encabezado usa solo
+ * el nombre.
+ */
+export function etiquetaEnSelector(lugar: Lugar, lugares: Lugar[]): string {
+  const otros = [...lugaresDeBodega(lugar.id, lugares)].filter((id) => id !== lugar.id)
+  return otros.length === 0
+    ? lugar.nombre
+    : `${lugar.nombre} · bodega con ${rotuloBodega(otros, lugares)}`
+}

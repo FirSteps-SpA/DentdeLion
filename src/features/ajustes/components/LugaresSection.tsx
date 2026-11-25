@@ -1,8 +1,15 @@
 import { useEffect, useState } from 'react'
 import type { Lugar } from '../../../lib/db'
 import { useInventoryStore } from '../../../stores/inventoryStore'
-import { lugaresActivos, useLugarStore } from '../../../stores/lugarStore'
-import { stockLoteEnLugar } from '../../insumos/lib/stock'
+import {
+  bodegasActivas,
+  lugaresActivos,
+  lugaresDeBodega,
+  rotuloBodega,
+  useLugarStore,
+} from '../../../stores/lugarStore'
+import { stockLoteEnBodega } from '../../insumos/lib/stock'
+import { compartirBodega, resumenDeJuntar, separarDeBodega } from '../../insumos/lib/bodega'
 import {
   crearLugar,
   desactivarLugar,
@@ -11,7 +18,7 @@ import {
   reactivarLugar,
   renombrarLugar,
 } from '../lib/lugares'
-import { Building, MapPin, Pencil, Plus, Trash, Undo } from '../../../components/icons'
+import { Boxes, Building, MapPin, Pencil, Plus, Trash, Undo } from '../../../components/icons'
 import { Badge } from '../../../components/ui/Badge'
 import { BottomSheet } from '../../../components/ui/BottomSheet'
 import { Card } from '../../../components/ui/Card'
@@ -26,19 +33,30 @@ import { useNombreAutor } from '../../../stores/useNombreAutor'
 type Modo =
   | { tipo: 'crear' }
   | { tipo: 'renombrar'; lugar: Lugar }
-  | { tipo: 'desactivar'; lugar: Lugar; conStock: number }
+  | { tipo: 'desactivar'; lugar: Lugar; conStock: number; compartidaCon: string | null }
   | { tipo: 'porcentaje'; lugar: Lugar }
+  | { tipo: 'compartir'; lugar: Lugar }
+  | { tipo: 'confirmarCompartir'; lugar: Lugar; conId: string }
+  | { tipo: 'separar'; lugar: Lugar; compartidaCon: string }
   | null
 
 /**
  * Sección "Lugares de trabajo" (spec 014 US4, contracts/ui-contracts.md):
  * reemplaza "Clínica". Nombre del tenant, y crear, renombrar, desactivar y
  * reactivar lugares. Solo administradores (la monta `AjustesView`).
+ *
+ * Spec 033 (US1, ui-contracts §1): "Comparte bodega con …" y "Compartir
+ * bodega con…", con una confirmación que resume el efecto y unifica mínimos;
+ * "Dejar de compartir bodega" y desactivar separando primero (US3).
  */
 export function LugaresSection({ sinTitulo = false }: { sinTitulo?: boolean } = {}) {
   const lugares = useLugarStore((s) => s.lugares)
   const lotes = useInventoryStore((s) => s.lotes)
   const movimientos = useInventoryStore((s) => s.movimientos)
+  const insumos = useInventoryStore((s) => s.insumos)
+  const minimosLugar = useInventoryStore((s) => s.minimosLugar)
+  // Spec 033: mínimo elegido por insumo en la confirmación de juntar.
+  const [minimosElegidos, setMinimosElegidos] = useState<Record<string, number | null>>({})
   // Spec 016 US4 (FR-012, Q2): % profesional por lugar, con su historial.
   const porcentajes = useTratamientosStore((s) => s.porcentajes)
   const cambiosTratamiento = useTratamientosStore((s) => s.cambiosTratamiento)
@@ -68,14 +86,52 @@ export function LugaresSection({ sinTitulo = false }: { sinTitulo?: boolean } = 
   const activos = lugaresActivos(lugares)
   const ordenados = [...lugares].sort((a, b) => a.creadoEn.localeCompare(b.creadoEn))
 
-  /** Insumos con stock en el lugar, para el contador y la confirmación. */
+  /**
+   * Insumos con stock en el lugar, para el contador y la confirmación. Spec
+   * 033: el stock común de su bodega.
+   */
   function insumosConStock(lugarId: string): number {
-    const insumos = new Set(
+    const bodega = lugaresDeBodega(lugarId, lugares)
+    const conStock = new Set(
       lotes
-        .filter((lote) => stockLoteEnLugar(movimientos, lote.id, lugarId) > 0)
+        .filter((lote) => stockLoteEnBodega(movimientos, lote.id, bodega) > 0)
         .map((lote) => lote.insumoId),
     )
-    return insumos.size
+    return conStock.size
+  }
+
+  const bodegas = bodegasActivas(lugares)
+
+  /** Spec 033: "Box 1" para Box 2 si comparten bodega; `null` si no comparte. */
+  function compartidaCon(lugar: Lugar): string | null {
+    if (lugar.desactivadoEn) return null
+    const otros = [...lugaresDeBodega(lugar.id, lugares)].filter((id) => id !== lugar.id)
+    return otros.length > 0 ? rotuloBodega(otros, lugares) : null
+  }
+
+  const resumen =
+    modo?.tipo === 'confirmarCompartir'
+      ? resumenDeJuntar(modo.lugar.id, modo.conId, {
+          insumos,
+          lotes,
+          movimientos,
+          minimosLugar,
+          lugares,
+        })
+      : null
+
+  function elegirConQuien(lugar: Lugar, conId: string) {
+    const previo = resumenDeJuntar(lugar.id, conId, {
+      insumos,
+      lotes,
+      movimientos,
+      minimosLugar,
+      lugares,
+    })
+    setMinimosElegidos(
+      Object.fromEntries(previo.minimosDistintos.map((m) => [m.insumo.id, m.porDefecto])),
+    )
+    abrir({ tipo: 'confirmarCompartir', lugar, conId })
   }
 
   function abrir(nuevo: Modo) {
@@ -99,8 +155,10 @@ export function LugaresSection({ sinTitulo = false }: { sinTitulo?: boolean } = 
 
   function pedirDesactivar(lugar: Lugar) {
     const conStock = insumosConStock(lugar.id)
-    if (conStock > 0) {
-      abrir({ tipo: 'desactivar', lugar, conStock })
+    const con = compartidaCon(lugar)
+    // Spec 033 (FR-010): si comparte bodega, siempre se confirma la separación.
+    if (conStock > 0 || con) {
+      abrir({ tipo: 'desactivar', lugar, conStock, compartidaCon: con })
       return
     }
     void ejecutar(() => desactivarLugar(lugar.id))
@@ -163,12 +221,19 @@ export function LugaresSection({ sinTitulo = false }: { sinTitulo?: boolean } = 
         {ordenados.map((lugar) => {
           const desactivado = !!lugar.desactivadoEn
           const conStock = insumosConStock(lugar.id)
+          const con = compartidaCon(lugar)
           return (
             <li key={lugar.id}>
               <Card className="flex flex-wrap items-center gap-2 px-3.5 py-2">
                 <MapPin size={16} className="shrink-0 text-text-muted" />
                 <span className="flex min-w-40 flex-1 flex-col">
                   <span className="truncate text-sm font-bold text-text">{lugar.nombre}</span>
+                  {con && (
+                    <span className="flex items-center gap-1 text-xs font-bold text-primary-text">
+                      <Boxes size={12} className="shrink-0" />
+                      Comparte bodega con {con}
+                    </span>
+                  )}
                   <span className="text-xs text-text-muted">
                     {conStock === 1 ? '1 insumo con stock' : `${conStock} insumos con stock`}
                   </span>
@@ -194,6 +259,30 @@ export function LugaresSection({ sinTitulo = false }: { sinTitulo?: boolean } = 
                   %
                 </TouchButton>
                 {desactivado && <Badge variant="warning-30">Desactivado</Badge>}
+                {con && (
+                  <TouchButton
+                    type="button"
+                    variant="ghost"
+                    onClick={() => abrir({ tipo: 'separar', lugar, compartidaCon: con })}
+                    aria-label={`Dejar de compartir bodega de ${lugar.nombre}`}
+                    className="px-3 text-xs"
+                  >
+                    <Undo size={16} />
+                    Dejar de compartir bodega
+                  </TouchButton>
+                )}
+                {!desactivado && bodegas.length > 1 && (
+                  <TouchButton
+                    type="button"
+                    variant="ghost"
+                    onClick={() => abrir({ tipo: 'compartir', lugar })}
+                    aria-label={`Compartir bodega de ${lugar.nombre} con…`}
+                    className="px-3 text-xs"
+                  >
+                    <Boxes size={16} />
+                    Compartir bodega
+                  </TouchButton>
+                )}
                 <TouchButton
                   type="button"
                   variant="ghost"
@@ -345,13 +434,170 @@ export function LugaresSection({ sinTitulo = false }: { sinTitulo?: boolean } = 
         </BottomSheet>
       )}
 
+      {modo?.tipo === 'compartir' && (
+        <BottomSheet
+          titulo={`Compartir bodega de ${modo.lugar.nombre} con…`}
+          onClose={() => setModo(null)}
+        >
+          <div data-sheet-body className="flex flex-col gap-2">
+            <p className="text-sm text-text-muted">
+              Los lugares que comparten bodega usan un solo stock, sin traslados entre ellos.
+            </p>
+            <ul className="flex flex-col gap-2">
+              {bodegas
+                .filter((grupo) => !grupo.some((l) => l.id === modo.lugar.id))
+                .map((grupo) => (
+                  <li key={grupo[0].id}>
+                    <TouchButton
+                      type="button"
+                      variant="secondary"
+                      className="w-full justify-start"
+                      onClick={() => elegirConQuien(modo.lugar, grupo[0].id)}
+                    >
+                      <MapPin size={16} />
+                      {rotuloBodega(
+                        grupo.map((l) => l.id),
+                        lugares,
+                      )}
+                    </TouchButton>
+                  </li>
+                ))}
+            </ul>
+          </div>
+        </BottomSheet>
+      )}
+
+      {modo?.tipo === 'confirmarCompartir' && resumen && (
+        <BottomSheet titulo="¿Compartir bodega?" onClose={() => setModo(null)}>
+          <div data-sheet-body className="flex flex-col gap-3">
+            <p className="text-sm text-text">
+              El stock de {resumen.rotuloLugar} y {resumen.rotuloCon} se sumará
+              {resumen.insumosConStockEnAmbos === 0
+                ? '. Ningún insumo tiene stock en ambos.'
+                : `: ${
+                    resumen.insumosConStockEnAmbos === 1
+                      ? '1 insumo con stock en ambos pasará'
+                      : `${resumen.insumosConStockEnAmbos} insumos con stock en ambos pasarán`
+                  } a un solo total.`}{' '}
+              No se borra ni se cambia ningún movimiento.
+            </p>
+            {resumen.minimosDistintos.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <p className="text-sm font-bold text-text">
+                  Elige el stock mínimo de la bodega
+                </p>
+                <ul className="flex flex-col gap-2">
+                  {resumen.minimosDistintos.map(({ insumo, opciones }) => (
+                    <li key={insumo.id} className="flex flex-col gap-1">
+                      <label
+                        htmlFor={`minimo-bodega-${insumo.id}`}
+                        className="text-sm text-text"
+                      >
+                        {insumo.nombre}
+                      </label>
+                      <select
+                        id={`minimo-bodega-${insumo.id}`}
+                        value={String(opciones.findIndex((o) => o.minimo === minimosElegidos[insumo.id]))}
+                        onChange={(event) =>
+                          setMinimosElegidos((actual) => ({
+                            ...actual,
+                            [insumo.id]: opciones[Number(event.target.value)].minimo,
+                          }))
+                        }
+                        className="touch-target rounded-md border border-border bg-surface px-3.5 text-[15px] text-text"
+                      >
+                        {opciones.map((opcion, indice) => (
+                          <option key={opcion.rotulo} value={indice}>
+                            {opcion.rotulo}: {opcion.minimo ?? 'sin mínimo'}
+                          </option>
+                        ))}
+                      </select>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {error && (
+              <p role="alert" className="text-sm text-danger">
+                {error}
+              </p>
+            )}
+            <TouchButton
+              type="button"
+              disabled={ocupado}
+              onClick={() =>
+                void ejecutar(() =>
+                  compartirBodega(
+                    modo.lugar.id,
+                    modo.conId,
+                    new Map(
+                      resumen.minimosDistintos.map(({ insumo, porDefecto }) => [
+                        insumo.id,
+                        insumo.id in minimosElegidos ? minimosElegidos[insumo.id] : porDefecto,
+                      ]),
+                    ),
+                  ),
+                )
+              }
+            >
+              Compartir bodega
+            </TouchButton>
+            <TouchButton type="button" variant="ghost" onClick={() => setModo(null)}>
+              Cancelar
+            </TouchButton>
+          </div>
+        </BottomSheet>
+      )}
+
+      {modo?.tipo === 'separar' && (
+        <BottomSheet
+          titulo="¿Dejar de compartir bodega?"
+          onClose={() => setModo(null)}
+        >
+          <div data-sheet-body className="flex flex-col gap-3">
+            <p className="text-sm text-text">
+              El stock común se queda en {modo.compartidaCon}. {modo.lugar.nombre} empezará en 0;
+              podrás trasladarle stock después.
+            </p>
+            <p className="text-xs text-text-muted">
+              Lo que {modo.lugar.nombre} tenía por sus propios movimientos se registra como
+              traslados a la bodega. El historial no cambia.
+            </p>
+            {error && (
+              <p role="alert" className="text-sm text-danger">
+                {error}
+              </p>
+            )}
+            <TouchButton
+              type="button"
+              disabled={ocupado}
+              onClick={() => void ejecutar(() => separarDeBodega(modo.lugar.id))}
+            >
+              Dejar de compartir
+            </TouchButton>
+            <TouchButton type="button" variant="ghost" onClick={() => setModo(null)}>
+              Cancelar
+            </TouchButton>
+          </div>
+        </BottomSheet>
+      )}
+
       {modo?.tipo === 'desactivar' && (
         <BottomSheet titulo={`¿Desactivar ${modo.lugar.nombre}?`} onClose={() => setModo(null)}>
           <div data-sheet-body className="flex flex-col gap-3">
-            <p className="text-sm text-text">
-              Tiene {modo.conStock === 1 ? '1 insumo' : `${modo.conStock} insumos`} con stock. Su
-              stock dejará de verse en el selector. El historial se conserva y puedes reactivarlo.
-            </p>
+            {modo.compartidaCon ? (
+              <p className="text-sm text-text">
+                Comparte bodega con {modo.compartidaCon}. Primero se separará de la bodega: el
+                stock común se queda en {modo.compartidaCon}. El historial se conserva y puedes
+                reactivarlo.
+              </p>
+            ) : (
+              <p className="text-sm text-text">
+                Tiene {modo.conStock === 1 ? '1 insumo' : `${modo.conStock} insumos`} con stock. Su
+                stock dejará de verse en el selector. El historial se conserva y puedes
+                reactivarlo.
+              </p>
+            )}
             {error && (
               <p role="alert" className="text-sm text-danger">
                 {error}

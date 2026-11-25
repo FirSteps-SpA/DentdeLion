@@ -42,7 +42,7 @@ import {
   useVistasDeLugar,
 } from '../lib/vistaLugar'
 import { ElegirLugarSheet } from '../../../app/ElegirLugarSheet'
-import { hayVariosLugares, useLugarStore } from '../../../stores/lugarStore'
+import { bodegasActivas, useLugarStore } from '../../../stores/lugarStore'
 import { TrasladoForm } from './TrasladoForm'
 import { mapaMarcas } from '../../marcas/lib/marcas'
 
@@ -213,7 +213,8 @@ export function InventarioView() {
     }
   }
 
-  // Spec 014 US6-5: "Trasladar" solo con 2 o más lugares activos.
+  // Spec 014 US6-5: "Trasladar" solo con 2 o más lugares activos. Spec 033
+  // (FR-016): con 2 o más bodegas, porque dentro de una no hay a dónde.
   function abrirTraslado(insumoId: string) {
     if (esTodos || !lugarActivoId || lugarActivoId === 'todos') {
       setOverlay({ tipo: 'elegirLugar', accion: 'trasladar', insumoId })
@@ -377,7 +378,9 @@ export function InventarioView() {
             cerrarOverlay()
           }}
           onTrasladar={
-            hayVariosLugares(lugares) ? () => abrirTraslado(insumoOverlay.id) : undefined
+            bodegasActivas(lugares).length > 1
+              ? () => abrirTraslado(insumoOverlay.id)
+              : undefined
           }
           onEditar={() =>
             setOverlay({ tipo: 'editar', insumoId: insumoOverlay.id })
