@@ -105,17 +105,25 @@ unifica mínimos.
 
 **Independent Test**: spec US1, quickstart §1.
 
-- [ ] T021 [US1] `compartirBodega(lugarId, conLugarId, minimosElegidos)` en
+- [x] T021 [US1] `compartirBodega(lugarId, conLugarId, minimosElegidos)` en
   `src/features/insumos/lib/bodega.ts` (research R5): `bodegaId` resultante, unión de grupos,
   mínimos escritos en todos, `sincronizado: false`, sin movimientos. Más
-  `resumenDeJuntar` (insumos con stock en ambos y mínimos distintos)
-- [ ] T022 [P] [US1] `tests/unit/compartir-bodega.test.ts`: uuid nuevo, unir a una bodega existente,
+  `resumenDeJuntar` (insumos con stock en ambos y mínimos distintos). El `bodegaId` resultante es el
+  de `conLugarId`, si no el de `lugarId`, si no uno nuevo
+- [x] T022 [P] [US1] `tests/unit/compartir-bodega.test.ts`: uuid nuevo, unir a una bodega existente,
   unir dos bodegas, mínimos por defecto el mayor, stock común = suma (SC-001)
-- [ ] T023 [US1] UI en `src/features/ajustes/components/LugaresSection.tsx`: "Comparte bodega con …",
+- [x] T023 [US1] UI en `src/features/ajustes/components/LugaresSection.tsx`: "Comparte bodega con …",
   "Compartir bodega con…", confirmación con resumen y selector de mínimos, solo administración
-  (ui-contracts §1, FR-004/005)
-- [ ] T024 [P] [US1] `tests/integration/lugares-bodega.test.tsx` (juntar): confirmación, resultado en
-  Inventario de ambos lugares, el personal no ve la acción, un solo lugar → sin opción
+  (ui-contracts §1, FR-004/005). "Compartir bodega" aparece con 2 o más bodegas; el contador "N
+  insumos con stock" pasa a ser el de la bodega. Recorrido con el driver (móvil): juntar Box 2 con
+  Clínica → los dos muestran "Comparte bodega con …", Inventario muestra 3 cajas (2 + 1) y el
+  selector "Box 2 · bodega con Clínica"
+- [x] T024 [P] [US1] `tests/integration/lugares-bodega.test.tsx` (juntar): confirmación, resultado en
+  Inventario de ambos lugares, el personal no ve la acción, un solo lugar → sin opción. Lo del
+  personal queda cubierto porque la sección Lugares es solo de administración
+  (`SECCIONES_AJUSTES`) y `compartirBodega` lo rechaza (T022). Checkpoint: lint y tipos ok; 1413/1417. Las 4 que fallan son
+  de tiempo (`enviar-pedido` y los rendimientos de `inventario-tabla`, Reportes y montos) y pasan
+  aisladas
 
 ## Phase 5: US3 — Dejar de compartir bodega (P2)
 
