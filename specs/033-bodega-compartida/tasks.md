@@ -148,12 +148,20 @@ unifica mínimos.
 
 ## Phase 6: Polish
 
-- [ ] T029 [P] Guía de uso en `src/features/ayuda/contenido.ts` ("Lugares": compartir y dejar de
+- [x] T029 [P] Guía de uso en `src/features/ayuda/contenido.ts` ("Lugares": compartir y dejar de
   compartir bodega; aviso de traslados dentro de la bodega) y `tests/integration/ayuda.test.tsx`
-- [ ] T030 [P] README: paso de despliegue (no configurar bodegas hasta actualizar los dispositivos,
+- [x] T030 [P] README: paso de despliegue (no configurar bodegas hasta actualizar los dispositivos,
   research R9)
-- [ ] T031 `npm run lint && npm run build && npx vitest run --testTimeout=20000`; `test:rls`; recorrido
-  de quickstart §1–§4 con el driver (móvil y desktop)
+- [x] T031 `npm run lint && npm run build && npx vitest run --testTimeout=20000`; `test:rls`; recorrido
+  de quickstart §1–§4 con el driver (móvil y desktop). Resultado (2026-11-25): lint y build ok;
+  1426/1428 (`enviar-pedido` y el rendimiento de Reportes, por carga; pasan aislados); `test:rls`
+  con los 6 controles de bodega en verde y solo la falla previa de "estimación". Driver: §1 y §3 en
+  móvil (juntar → 3 cajas en los dos; separar → Clínica 3, Box 2 en 0); §1–§2 en desktop con tres
+  lugares (rótulo y "Comparte bodega con …", "Todos" con "Clínica + Box 2: 3 · Las Condes: 4" y 2
+  alertas, consumo en Box 2 del lote de Clínica, traslado solo hacia Las Condes). §4 (dos pestañas
+  sin conexión) no se puede con el driver, que abre un perfil nuevo por corrida; lo cubren las
+  pruebas de `reconcileOverdraft`. A 1440 px la columna Acciones de la tabla se corta: es lo que
+  arregla la spec 032, que esta rama no tiene
 
 ## Dependencies
 

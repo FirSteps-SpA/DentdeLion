@@ -104,6 +104,7 @@ export const AYUDAS: Record<IdAyuda, Ayuda> = {
         pasos: [
           'En el menú del material (los tres puntos), elige "Trasladar".',
           'Elige el lote, el lugar de destino y la cantidad.',
+          'Los lugares que comparten bodega no aparecen como destino: ya usan el mismo stock.',
         ],
       },
       {
@@ -121,7 +122,10 @@ export const AYUDAS: Record<IdAyuda, Ayuda> = {
     ],
     consejos: [
       { texto: 'Usa los filtros "Bajo Stock" y "Caducados/Próximos" para revisar lo urgente.' },
-      { texto: 'El stock que ves es el del lugar activo; cambia de lugar con la pastilla de arriba.' },
+      {
+        texto:
+          'El stock que ves es el del lugar activo (o el de su bodega, si la comparte); cambia de lugar con la pastilla de arriba.',
+      },
       {
         texto: 'Si aparece "Posible duplicado", revisa si son el mismo material antes de seguir cargando.',
         soloAdministracion: true,
@@ -333,7 +337,7 @@ export const AYUDAS: Record<IdAyuda, Ayuda> = {
     titulo: 'Lugares de trabajo',
     soloAdministracion: true,
     paraQue:
-      'Las clínicas o boxes donde trabajas. Cada lugar tiene su propio inventario, sus precios y su % de ganancia del profesional.',
+      'Las clínicas o boxes donde trabajas. Cada lugar tiene su propio inventario, sus precios y su % de ganancia del profesional. Dos lugares que sacan del mismo estante pueden compartir bodega: usan un solo stock.',
     tareas: [
       {
         nombre: 'Crear un lugar',
@@ -343,9 +347,26 @@ export const AYUDAS: Record<IdAyuda, Ayuda> = {
         nombre: 'Definir el % del profesional',
         pasos: ['Toca el % del lugar y escribe el % general; se usa en sus tratamientos sin % de categoría.'],
       },
+      {
+        nombre: 'Compartir bodega',
+        pasos: [
+          'En el lugar, toca "Compartir bodega" y elige con qué lugar.',
+          'Revisa el resumen: el stock de los dos se suma. Si tienen mínimos distintos, elige cuál queda (viene marcado el mayor).',
+          'Toca "Compartir bodega". Desde ahí los dos ven el mismo stock, las mismas alertas y la misma lista de compras.',
+        ],
+      },
+      {
+        nombre: 'Dejar de compartir bodega',
+        pasos: [
+          'En el lugar, toca "Dejar de compartir bodega" y confirma.',
+          'El stock común se queda en la bodega y el lugar separado empieza en 0. Después puedes trasladarle stock.',
+        ],
+      },
     ],
     consejos: [
       { texto: 'Debe quedar al menos un lugar activo.' },
+      { texto: 'Al desactivar un lugar que comparte bodega, primero se separa y su stock queda en la bodega.' },
+      { texto: 'Cada consumo y compra queda registrado en el lugar donde se hizo, aunque el stock sea común.' },
       { texto: 'El lugar "Predeterminado" es el que viene elegido al registrar.' },
     ],
   },
