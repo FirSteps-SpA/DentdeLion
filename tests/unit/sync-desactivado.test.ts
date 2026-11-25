@@ -22,6 +22,7 @@ vi.mock('../../src/lib/db', async () => {
 const DESACTIVADO_EN = '2026-10-18T12:00:00.000Z'
 const estado = {
   desactivadoEn: DESACTIVADO_EN as string | null,
+  nombre: 'U1',
   inserts: [] as { tabla: string; ids: string[] }[],
   upserts: [] as string[],
 }
@@ -37,7 +38,7 @@ const client = {
             single: async () => ({
               data: {
                 id: 'u1',
-                nombre: 'U1',
+                nombre: estado.nombre,
                 rol: 'personal',
                 tenant_id: '00000000-0000-4000-8000-000000000001',
                 desactivado_en: tabla === 'perfiles' ? estado.desactivadoEn : null,
@@ -111,6 +112,7 @@ const lote: Lote = {
 beforeEach(async () => {
   usarLugar1()
   estado.desactivadoEn = DESACTIVADO_EN
+  estado.nombre = 'U1'
   estado.inserts = []
   estado.upserts = []
   await db.movimientos.clear()
@@ -157,5 +159,18 @@ describe('usuario desactivado (spec 014 FR-021)', () => {
 
     expect(useAuthStore.getState().usuario?.desactivadoEn).toBeNull()
     expect(estado.upserts).toContain('lotes')
+  })
+})
+
+describe('nombre cambiado en otro dispositivo (spec 032 FR-010)', () => {
+  it('el ciclo toma el nombre del servidor y lo usa para nombrar al autor', async () => {
+    estado.desactivadoEn = null
+    estado.nombre = 'Dra. Ana Pérez'
+
+    await runSyncBatch()
+
+    expect(useAuthStore.getState().usuario?.nombre).toBe('Dra. Ana Pérez')
+    expect((await db.usuarioActual.toArray())[0]?.nombre).toBe('Dra. Ana Pérez')
+    expect(await db.usuariosConocidos.get('u1')).toMatchObject({ nombre: 'Dra. Ana Pérez' })
   })
 })

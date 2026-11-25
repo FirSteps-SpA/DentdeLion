@@ -156,6 +156,101 @@ const fila = (nombre: string) =>
 beforeEach(usarLugar1)
 
 describe('inventario en tabla (spec 013 US5)', () => {
+  it('fija el encabezado bajo la barra superior al bajar (spec 032 US3)', () => {
+    render(<InventarioView />)
+
+    const tabla = screen.getByRole('table')
+    for (const th of within(tabla).getAllByRole('columnheader')) {
+      expect(th).toHaveClass('sticky', 'top-[72px]', 'bg-surface')
+    }
+    // Un ancestro con scroll propio anclaría el `sticky` a él y no a la página.
+    let nodo = tabla.parentElement
+    while (nodo) {
+      expect(nodo.className).not.toMatch(/overflow-(x-|y-)?(auto|scroll)\b/)
+      nodo = nodo.parentElement
+    }
+  })
+
+  describe('cuando la tabla no cabe en el ancho (spec 032 R7)', () => {
+    const observadores = new Set<{ disparar: () => void }>()
+
+    /** Simula anchos: el contenedor mide 900; la tabla, `normal` o `compacta` según su modo. */
+    function simularAnchos(normal: number, compacta: number) {
+      const anchos = vi
+        .spyOn(HTMLElement.prototype, 'offsetWidth', 'get')
+        .mockImplementation(function (this: HTMLElement) {
+          if (this.tagName !== 'TABLE') return 900
+          return this.parentElement?.dataset.modo === 'normal' ? normal : compacta
+        })
+      const clientes = vi
+        .spyOn(HTMLElement.prototype, 'clientWidth', 'get')
+        .mockReturnValue(900)
+      vi.stubGlobal(
+        'ResizeObserver',
+        class {
+          private aviso: () => void
+          constructor(aviso: () => void) {
+            this.aviso = aviso
+            observadores.add(this)
+          }
+          observe() {}
+          disconnect() {
+            observadores.delete(this)
+          }
+          /** Como el navegador: avisa cuando la tabla cambió de tamaño al redibujarse. */
+          disparar() {
+            this.aviso()
+          }
+        },
+      )
+      return () => {
+        anchos.mockRestore()
+        clientes.mockRestore()
+        vi.unstubAllGlobals()
+      }
+    }
+
+    it('compacta: encabezado fijo, menos padding y "Consumir" como ícono con su nombre', () => {
+      const restaurar = simularAnchos(1100, 880)
+      try {
+        render(<InventarioView />)
+
+        const tabla = screen.getByRole('table')
+        expect(tabla.parentElement).toHaveAttribute('data-modo', 'compacta')
+        expect(tabla.parentElement).toHaveClass('overflow-x-clip')
+        for (const th of within(tabla).getAllByRole('columnheader')) {
+          expect(th).toHaveClass('sticky', 'top-[72px]', 'px-2.5')
+          expect(th).not.toHaveClass('whitespace-nowrap')
+        }
+        const consumir = within(fila('Guantes')).getByRole('button', {
+          name: /Consumir Guantes/,
+        })
+        expect(consumir).toHaveAttribute('title', 'Consumir')
+        expect(consumir).not.toHaveTextContent('Consumir')
+      } finally {
+        restaurar()
+      }
+    })
+
+    it('si ni compacta cabe, vuelve al scroll horizontal sin encabezado fijo', () => {
+      const restaurar = simularAnchos(1300, 1100)
+      try {
+        render(<InventarioView />)
+        // Al compactarse la tabla cambia de ancho y el observador vuelve a medir.
+        act(() => observadores.forEach((o) => o.disparar()))
+
+        const tabla = screen.getByRole('table')
+        expect(tabla.parentElement).toHaveAttribute('data-modo', 'desborda')
+        expect(tabla.parentElement).toHaveClass('overflow-x-auto')
+        for (const th of within(tabla).getAllByRole('columnheader')) {
+          expect(th).not.toHaveClass('sticky')
+        }
+      } finally {
+        restaurar()
+      }
+    })
+  })
+
   it('muestra una tabla con las columnas del DS y una fila por insumo', () => {
     render(<InventarioView />)
 

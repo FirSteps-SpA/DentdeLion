@@ -423,7 +423,7 @@ describe('AltaMaterialView — US2 (stock inicial + primer lote)', () => {
     fireEvent.change(screen.getByLabelText('Categoría'), {
       target: { value: 'Cirugía' },
     })
-    fireEvent.change(screen.getByLabelText('Unidad de consumo'), {
+    fireEvent.change(screen.getByLabelText('¿Cómo lo usas?'), {
       target: { value: 'cartucho' },
     })
     for (let i = 0; i < 10; i++) {
@@ -457,12 +457,12 @@ describe('AltaMaterialView — US2 (stock inicial + primer lote)', () => {
       target: { value: 'Articaína' },
     })
     fireEvent.change(screen.getByLabelText('Categoría'), { target: { value: 'Cirugía' } })
-    fireEvent.change(screen.getByLabelText('Unidad de consumo'), {
+    fireEvent.change(screen.getByLabelText('¿Cómo lo usas?'), {
       target: { value: 'cartucho' },
     })
-    fireEvent.change(screen.getByLabelText('Se compra por'), { target: { value: 'caja' } })
-    fireEvent.change(screen.getByLabelText(/^Contenido/), { target: { value: '50' } })
-    fireEvent.change(screen.getByLabelText('Stock inicial (cajas)'), { target: { value: '2' } })
+    fireEvent.change(screen.getByLabelText('¿Cómo lo compras?'), { target: { value: 'caja' } })
+    fireEvent.change(screen.getByLabelText(/^¿Cuánto trae cada/), { target: { value: '50' } })
+    fireEvent.change(screen.getByLabelText('Stock inicial en cajas'), { target: { value: '2' } })
     expect(screen.getByText('2 cajas = 100 cartuchos')).toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText('Número de lote'), { target: { value: 'A1' } })
@@ -474,6 +474,52 @@ describe('AltaMaterialView — US2 (stock inicial + primer lote)', () => {
     await screen.findByText('«Articaína» agregado al inventario')
     expect(movimientosT.all()[0]).toMatchObject({ cantidad: 100, unidad: 'cartucho' })
     expect(lotesT.all()[0]).toMatchObject({ cantidadIngresada: 2, unidadIngresada: 'caja' })
+  }, 15000)
+
+  it('spec 032: ácido fosfórico en jeringas de 3 mL con stock y mínimo convertidos en vivo (US1)', async () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Material' }))
+    await screen.findByLabelText('Nombre del material')
+
+    expect(screen.getByText('Ver un ejemplo')).toHaveClass('touch-target')
+    fireEvent.click(screen.getByText('Ver un ejemplo'))
+    expect(screen.getByText(/Stock inicial: 3 jeringas = 9 mL/)).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Nombre del material'), {
+      target: { value: 'Ácido fosfórico 37,5 %' },
+    })
+    fireEvent.change(screen.getByLabelText('Categoría'), { target: { value: 'Cirugía' } })
+    fireEvent.change(screen.getByLabelText('¿Cómo lo usas?'), { target: { value: 'mL' } })
+    fireEvent.change(screen.getByLabelText('¿Cómo lo compras?'), {
+      target: { value: 'jeringa' },
+    })
+    fireEvent.change(screen.getByLabelText('¿Cuánto trae cada jeringa?'), {
+      target: { value: '3' },
+    })
+
+    fireEvent.change(screen.getByLabelText('Stock inicial en jeringas'), {
+      target: { value: '3' },
+    })
+    expect(screen.getByLabelText('Stock inicial en mL')).toHaveValue(9)
+    fireEvent.change(screen.getByLabelText('Stock mínimo en mL'), { target: { value: '0.5' } })
+    expect(screen.getByLabelText('Stock mínimo en jeringas')).toHaveValue(0.17)
+    expect(screen.getByText('Te avisamos cuando el stock baje de este número.')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Número de lote'), { target: { value: 'AF1' } })
+    fireEvent.change(screen.getByLabelText('Fecha de vencimiento'), {
+      target: { value: '2027-01-01' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar e Ingresar' }))
+
+    await screen.findByText('«Ácido fosfórico 37,5 %» agregado al inventario')
+    expect(insumosT.all().find((i) => i.nombre === 'Ácido fosfórico 37,5 %')).toMatchObject({
+      unidadMedida: 'mL',
+      unidadCompra: 'jeringa',
+      contenido: 3,
+      stockMinimo: 0.5,
+    })
+    expect(movimientosT.all()[0]).toMatchObject({ cantidad: 9, unidad: 'mL' })
+    expect(lotesT.all()[0]).toMatchObject({ cantidadIngresada: 3, unidadIngresada: 'jeringa' })
   }, 15000)
 
   it('yesterday opens the confirm dialog and, after "Guardar igual", counts in the caducidad summary', async () => {
@@ -691,17 +737,12 @@ describe('AltaMaterialView — US4 (duplicados, código, escaneo)', () => {
     expect(screen.getByLabelText('Nombre del material')).toHaveValue('compo')
   })
 
-  it('typing the existing code and blurring shows the duplicate-code warning', async () => {
+  it('no muestra el campo de código de barras mientras el escáner esté oculto (spec 032 FR-006)', async () => {
     render(<Harness />)
     fireEvent.click(screen.getByRole('button', { name: 'Material' }))
     await screen.findByLabelText('Nombre del material')
-    const codigo = screen.getByLabelText('Código de barras (opcional)')
-    fireEvent.change(codigo, { target: { value: '7790001' } })
-    fireEvent.blur(codigo)
 
-    expect(
-      await screen.findByText('Este código ya corresponde a «Composite A2».'),
-    ).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Código de barras/)).not.toBeInTheDocument()
   })
 
   it('hides the scan option for this release — no "Escanear" control anywhere in the alta flow (spec 011 FR-008/FR-009)', async () => {

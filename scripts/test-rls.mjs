@@ -2171,6 +2171,72 @@ check(
   auditoria.map((f) => f.accion).join(','),
 )
 
+// ---------------------------------------------------------------------------
+// Spec 032 — editar el nombre propio (contracts/api.md)
+// ---------------------------------------------------------------------------
+
+// 1. Personal activo cambia su propio nombre.
+r = await http('POST', '/rest/v1/rpc/actualizar_mi_nombre', {
+  token: per.token,
+  body: { p_nombre: '  Dra. Ana Pérez  ' },
+})
+const perfilPer = (await leer(`perfiles?id=eq.${per.id}&select=nombre,rol`))[0]
+check(
+  'nombre propio: personal cambia su nombre (sin espacios sobrantes)',
+  r.status === 200 && r.data === 'Dra. Ana Pérez' && perfilPer?.nombre === 'Dra. Ana Pérez',
+  `HTTP ${r.status} ${JSON.stringify(r.data)}`,
+)
+
+// 2. La vía directa sigue cerrada: personal no se cambia el rol.
+r = await http('PATCH', `/rest/v1/perfiles?id=eq.${per.id}`, {
+  token: per.token,
+  body: { rol: 'administrador', nombre: 'Otro' },
+})
+const perfilPer2 = (await leer(`perfiles?id=eq.${per.id}&select=nombre,rol`))[0]
+check(
+  'nombre propio: personal no actualiza perfiles directo (ni rol ni nombre)',
+  perfilPer2?.rol === 'personal' && perfilPer2?.nombre === 'Dra. Ana Pérez',
+  `HTTP ${r.status} ${JSON.stringify(perfilPer2)}`,
+)
+
+// 3. Nombre vacío o de solo espacios.
+r = await http('POST', '/rest/v1/rpc/actualizar_mi_nombre', {
+  token: per.token,
+  body: { p_nombre: '   ' },
+})
+check(
+  'nombre propio: un nombre vacío se rechaza',
+  r.status >= 400 && /nombre_invalido/.test(JSON.stringify(r.data)),
+  `HTTP ${r.status}`,
+)
+r = await http('POST', '/rest/v1/rpc/actualizar_mi_nombre', {
+  token: per.token,
+  body: { p_nombre: 'x'.repeat(81) },
+})
+check('nombre propio: más de 80 caracteres se rechaza', r.status >= 400, `HTTP ${r.status}`)
+
+// 4. Un usuario desactivado no cambia su nombre.
+const desactivado = await crearUsuario('desactivado', 'personal')
+await http('PATCH', `/rest/v1/perfiles?id=eq.${desactivado.id}`, {
+  key: SVC,
+  body: { desactivado_en: new Date().toISOString() },
+})
+r = await http('POST', '/rest/v1/rpc/actualizar_mi_nombre', {
+  token: desactivado.token,
+  body: { p_nombre: 'Nuevo' },
+})
+const perfilDesactivado = (await leer(`perfiles?id=eq.${desactivado.id}&select=nombre`))[0]
+check(
+  'nombre propio: un usuario desactivado no cambia su nombre',
+  r.status >= 400 && /42501|sin_permiso/.test(JSON.stringify(r.data)) &&
+    perfilDesactivado?.nombre === 'desactivado',
+  `HTTP ${r.status}`,
+)
+
+// 5. Sin sesión no se puede llamar.
+r = await http('POST', '/rest/v1/rpc/actualizar_mi_nombre', { body: { p_nombre: 'Anónimo' } })
+check('nombre propio: sin sesión no se puede llamar', r.status === 401 || r.status === 404, `HTTP ${r.status}`)
+
 r = await http('GET', '/rest/v1/insumos?select=id')
 check(
   'sin sesión no se lee el inventario',

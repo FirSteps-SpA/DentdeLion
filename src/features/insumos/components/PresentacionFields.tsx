@@ -37,9 +37,10 @@ function ErrorCampo({ id, mensaje }: { id: string; mensaje?: string }) {
 
 /**
  * Sección "Unidades" del alta y la edición de insumos (spec 015
- * contracts/ui-contracts.md §1): unidad de consumo, "Se compra por",
- * contenido y la vista previa "Caja × 50 cartuchos". Controles ≥ 48 px
- * (Constitución III).
+ * contracts/ui-contracts.md §1): unidad de consumo, de compra, contenido y la
+ * vista previa "Caja × 50 cartuchos". Spec 032 (ui-contracts §1): rótulos en
+ * lenguaje simple ("¿Cómo lo usas?", "¿Cómo lo compras?", "¿Cuánto trae
+ * cada …?") con una ayuda de una línea. Controles ≥ 48 px (Constitución III).
  */
 export function PresentacionFields({
   idPrefix,
@@ -73,7 +74,7 @@ export function PresentacionFields({
       <div className="flex flex-col gap-1">
         {accionUnidadConsumo ? (
           <div className="flex flex-col gap-1.5 text-sm font-bold text-text">
-            <span>Unidad de consumo</span>
+            <span>¿Cómo lo usas?</span>
             <div className="flex items-center justify-between gap-2">
               <span className="font-normal">{etiquetaUnidad(valor.unidadMedida)}</span>
               {accionUnidadConsumo}
@@ -81,7 +82,7 @@ export function PresentacionFields({
           </div>
         ) : (
           <label className="flex flex-col gap-1.5 text-sm font-bold text-text">
-            Unidad de consumo
+            ¿Cómo lo usas?
             <select
               id={`${idPrefix}-unidad-consumo`}
               value={valor.unidadMedida}
@@ -99,14 +100,14 @@ export function PresentacionFields({
         )}
         <p className="text-xs text-text-muted">
           Stock, mínimo y consumos se cuentan en esta unidad. Admite decimales:{' '}
-          {unidadAdmiteDecimales(valor.unidadMedida) ? 'Sí' : 'No'}
+          {unidadAdmiteDecimales(valor.unidadMedida) ? 'sí' : 'no'}.
         </p>
         <ErrorCampo id={`error-${idPrefix}-unidadMedida`} mensaje={errores.unidadMedida} />
       </div>
 
       <div className="flex flex-col gap-1">
         <label className="flex flex-col gap-1.5 text-sm font-bold text-text">
-          Se compra por
+          ¿Cómo lo compras?
           <select
             id={`${idPrefix}-unidad-compra`}
             value={distinta ? (valor.unidadCompra ?? '') : ''}
@@ -116,7 +117,7 @@ export function PresentacionFields({
             className={SELECT_CLASS}
             {...errorProps('unidadCompra')}
           >
-            <option value="">Igual que la de consumo</option>
+            <option value="">Igual que como lo uso</option>
             {UNIDADES.filter((u) => u.clave !== valor.unidadMedida).map((u) => (
               <option key={u.clave} value={u.clave}>
                 {u.singular}
@@ -124,6 +125,9 @@ export function PresentacionFields({
             ))}
           </select>
         </label>
+        <p className="text-xs text-text-muted">
+          Cómo viene del proveedor. «Igual» si lo compras y lo usas en la misma unidad.
+        </p>
         <ErrorCampo id={`error-${idPrefix}-unidadCompra`} mensaje={errores.unidadCompra} />
       </div>
 
@@ -131,10 +135,7 @@ export function PresentacionFields({
         <div className="flex flex-col gap-1">
           <Stepper
             id={`${idPrefix}-contenido`}
-            label={`Contenido: ${etiquetaUnidad(valor.unidadMedida, 2)} por ${etiquetaUnidad(
-              valor.unidadCompra ?? valor.unidadMedida,
-              1,
-            )}`}
+            label={`¿Cuánto trae cada ${etiquetaUnidad(valor.unidadCompra ?? valor.unidadMedida, 1)}?`}
             value={valor.contenido}
             onChange={(contenido) => onChange({ contenido })}
             min={0}
@@ -142,6 +143,10 @@ export function PresentacionFields({
             allowEmpty
             {...errorProps('contenido')}
           />
+          <p className="text-xs text-text-muted">
+            Cuántos {etiquetaUnidad(valor.unidadMedida, 2)} trae cada{' '}
+            {etiquetaUnidad(valor.unidadCompra ?? valor.unidadMedida, 1)}.
+          </p>
           <ErrorCampo id={`error-${idPrefix}-contenido`} mensaje={errores.contenido} />
         </div>
       )}

@@ -29,6 +29,9 @@ import { IconField } from '../../../components/ui/IconField'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { hayVariosLugares, nombreLugar, useLugarStore } from '../../../stores/lugarStore'
 import { PresentacionFields } from './PresentacionFields'
+import { CantidadDobleField } from './CantidadDobleField'
+import { aConsumo, type CantidadTecleada, type PresentacionDoble } from '../lib/cantidadDoble'
+import { MOSTRAR_CODIGO_BARRAS } from '../../../lib/scanner/visibilidad'
 import { ConvertirUnidadDialog } from './ConvertirUnidadDialog'
 import { NumeroInput } from '../../../components/ui/NumeroInput'
 
@@ -166,10 +169,12 @@ export function EditarInsumoForm({
     ? (minimosLugar.find((m) => m.insumoId === insumo.id && m.lugarId === lugarMinimo)
         ?.stockMinimo ?? null)
     : null
-  const [minimoLugar, setMinimoLugar] = useState(
-    minimoLugarActual === null ? '' : String(minimoLugarActual),
-  )
-  const minimoLugarValor = minimoLugar.trim() === '' ? null : Number(minimoLugar)
+  // Spec 032 (R1): los mínimos se escriben en unidad de compra o de consumo;
+  // se guardan en consumo (`aConsumo`), y parten en consumo.
+  const [minimoLugar, setMinimoLugar] = useState<CantidadTecleada>({
+    cantidad: minimoLugarActual,
+    unidad: insumo.unidadMedida,
+  })
   const [errorMinimoLugar, setErrorMinimoLugar] = useState<string | null>(null)
   const [nombre, setNombre] = useState(insumo.nombre)
   const [categoria, setCategoria] = useState(
@@ -182,9 +187,10 @@ export function EditarInsumoForm({
   )
   const [contenido, setContenido] = useState<number | null>(insumo.contenido)
   const [convirtiendo, setConvirtiendo] = useState(false)
-  const [stockMinimo, setStockMinimo] = useState(
-    insumo.stockMinimo === null ? '' : String(insumo.stockMinimo),
-  )
+  const [stockMinimo, setStockMinimo] = useState<CantidadTecleada>({
+    cantidad: insumo.stockMinimo,
+    unidad: insumo.unidadMedida,
+  })
   const [codigoFabricante, setCodigoFabricante] = useState(
     insumo.codigoFabricante ?? '',
   )
@@ -227,10 +233,15 @@ export function EditarInsumoForm({
     0,
   )
 
-  const stockMinimoValor =
-    stockMinimo.trim() === '' ? null : Number(stockMinimo)
   const unidadCompraFinal = unidadCompra ?? unidadMedida
   const contenidoFinal = unidadCompraFinal === unidadMedida ? 1 : (contenido ?? Number.NaN)
+  const presentacionDoble: PresentacionDoble = {
+    unidadMedida,
+    unidadCompra: unidadCompraFinal,
+    contenido: unidadCompraFinal === unidadMedida ? 1 : contenido,
+  }
+  const stockMinimoValor = aConsumo(stockMinimo, presentacionDoble)
+  const minimoLugarValor = aConsumo(minimoLugar, presentacionDoble)
   const cambios: CambiosInsumoInput = {
     nombre,
     categoria,
@@ -254,11 +265,6 @@ export function EditarInsumoForm({
     marcaId !== (insumo.marcaId ?? null)
   const cambiaMinimoLugar = lugarMinimo !== null && minimoLugarValor !== minimoLugarActual
   const tieneLotes = lotesDeInsumo(lotes, insumo.id).length > 0
-
-  function ajustarMinimo(delta: number) {
-    const siguiente = Math.max(0, (stockMinimoValor ?? 0) + delta)
-    setStockMinimo(String(siguiente))
-  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -385,82 +391,55 @@ export function EditarInsumoForm({
         }
       />
 
-      <div className="flex flex-col gap-1.5 text-sm font-bold text-text">
-        <label htmlFor="editar-stock-minimo">
-          {lugarMinimo ? 'Stock mínimo del catálogo' : 'Stock mínimo'} (vacío = sin alerta)
-        </label>
-        <div className="flex items-stretch gap-2">
-          <TouchButton
-            type="button"
-            variant="ghost"
-            onClick={() => ajustarMinimo(-1)}
-            aria-label="Restar uno al stock mínimo"
-          >
-            <Minus size={16} />
-          </TouchButton>
-          <div className="touch-target flex flex-1 items-center justify-center rounded-md border border-border bg-surface">
-            <NumeroInput
-              id="editar-stock-minimo"
-              step="any"
-              min={0}
-              value={stockMinimo}
-              onChange={(event) => setStockMinimo(event.target.value)}
-              className="w-full border-none bg-transparent text-center text-[15px] font-extrabold text-text outline-none"
-              {...errorProps('stockMinimo')}
-            />
-          </div>
-          <TouchButton
-            type="button"
-            variant="ghost"
-            onClick={() => ajustarMinimo(1)}
-            aria-label="Sumar uno al stock mínimo"
-          >
-            <Plus size={16} />
-          </TouchButton>
-        </div>
+      <div className="flex flex-col gap-1">
+        <CantidadDobleField
+          id="editar-stock-minimo"
+          label={lugarMinimo ? 'Stock mínimo del catálogo' : 'Stock mínimo'}
+          ayuda="Te avisamos cuando el stock baje de este número. Vacío = sin alerta."
+          presentacion={presentacionDoble}
+          valor={stockMinimo}
+          onChange={setStockMinimo}
+          opcional
+          marcarOpcional={false}
+          error={errores.stockMinimo}
+          errorId="error-stockMinimo"
+        />
         <ErrorCampo id="error-stockMinimo" mensaje={errores.stockMinimo} />
       </div>
 
       {lugarMinimo && (
-        <div className="flex flex-col gap-1.5 text-sm font-bold text-text">
-          <label htmlFor="editar-minimo-lugar">
-            Stock mínimo en {nombreLugar(lugares, lugarMinimo)}
-          </label>
-          <div className="touch-target flex items-center rounded-md border border-border bg-surface px-3.5">
-            <NumeroInput
-              id="editar-minimo-lugar"
-              step="any"
-              min={0}
-              value={minimoLugar}
-              placeholder={`Usar el del catálogo (${stockMinimoValor ?? 'sin alerta'})`}
-              onChange={(event) => setMinimoLugar(event.target.value)}
-              className="w-full border-none bg-transparent text-[15px] font-normal text-text outline-none"
-              {...(errorMinimoLugar
-                ? { 'aria-invalid': true, 'aria-describedby': 'error-minimo-lugar' }
-                : {})}
-            />
-          </div>
-          <p className="text-xs font-normal text-text-muted">
-            Vacío = usar el mínimo del catálogo en este lugar.
-          </p>
+        <div className="flex flex-col gap-1">
+          <CantidadDobleField
+            id="editar-minimo-lugar"
+            label={`Stock mínimo en ${nombreLugar(lugares, lugarMinimo)}`}
+            ayuda="Vacío = usar el mínimo del catálogo en este lugar."
+            presentacion={presentacionDoble}
+            valor={minimoLugar}
+            onChange={setMinimoLugar}
+            opcional
+            marcarOpcional={false}
+            placeholder={`Usar el del catálogo (${stockMinimoValor ?? 'sin alerta'})`}
+            error={errorMinimoLugar ?? undefined}
+            errorId="error-minimo-lugar"
+          />
           <ErrorCampo id="error-minimo-lugar" mensaje={errorMinimoLugar ?? undefined} />
         </div>
       )}
 
-      <div className="flex flex-col gap-2">
-        <IconField
-          label="Código de fabricante (opcional)"
-          htmlFor="editar-codigo"
-        >
-          <input
-            id="editar-codigo"
-            type="text"
-            value={codigoFabricante}
-            onChange={(event) => setCodigoFabricante(event.target.value)}
-            className={INPUT_CLASS}
-          />
-        </IconField>
-      </div>
+      {/* Spec 032 (R4): oculto con el escáner; el código guardado se conserva. */}
+      {MOSTRAR_CODIGO_BARRAS && (
+        <div className="flex flex-col gap-2">
+          <IconField label="Código de fabricante (opcional)" htmlFor="editar-codigo">
+            <input
+              id="editar-codigo"
+              type="text"
+              value={codigoFabricante}
+              onChange={(event) => setCodigoFabricante(event.target.value)}
+              className={INPUT_CLASS}
+            />
+          </IconField>
+        </div>
+      )}
 
       <IconField label="Marca (opcional)" icon={<Factory size={18} />} htmlFor="editar-marca">
         <SelectorMarca id="editar-marca" valor={marcaId} onCambio={setMarcaId} />

@@ -1,5 +1,10 @@
 import { useCallback, useState } from 'react'
-import { leerSeccionDeUrl, limpiarSeccionDeUrl } from '../features/ajustes/lib/seccionUrl'
+import {
+  abrirSeccion,
+  leerSeccionDeUrl,
+  limpiarSeccionDeUrl,
+} from '../features/ajustes/lib/seccionUrl'
+import type { IdSeccion } from '../features/ajustes/lib/secciones'
 import type { Vista } from './navegacion'
 
 /**
@@ -17,4 +22,17 @@ export function useVista(): [Vista, (vista: Vista) => void] {
     setVistaEstado(siguiente)
   }, [])
   return [vista, setVista]
+}
+
+/**
+ * Spec 032 (research.md R6): abre una sección de Ajustes desde fuera de
+ * Ajustes (p. ej. "Ver perfil" del menú del avatar). Cambia a la vista de
+ * Ajustes y deja la sección en la URL como lo hace `abrirSeccion`. El
+ * `popstate` avisa a un `AjustesView` ya montado (`useSeccionAjustes` lo
+ * escucha); uno que recién se monta la lee de la URL al iniciar.
+ */
+export function irASeccionAjustes(cambiarVista: (vista: Vista) => void, id: IdSeccion): void {
+  cambiarVista('mas')
+  abrirSeccion(id)
+  window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }))
 }
