@@ -7,14 +7,14 @@ import {
 } from '../../../lib/db'
 import { diasEntre } from '../../../lib/dateMath'
 import { getUsuarioActualId, tenantActualOFallar } from '../../../stores/authStore'
-import { lugarParaEscribirOFallar } from '../../../stores/lugarStore'
+import { bodegaSegunStore, lugarParaEscribirOFallar } from '../../../stores/lugarStore'
 import { repartirFefo, type LoteConStock } from '../../insumos/lib/fefo'
 import { crearMovimiento } from '../../insumos/lib/movements'
 import { costosUnitariosPorInsumo } from '../../insumos/lib/precio'
 import {
-  computeStockLote,
   movimientosDeTratamiento,
   movimientosNormalizadosDeLote,
+  stockLoteEnBodega,
 } from '../../insumos/lib/stock'
 import { calcularGanancia, cantidadEfectiva } from './montos'
 import { filaPaciente, normalizarPaciente } from './pacientes'
@@ -70,13 +70,17 @@ export interface RegistroInput {
   paciente?: string
 }
 
+/** Spec 033 (R3): stock común de la bodega del lugar. */
 async function lotesConStockEnLugar(insumoId: string, lugarId: string): Promise<LoteConStock[]> {
   const lotes = await db.lotes.where('insumoId').equals(insumoId).toArray()
+  const bodega = bodegaSegunStore(lugarId)
   return Promise.all(
     lotes.map(async (lote) => ({
       lote,
-      stockDisponible: computeStockLote(
-        (await movimientosNormalizadosDeLote(lote.id)).filter((m) => m.lugarId === lugarId),
+      stockDisponible: stockLoteEnBodega(
+        await movimientosNormalizadosDeLote(lote.id),
+        lote.id,
+        bodega,
       ),
     })),
   )

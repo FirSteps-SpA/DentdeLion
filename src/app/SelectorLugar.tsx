@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Building, ChevronDown } from '../components/icons'
 import {
+  etiquetaEnSelector,
   hayVariosLugares,
   lugaresActivos,
   nombreLugar,
@@ -18,6 +19,9 @@ import { useDisposicion } from './useDisposicion'
  *
  * Spec 027 (FR-003, research.md R4): pastilla con ícono de edificio, nombre y
  * flecha (la flecha solo cuando hay menú).
+ *
+ * Spec 033 (ui-contracts §2): en la lista, "Box 2 · bodega con Box 1"; en la
+ * pastilla, solo el nombre.
  */
 export function SelectorLugar({ compacto = false }: { compacto?: boolean }) {
   const lugares = useLugarStore((s) => s.lugares)
@@ -115,7 +119,7 @@ export function SelectorLugar({ compacto = false }: { compacto?: boolean }) {
           {lugaresActivos(lugares).map((lugar) => (
             <OpcionLugar
               key={lugar.id}
-              nombre={lugar.nombre}
+              nombre={etiquetaEnSelector(lugar, lugares)}
               elegido={lugarActivoId === lugar.id}
               onClick={() => elegir(lugar.id)}
             />

@@ -34,18 +34,43 @@ export function computeStockLote(movimientos: Movimiento[]): number {
 /**
  * Spec 014 (research.md R3): stock de un lote en un lugar = suma de sus
  * movimientos registrados en ese lugar. El lote no "pertenece" a un lugar: un
- * traslado mueve stock del mismo lote de un lugar a otro.
+ * traslado mueve stock del mismo lote de un lugar a otro. Spec 033: sigue
+ * siendo el **saldo propio** del lugar (lo que se lleva a 0 al separarlo de una
+ * bodega); el stock disponible es `stockLoteEnBodega`.
  */
 export function stockLoteEnLugar(
   movimientos: Movimiento[],
   loteId: string,
   lugarId: string,
 ): number {
+  return stockLoteEnBodega(movimientos, loteId, new Set([lugarId]))
+}
+
+/**
+ * Spec 033 (data-model.md § Stock de un lote en una bodega): suma de los
+ * movimientos del lote en cualquiera de los lugares de la bodega
+ * (`lugaresDeBodega`). Con un solo lugar es `stockLoteEnLugar`.
+ */
+export function stockLoteEnBodega(
+  movimientos: Movimiento[],
+  loteId: string,
+  lugarIds: ReadonlySet<string>,
+): number {
   return computeStockLote(
     movimientos.filter(
-      (movimiento) => movimiento.loteId === loteId && movimiento.lugarId === lugarId,
+      (movimiento) => movimiento.loteId === loteId && lugarIds.has(movimiento.lugarId),
     ),
   )
+}
+
+/**
+ * Spec 033 (research.md R6): ids de los lotes con algún movimiento en el
+ * lugar, para buscar sus saldos propios al separarlo de una bodega. Solo lee
+ * ids; las cantidades se leen normalizadas con `movimientosNormalizadosDeLote`.
+ */
+export async function lotesConMovimientosEnLugar(lugarId: string): Promise<Set<string>> {
+  const delLugar = await db.movimientos.filter((m) => m.lugarId === lugarId).toArray()
+  return new Set(delLugar.map((m) => m.loteId))
 }
 
 /**
@@ -59,12 +84,21 @@ export function lotesEnLugar(
   movimientos: Movimiento[],
   lugarId: string,
 ): Lote[] {
+  return lotesEnBodega(lotes, movimientos, new Set([lugarId]))
+}
+
+/** Spec 033: lotes visibles en alguno de los lugares de la bodega. */
+export function lotesEnBodega(
+  lotes: Lote[],
+  movimientos: Movimiento[],
+  lugarIds: ReadonlySet<string>,
+): Lote[] {
   const conMovimientos = new Set(
     movimientos
-      .filter((movimiento) => movimiento.lugarId === lugarId)
+      .filter((movimiento) => lugarIds.has(movimiento.lugarId))
       .map((movimiento) => movimiento.loteId),
   )
-  return lotes.filter((lote) => lote.lugarId === lugarId || conMovimientos.has(lote.id))
+  return lotes.filter((lote) => lugarIds.has(lote.lugarId) || conMovimientos.has(lote.id))
 }
 
 /**

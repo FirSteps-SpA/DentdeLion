@@ -375,6 +375,53 @@ verificación; el propio cliente del operador se rechaza. Una 2.10.0 en caché s
 servidor nuevo (no usa las tablas nuevas; sin la tabla local de eliminados, muestra "otra persona").
 Si el front falla, se revierte solo el front.
 
+**Spec 032 (mejoras de UX: insumos y perfil):** **con migración**
+(`20261127000000_nombre_propio.sql`: solo agrega la función `actualizar_mi_nombre`, que deja a cada
+persona activa cambiar su propio nombre y nada más; ningún dato existente cambia) y sin versión nueva
+de Dexie. Orden: respaldo, `supabase db push --linked` (**con visto bueno explícito**), front.
+Comprobar en producción que `anon` no puede ejecutar la función y `authenticated` sí. Si el front
+llega antes que la migración, solo falla "Editar nombre" en el perfil;
+el resto funciona. Una versión anterior en caché sigue funcionando con el servidor nuevo (no usa la
+función).
+
+**Spec 033 (lugares que comparten bodega):** **con migración**
+(`20261128000000_bodega_compartida.sql`: solo agrega la columna `lugares.bodega_id`, vacía, con su
+índice y un check; ningún dato existente cambia) y sin versión nueva de Dexie. Orden: respaldo,
+`supabase db push --linked` (**con visto bueno explícito**), front. Comprobar en producción que todos
+los lugares quedan con `bodega_id` vacío: sin bodegas compartidas, todo funciona igual que antes.
+
+**No configurar bodegas compartidas hasta que todos los dispositivos del cliente tengan la versión
+nueva** (abrir la app una vez con red en cada equipo). Una versión anterior ve el stock de cada lugar
+por separado: en un lugar sin stock propio rechazaría un consumo por "stock insuficiente", y no
+excluiría de los traslados a los lugares de la misma bodega. Los datos no se dañan (cada movimiento
+lleva su lugar y se suma igual), pero el equipo vería cifras distintas. Avisar a la clínica: compartir
+y dejar de compartir bodega se hace en Ajustes → "Lugares de trabajo" (solo administración), y
+separar un lugar lo deja en 0 con traslados que quedan en el historial.
+
+**Release 2.12.0 (specs 032 y 033, PR #34 y #35):** **con dos migraciones**, sin Edge Functions
+nuevas ni versión nueva de Dexie. Pasos:
+
+1. Respaldo de producción (`respaldo.sh`).
+2. `supabase db push --linked` (**con visto bueno explícito**): aplica
+   `20261127000000_nombre_propio` y `20261128000000_bodega_compartida`. Comprobar en producción: mismas
+   tablas y conteos que el respaldo, todos los lugares con `bodega_id` vacío, y que `anon` no puede
+   ejecutar `actualizar_mi_nombre` y `authenticated` sí.
+3. Merge del PR `release/2.12.0` a `main` (Netlify publica el front), tag `2.12.0` y merge de vuelta
+   a `develop`.
+4. Comprobar en la app: "Editar nombre" en el perfil guarda el nombre, y Ajustes → "Lugares de
+   trabajo" muestra "Compartir bodega" (solo administración, con dos lugares o más).
+5. **No compartir bodegas** hasta que todos los equipos de la clínica tengan la 2.12.0 (nota de la
+   spec 033, arriba).
+
+Ensayado el 2026-11-25 sobre la restauración de un respaldo de producción tomado antes del release
+(24 tablas, 1239 filas; copia en `~/backups/dentdelion/2026-11-25-pre212`): las dos migraciones
+aplican sin error, 24 tablas y 1239 filas iguales, `perfiles` y `lugares` sin cambios (fuera de la
+columna nueva), los 6 lugares con `bodega_id` vacío; el check rechaza `bodega_id = id` y el índice
+existe; `actualizar_mi_nombre` cambia solo el nombre propio (recortado), rechaza nombres vacíos o de
+más de 80 caracteres y sin sesión responde `sin_permiso`. Una 2.11.0 en caché sigue funcionando con el
+servidor nuevo (no usa la función y no envía `bodega_id`, que se conserva). Si el front falla, se
+revierte solo el front.
+
 ## ¿Quedó bien configurado mi entorno?
 
 Checklist manual (sin script) — cada punto debe poder confirmarse a simple vista en menos de 2

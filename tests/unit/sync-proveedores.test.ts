@@ -248,6 +248,21 @@ describe('sincronización de proveedores', () => {
     expect(proveedoresT.all()[0].sincronizado).toBe(true)
   })
 
+  it('spec 033: el bodega_id de un lugar sube y baja (ausente = bodega propia)', async () => {
+    lugaresT.seed([{ ...lugar1, bodegaId: 'bodega-1', sincronizado: false }])
+
+    await runSyncBatch()
+
+    expect(tabla('lugares').get(LUGAR_1)?.bodega_id).toBe('bodega-1')
+    expect(lugaresT.all()[0].bodegaId).toBe('bodega-1')
+
+    const fila = { ...tabla('lugares').get(LUGAR_1)! }
+    delete (fila as { bodega_id?: string }).bodega_id
+    tabla('lugares').set(LUGAR_1, fila)
+    await runSyncBatch()
+    expect(lugaresT.all()[0].bodegaId).toBeNull()
+  })
+
   it('personal sube con insert lo que creó; administración, con upsert', async () => {
     useAuthStore.setState({ usuario: personal, isReady: true })
     proveedoresT.seed([

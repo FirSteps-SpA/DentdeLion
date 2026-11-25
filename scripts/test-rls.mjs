@@ -2171,6 +2171,147 @@ check(
   auditoria.map((f) => f.accion).join(','),
 )
 
+// ---------------------------------------------------------------------------
+// Spec 033 — lugares que comparten bodega (contracts/api.md)
+// ---------------------------------------------------------------------------
+
+const LUGAR_C1 = randomUUID()
+const LUGAR_C2 = randomUUID()
+const BODEGA = randomUUID()
+await http('POST', '/rest/v1/lugares', {
+  key: SVC,
+  body: [
+    { id: LUGAR_C1, tenant_id: TENANT_1, nombre: `Box C1 ${run}` },
+    { id: LUGAR_C2, tenant_id: TENANT_1, nombre: `Box C2 ${run}` },
+  ],
+})
+const bodegaDe = async (id) => (await leer(`lugares?id=eq.${id}&select=bodega_id`))[0]?.bodega_id
+
+// 1. Administración junta dos lugares.
+r = await http('PATCH', `/rest/v1/lugares?id=in.(${LUGAR_C1},${LUGAR_C2})`, {
+  token: adm.token,
+  body: { bodega_id: BODEGA },
+})
+check(
+  'bodega: administración pone el mismo bodega_id a dos lugares',
+  r.status === 200 && (await bodegaDe(LUGAR_C1)) === BODEGA && (await bodegaDe(LUGAR_C2)) === BODEGA,
+  `HTTP ${r.status}`,
+)
+
+// 2. Personal no cambia la bodega.
+r = await http('PATCH', `/rest/v1/lugares?id=eq.${LUGAR_C1}`, {
+  token: per.token,
+  body: { bodega_id: randomUUID() },
+})
+check('bodega: personal no cambia bodega_id', (await bodegaDe(LUGAR_C1)) === BODEGA, `HTTP ${r.status}`)
+
+// 3. La bodega nunca es el id de un lugar.
+r = await http('PATCH', `/rest/v1/lugares?id=eq.${LUGAR_C1}`, {
+  token: adm.token,
+  body: { bodega_id: LUGAR_C1 },
+})
+check(
+  'bodega: bodega_id igual al id del lugar se rechaza',
+  r.status >= 400 && (await bodegaDe(LUGAR_C1)) === BODEGA,
+  `HTTP ${r.status}`,
+)
+
+// 4. Un cliente 2.11 sube el lugar sin la clave bodega_id: se conserva.
+r = await http('POST', '/rest/v1/lugares', {
+  token: adm.token,
+  prefer: 'resolution=merge-duplicates,return=representation',
+  body: {
+    id: LUGAR_C1,
+    tenant_id: TENANT_1,
+    nombre: `Box C1 ${run}`,
+    desactivado_en: null,
+    proveedor_predeterminado_id: null,
+  },
+})
+check(
+  'bodega: upsert sin bodega_id (cliente 2.11) la conserva',
+  r.status < 300 && (await bodegaDe(LUGAR_C1)) === BODEGA,
+  `HTTP ${r.status}`,
+)
+
+// 5. Otro tenant no ve el lugar ni su bodega.
+r = await http('GET', `/rest/v1/lugares?id=eq.${LUGAR_C1}&select=bodega_id`, { token: admB.token })
+check('bodega: otro tenant no lee el lugar', Array.isArray(r.data) && r.data.length === 0, `HTTP ${r.status}`)
+
+// 6. Un traslado de separación entre lugares de la misma bodega se acepta.
+const tSep = randomUUID()
+r = await http('POST', '/rest/v1/movimientos', {
+  token: per.token,
+  body: [mitad('traslado_salida', LUGAR_C1, tSep, 1), mitad('traslado_entrada', LUGAR_C2, tSep, 1)],
+})
+check('bodega: el traslado de separación dentro de la bodega se acepta', r.status === 201, `HTTP ${r.status}`)
+
+// ---------------------------------------------------------------------------
+// Spec 032 — editar el nombre propio (contracts/api.md)
+// ---------------------------------------------------------------------------
+
+// 1. Personal activo cambia su propio nombre.
+r = await http('POST', '/rest/v1/rpc/actualizar_mi_nombre', {
+  token: per.token,
+  body: { p_nombre: '  Dra. Ana Pérez  ' },
+})
+const perfilPer = (await leer(`perfiles?id=eq.${per.id}&select=nombre,rol`))[0]
+check(
+  'nombre propio: personal cambia su nombre (sin espacios sobrantes)',
+  r.status === 200 && r.data === 'Dra. Ana Pérez' && perfilPer?.nombre === 'Dra. Ana Pérez',
+  `HTTP ${r.status} ${JSON.stringify(r.data)}`,
+)
+
+// 2. La vía directa sigue cerrada: personal no se cambia el rol.
+r = await http('PATCH', `/rest/v1/perfiles?id=eq.${per.id}`, {
+  token: per.token,
+  body: { rol: 'administrador', nombre: 'Otro' },
+})
+const perfilPer2 = (await leer(`perfiles?id=eq.${per.id}&select=nombre,rol`))[0]
+check(
+  'nombre propio: personal no actualiza perfiles directo (ni rol ni nombre)',
+  perfilPer2?.rol === 'personal' && perfilPer2?.nombre === 'Dra. Ana Pérez',
+  `HTTP ${r.status} ${JSON.stringify(perfilPer2)}`,
+)
+
+// 3. Nombre vacío o de solo espacios.
+r = await http('POST', '/rest/v1/rpc/actualizar_mi_nombre', {
+  token: per.token,
+  body: { p_nombre: '   ' },
+})
+check(
+  'nombre propio: un nombre vacío se rechaza',
+  r.status >= 400 && /nombre_invalido/.test(JSON.stringify(r.data)),
+  `HTTP ${r.status}`,
+)
+r = await http('POST', '/rest/v1/rpc/actualizar_mi_nombre', {
+  token: per.token,
+  body: { p_nombre: 'x'.repeat(81) },
+})
+check('nombre propio: más de 80 caracteres se rechaza', r.status >= 400, `HTTP ${r.status}`)
+
+// 4. Un usuario desactivado no cambia su nombre.
+const desactivado = await crearUsuario('desactivado', 'personal')
+await http('PATCH', `/rest/v1/perfiles?id=eq.${desactivado.id}`, {
+  key: SVC,
+  body: { desactivado_en: new Date().toISOString() },
+})
+r = await http('POST', '/rest/v1/rpc/actualizar_mi_nombre', {
+  token: desactivado.token,
+  body: { p_nombre: 'Nuevo' },
+})
+const perfilDesactivado = (await leer(`perfiles?id=eq.${desactivado.id}&select=nombre`))[0]
+check(
+  'nombre propio: un usuario desactivado no cambia su nombre',
+  r.status >= 400 && /42501|sin_permiso/.test(JSON.stringify(r.data)) &&
+    perfilDesactivado?.nombre === 'desactivado',
+  `HTTP ${r.status}`,
+)
+
+// 5. Sin sesión no se puede llamar.
+r = await http('POST', '/rest/v1/rpc/actualizar_mi_nombre', { body: { p_nombre: 'Anónimo' } })
+check('nombre propio: sin sesión no se puede llamar', r.status === 401 || r.status === 404, `HTTP ${r.status}`)
+
 r = await http('GET', '/rest/v1/insumos?select=id')
 check(
   'sin sesión no se lee el inventario',

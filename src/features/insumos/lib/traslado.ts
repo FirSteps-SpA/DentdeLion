@@ -1,9 +1,9 @@
 import { db, type Insumo, type Lugar, type Movimiento } from '../../../lib/db'
 import { tenantActualOFallar } from '../../../stores/authStore'
-import { lugaresActivos } from '../../../stores/lugarStore'
+import { lugaresActivos, lugaresDeBodega } from '../../../stores/lugarStore'
 import { crearMovimiento, unidadDeConsumoDelLote } from './movements'
 import { validateQuantity } from './quantity'
-import { movimientosNormalizadosDeLote, stockLoteEnLugar } from './stock'
+import { movimientosNormalizadosDeLote, stockLoteEnBodega } from './stock'
 import { formatearCantidad } from '../../../lib/unidades'
 
 /**
@@ -20,7 +20,20 @@ export interface TrasladoInput {
   cantidad: number
 }
 
-/** Validación de un traslado contra el stock del lote en el origen (sin sobreconsumo). */
+/**
+ * Spec 033 (FR-016): destinos posibles desde `origenId`, los lugares activos
+ * fuera de su bodega. Trasladar dentro de la bodega no cambia el stock común.
+ */
+export function destinosDeTraslado(origenId: string, lugares: Lugar[]): Lugar[] {
+  const bodega = lugaresDeBodega(origenId, lugares)
+  return lugaresActivos(lugares).filter((lugar) => !bodega.has(lugar.id))
+}
+
+/**
+ * Validación de un traslado contra el stock del lote en el origen (sin
+ * sobreconsumo). Spec 033: el stock común de la bodega del origen, y nunca
+ * hacia un lugar de la misma bodega (FR-016).
+ */
 export function validarTraslado(
   input: TrasladoInput,
   {
@@ -33,9 +46,13 @@ export function validarTraslado(
   const activos = lugaresActivos(lugares).map((lugar) => lugar.id)
   if (!activos.includes(input.origenId)) return 'El lugar de origen no está activo.'
   if (!activos.includes(input.destinoId)) return 'Elige un lugar de destino activo.'
+  const bodega = lugaresDeBodega(input.origenId, lugares)
+  if (bodega.has(input.destinoId)) {
+    return 'Ese lugar comparte bodega con el de origen: ya usan el mismo stock.'
+  }
   const cantidad = validateQuantity(input.cantidad, insumo.unidadMedida)
   if (!cantidad.valid) return cantidad.error ?? 'Cantidad inválida.'
-  const disponible = stockLoteEnLugar(movimientos, input.loteId, input.origenId)
+  const disponible = stockLoteEnBodega(movimientos, input.loteId, bodega)
   if (input.cantidad > disponible) {
     return `Stock insuficiente en el lote: disponible ${formatearCantidad(disponible, insumo.unidadMedida)}.`
   }
@@ -46,7 +63,12 @@ async function lugaresDelTenant(): Promise<Lugar[]> {
   return db.lugares.where('tenantId').equals(tenantActualOFallar()).toArray()
 }
 
-async function escribirPar(
+/**
+ * Escribe las dos mitades del traslado, sin validar: lo llaman `trasladar`,
+ * `deshacerTraslado` y, dentro de la bodega, `separarDeBodega` (spec 033 R6).
+ * Debe correr dentro de una transacción que incluya `movimientos`.
+ */
+export async function escribirPar(
   input: TrasladoInput & { unidad?: string },
   movimientoOrigenId?: string,
 ): Promise<[Movimiento, Movimiento]> {
@@ -108,7 +130,7 @@ export async function deshacerTraslado(
 ): Promise<[Movimiento, Movimiento] | null> {
   return db.transaction(
     'rw',
-    [db.movimientos, db.lotes, db.insumos, db.cambiosInsumo],
+    [db.movimientos, db.lugares, db.lotes, db.insumos, db.cambiosInsumo],
     async () => {
     const salida = await db.movimientos.get(salidaId)
     if (!salida || salida.tipo !== 'traslado_salida' || !salida.trasladoId) return null
@@ -120,7 +142,9 @@ export async function deshacerTraslado(
     if (!entrada) return null
     // Spec 015: el stock va en la unidad actual; la salida, en la suya.
     const cantidadActual = delLote.find((m) => m.id === salida.id)?.cantidad ?? salida.cantidad
-    if (stockLoteEnLugar(delLote, salida.loteId, entrada.lugarId) < cantidadActual) {
+    // Spec 033: el stock común de la bodega del destino.
+    const bodegaDestino = lugaresDeBodega(entrada.lugarId, await lugaresDelTenant())
+    if (stockLoteEnBodega(delLote, salida.loteId, bodegaDestino) < cantidadActual) {
       throw new Error('No se puede deshacer: ya se usó parte del stock en el destino.')
     }
     return escribirPar(

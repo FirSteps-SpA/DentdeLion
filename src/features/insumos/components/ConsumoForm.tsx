@@ -14,7 +14,7 @@ import { Badge } from '../../../components/ui/Badge'
 import { Card } from '../../../components/ui/Card'
 import { IconField } from '../../../components/ui/IconField'
 import { TouchButton } from '../../../components/ui/TouchButton'
-import { useLugarStore } from '../../../stores/lugarStore'
+import { lugaresDeBodega, useLugarStore } from '../../../stores/lugarStore'
 import { NumeroInput } from '../../../components/ui/NumeroInput'
 import { formatearCantidad } from '../../../lib/unidades'
 import { estaVencido } from '../../alertas/lib/caducidad'
@@ -55,6 +55,7 @@ export function ConsumoForm({
 }: ConsumoFormProps = {}) {
   const lotesCache = useInventoryStore((s) => s.lotes)
   const lugarActivoId = useLugarStore((s) => s.lugarActivoId)
+  const lugares = useLugarStore((s) => s.lugares)
   // Spec 014 FR-010: el stock disponible es el del lote en este lugar.
   const lugarId =
     lugarElegido ?? (lugarActivoId && lugarActivoId !== 'todos' ? lugarActivoId : null)
@@ -75,12 +76,14 @@ export function ConsumoForm({
     if (!insumo) return
 
     let cancelado = false
+    const bodega = lugarId ? lugaresDeBodega(lugarId, lugares) : null
     async function cargarStock() {
       const lotesDelInsumo = lotesDeInsumo(lotesCache, insumo!.id)
       const conStock = await Promise.all(
         lotesDelInsumo.map(async (lote) => {
+          // Spec 033 (R3): el stock común de la bodega del lugar.
           const movimientos = (await movimientosNormalizadosDeLote(lote.id)).filter(
-            (movimiento) => !lugarId || movimiento.lugarId === lugarId,
+            (movimiento) => !bodega || bodega.has(movimiento.lugarId),
           )
           return { lote, stockDisponible: computeStockLote(movimientos) }
         }),
@@ -92,7 +95,7 @@ export function ConsumoForm({
     return () => {
       cancelado = true
     }
-  }, [insumo, lotesCache, lugarId])
+  }, [insumo, lotesCache, lugarId, lugares])
 
   const cantidadNumerica = Number(cantidad) || 0
   const loteSeleccionado = loteOverrideId
