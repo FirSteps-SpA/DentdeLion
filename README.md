@@ -375,6 +375,15 @@ verificación; el propio cliente del operador se rechaza. Una 2.10.0 en caché s
 servidor nuevo (no usa las tablas nuevas; sin la tabla local de eliminados, muestra "otra persona").
 Si el front falla, se revierte solo el front.
 
+**Spec 032 (mejoras de UX: insumos y perfil):** **con migración**
+(`20261127000000_nombre_propio.sql`: solo agrega la función `actualizar_mi_nombre`, que deja a cada
+persona activa cambiar su propio nombre y nada más; ningún dato existente cambia) y sin versión nueva
+de Dexie. Orden: respaldo, `supabase db push --linked` (**con visto bueno explícito**), front.
+Comprobar en producción que `anon` no puede ejecutar la función y `authenticated` sí. Si el front
+llega antes que la migración, solo falla "Editar nombre" en el perfil;
+el resto funciona. Una versión anterior en caché sigue funcionando con el servidor nuevo (no usa la
+función).
+
 **Spec 033 (lugares que comparten bodega):** **con migración**
 (`20261128000000_bodega_compartida.sql`: solo agrega la columna `lugares.bodega_id`, vacía, con su
 índice y un check; ningún dato existente cambia) y sin versión nueva de Dexie. Orden: respaldo,
