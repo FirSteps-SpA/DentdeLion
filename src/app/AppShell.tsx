@@ -4,6 +4,7 @@ import { AppHeader } from './AppHeader'
 import { BottomNav } from './BottomNav'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
+import { irASeccionAjustes } from './useVista'
 import type { Vista } from './navegacion'
 import { useDisposicion } from './useDisposicion'
 import { OndasFondo } from '../components/decoracion'
@@ -43,6 +44,8 @@ export function AppShell({
   const sidebarExpandida = useLayoutStore((s) => s.sidebarExpandida)
   const alternarSidebar = useLayoutStore((s) => s.alternarSidebar)
   const movil = disposicion === 'movil'
+  // Spec 032: "Ver perfil" del menú del avatar.
+  const verPerfil = () => irASeccionAjustes(onCambiarVista, 'perfil')
 
   return (
     <div className="flex min-h-dvh w-full bg-bg text-left">
@@ -59,10 +62,10 @@ export function AppShell({
         <OndasFondo />
         {movil ? (
           <div className="relative mx-auto w-full max-w-[480px] px-4 pt-4">
-            <AppHeader />
+            <AppHeader onVerPerfil={verPerfil} />
           </div>
         ) : (
-          <TopBar />
+          <TopBar onVerPerfil={verPerfil} />
         )}
         {/* Sin z-index propio: un contexto de apilamiento aquí dejaría las hojas
             (fixed, z-50) por debajo de la barra inferior (z-20). Las ondas van

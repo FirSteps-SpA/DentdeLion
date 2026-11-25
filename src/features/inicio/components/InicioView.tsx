@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import { primerNombre } from '../../../app/iniciales'
 import type { Vista } from '../../../app/navegacion'
 import {
   Bell,
@@ -165,7 +166,8 @@ export function InicioView({ onNavegar }: InicioViewProps) {
   const resumen = resumenInicioPorLugares(
     vistas.map(({ lugar, datos }) => ({ ...datos, nivelesAvisoDias, preferencias, lugar })),
   )
-  const primerNombre = usuario?.nombre.trim().split(/\s+/)[0] ?? ''
+  // Spec 032: sin el título ("Dra. Ana" → "Ana").
+  const nombreSaludo = primerNombre(usuario?.nombre ?? '')
   const hoy = fecha.format(new Date())
 
   const gananciaMes = useReportes(ESTE_MES)
@@ -213,7 +215,7 @@ export function InicioView({ onNavegar }: InicioViewProps) {
   return (
     <div className="flex w-full flex-col gap-6 text-left">
       <EncabezadoVista
-        titulo={`¡Hola, ${primerNombre}!`}
+        titulo={`¡Hola, ${nombreSaludo}!`}
         subtitulo={<span className="inline-block first-letter:uppercase">{hoy}</span>}
         ilustracion="diente"
         ayuda="inicio"

@@ -14,17 +14,17 @@ import {
   type CampoAlta,
 } from '../lib/alta'
 import { ALTA_VACIA, useBorradorAlta } from '../lib/useBorradorAlta'
-import { permiteDecimales } from '../lib/quantity'
 import { Hash, Factory, Truck, Calendar } from '../../../components/icons'
 import { useAvisosStore } from '../../../stores/avisosStore'
 import { Card } from '../../../components/ui/Card'
 import { IconField } from '../../../components/ui/IconField'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { BottomSheet } from '../../../components/ui/BottomSheet'
-import { Stepper } from '../../../components/ui/Stepper'
 import { ConfirmarLoteCaducadoDialog } from './ConfirmarLoteCaducadoDialog'
 import { PresentacionFields } from './PresentacionFields'
-import { CantidadIngresoField } from './CantidadIngresoField'
+import { CantidadDobleField } from './CantidadDobleField'
+import { aConsumo, esDoble, type PresentacionDoble } from '../lib/cantidadDoble'
+import { MOSTRAR_CODIGO_BARRAS } from '../../../lib/scanner/visibilidad'
 import { PrecioIngresoField } from './PrecioIngresoField'
 import { convertirIngreso } from '../lib/ingreso'
 import { SelectorProveedor } from '../../proveedores/components/SelectorProveedor'
@@ -112,10 +112,12 @@ export function AltaMaterialView({
   const [categoriaTexto, setCategoriaTexto] = useState('')
   const [categoriaHint, setCategoriaHint] = useState<string | null>(null)
   const [codigoDuplicado, setCodigoDuplicado] = useState<Insumo | null>(null)
+  // Spec 032 (R1): el mínimo se guarda en unidad de consumo; si se escribió en
+  // la de compra, se recuerda lo escrito para recalcularlo si cambia el contenido.
+  const [minimoEnCompra, setMinimoEnCompra] = useState<number | null | undefined>(undefined)
   const fechaRef = useRef<HTMLInputElement>(null)
 
   const catalogo = catalogoCategorias(categoriasRows, insumos)
-  const permiteDecimalesUnidad = permiteDecimales(datos.unidadMedida)
   // Spec 015 FR-009: el stock inicial se ingresa como cualquier ingreso.
   const presentacionAlta = presentacionDeAlta(datos)
   const presentacionIngreso = {
@@ -125,6 +127,15 @@ export function AltaMaterialView({
         ? presentacionAlta.contenido
         : 1,
   }
+  const presentacionDoble: PresentacionDoble = {
+    unidadMedida: presentacionAlta.unidadMedida,
+    unidadCompra: presentacionAlta.unidadCompra,
+    contenido: presentacionAlta.contenido,
+  }
+  const valorMinimo =
+    minimoEnCompra !== undefined && esDoble(presentacionDoble)
+      ? { cantidad: minimoEnCompra, unidad: presentacionDoble.unidadCompra }
+      : { cantidad: datos.stockMinimo, unidad: presentacionDoble.unidadMedida }
   const vidaUtil = datos.caduca ? mesesRestantes(datos.lote.fechaCaducidad) : null
   const sugerencias = sugerirMateriales(insumos, datos.nombre)
   const esAdmin = usuario?.rol === 'administrador'
@@ -138,6 +149,34 @@ export function AltaMaterialView({
     errores[campo]
       ? { 'aria-invalid': true, 'aria-describedby': `error-${campo}` }
       : {}
+
+  /**
+   * Spec 032: un cambio de presentación recalcula el mínimo escrito en la
+   * unidad de compra (lo escrito se conserva). Si la unidad de compra cambia o
+   * pasa a ser la de consumo, el mínimo queda en consumo con su valor actual.
+   */
+  function cambiarPresentacion(cambio: Partial<AltaMaterialInput>) {
+    const siguiente = { ...datos, ...cambio }
+    if (minimoEnCompra === undefined) {
+      setDatos(cambio)
+      return
+    }
+    const p = presentacionDeAlta(siguiente)
+    const nueva: PresentacionDoble = {
+      unidadMedida: p.unidadMedida,
+      unidadCompra: p.unidadCompra,
+      contenido: p.contenido,
+    }
+    if (!esDoble(nueva) || nueva.unidadCompra !== presentacionDoble.unidadCompra) {
+      setMinimoEnCompra(undefined)
+      setDatos(cambio)
+      return
+    }
+    setDatos({
+      ...cambio,
+      stockMinimo: aConsumo({ cantidad: minimoEnCompra, unidad: nueva.unidadCompra }, nueva),
+    })
+  }
 
   function verificarCodigo(codigo: string) {
     const trimmed = codigo.trim()
@@ -423,6 +462,27 @@ export function AltaMaterialView({
             />
           </IconField>
 
+          {/* Spec 032 (ui-contracts §2): ejemplo plegable; no llena campos. */}
+          <details className="rounded-md border border-border bg-surface px-3.5 text-sm text-text">
+            <summary className="touch-target flex cursor-pointer items-center font-bold text-primary">
+              Ver un ejemplo
+            </summary>
+            <div className="flex flex-col gap-1 pb-3">
+              <p>
+                <span className="font-bold">Ácido fosfórico 37,5 %</span> · Restauración
+              </p>
+              <p>
+                Lo compras por <span className="font-bold">jeringa</span> y lo usas por{' '}
+                <span className="font-bold">mL</span>; cada jeringa trae{' '}
+                <span className="font-bold">3 mL</span>.
+              </p>
+              <p className="text-text-muted">
+                Stock inicial: 3 jeringas = 9 mL · Stock mínimo: 0,5 mL (te avisamos al bajar de
+                media jeringa, aprox.)
+              </p>
+            </div>
+          </details>
+
           {/* Spec 015 FR-006: cualquier rol define la presentación en el alta. */}
           <PresentacionFields
             idPrefix="alta"
@@ -431,7 +491,7 @@ export function AltaMaterialView({
               unidadCompra: datos.unidadCompra ?? null,
               contenido: datos.contenido ?? null,
             }}
-            onChange={(cambio) => setDatos(cambio as Partial<AltaMaterialInput>)}
+            onChange={(cambio) => cambiarPresentacion(cambio as Partial<AltaMaterialInput>)}
             errores={{
               unidadMedida: errores.unidadMedida,
               unidadCompra: errores.unidadCompra,
@@ -440,33 +500,39 @@ export function AltaMaterialView({
           />
 
           <div className="flex flex-col gap-1">
-            <Stepper
+            <CantidadDobleField
               id="alta-stock-minimo"
-              label="Stock mínimo (opcional)"
-              value={datos.stockMinimo}
-              onChange={(v) => setDatos({ stockMinimo: v })}
-              min={0}
-              permiteDecimales={permiteDecimalesUnidad}
-              allowEmpty
-              {...errorProps('stockMinimo')}
+              label="Stock mínimo"
+              ayuda="Te avisamos cuando el stock baje de este número."
+              presentacion={presentacionDoble}
+              valor={valorMinimo}
+              onChange={(valor) => {
+                const enCompra = valor.unidad !== presentacionDoble.unidadMedida
+                setMinimoEnCompra(enCompra ? valor.cantidad : undefined)
+                setDatos({ stockMinimo: aConsumo(valor, presentacionDoble) })
+              }}
+              opcional
+              error={errores.stockMinimo}
+              errorId="error-stockMinimo"
             />
             <ErrorCampo id="error-stockMinimo" mensaje={errores.stockMinimo} />
           </div>
 
-          <CantidadIngresoField
-            id="alta-stock-inicial"
-            label="Stock inicial"
-            presentacion={presentacionIngreso}
-            cantidad={datos.stockInicial}
-            unidad={stockInicialDe(datos).unidad}
-            onChange={(cambio) =>
-              setDatos({
-                ...(cambio.cantidad !== undefined ? { stockInicial: cambio.cantidad } : {}),
-                ...(cambio.unidad !== undefined ? { unidadStockInicial: cambio.unidad } : {}),
-              })
-            }
-            error={errores.stockInicial}
-          />
+          {/* Spec 032 (R1): en unidad de compra y de consumo, lado a lado. */}
+          <div className="flex flex-col gap-1">
+            <CantidadDobleField
+              id="alta-stock-inicial"
+              label="Stock inicial"
+              presentacion={presentacionDoble}
+              valor={{ cantidad: datos.stockInicial, unidad: stockInicialDe(datos).unidad }}
+              onChange={(valor) =>
+                setDatos({ stockInicial: valor.cantidad ?? 0, unidadStockInicial: valor.unidad })
+              }
+              error={errores.stockInicial}
+              errorId="error-stockInicial"
+            />
+            <ErrorCampo id="error-stockInicial" mensaje={errores.stockInicial} />
+          </div>
 
           {datos.stockInicial > 0 && (
             <Card className="flex flex-col gap-3 p-3.5">
@@ -559,34 +625,36 @@ export function AltaMaterialView({
             </Card>
           )}
 
-          <div className="flex flex-col gap-1">
-            <IconField label="Código de barras (opcional)" htmlFor="alta-codigo">
-              <input
-                id="alta-codigo"
-                type="text"
-                value={datos.codigoFabricante}
-                onChange={(event) =>
-                  setDatos({ codigoFabricante: event.target.value })
-                }
-                onBlur={() => verificarCodigo(datos.codigoFabricante)}
-                className={INPUT_CLASS}
-              />
-            </IconField>
-            {codigoDuplicado && (
-              <Card className="flex flex-col gap-2 bg-warning-30-bg px-3.5 py-2.5">
-                <p className="text-sm font-bold text-warning-30-text">
-                  Este código ya corresponde a «{codigoDuplicado.nombre}».
-                </p>
-                <TouchButton
-                  type="button"
-                  variant="secondary"
-                  onClick={() => onAbrirExistente(codigoDuplicado)}
-                >
-                  Abrir «{codigoDuplicado.nombre}»
-                </TouchButton>
-              </Card>
-            )}
-          </div>
+          {MOSTRAR_CODIGO_BARRAS && (
+            <div className="flex flex-col gap-1">
+              <IconField label="Código de barras (opcional)" htmlFor="alta-codigo">
+                <input
+                  id="alta-codigo"
+                  type="text"
+                  value={datos.codigoFabricante}
+                  onChange={(event) =>
+                    setDatos({ codigoFabricante: event.target.value })
+                  }
+                  onBlur={() => verificarCodigo(datos.codigoFabricante)}
+                  className={INPUT_CLASS}
+                />
+              </IconField>
+              {codigoDuplicado && (
+                <Card className="flex flex-col gap-2 bg-warning-30-bg px-3.5 py-2.5">
+                  <p className="text-sm font-bold text-warning-30-text">
+                    Este código ya corresponde a «{codigoDuplicado.nombre}».
+                  </p>
+                  <TouchButton
+                    type="button"
+                    variant="secondary"
+                    onClick={() => onAbrirExistente(codigoDuplicado)}
+                  >
+                    Abrir «{codigoDuplicado.nombre}»
+                  </TouchButton>
+                </Card>
+              )}
+            </div>
+          )}
 
           {datos.stockInicial <= 0 && interruptorCaduca}
 

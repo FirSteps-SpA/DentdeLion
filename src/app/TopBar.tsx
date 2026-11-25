@@ -2,16 +2,17 @@ import { useAuthStore } from '../stores/authStore'
 import { SyncIndicator } from './SyncIndicator'
 import { SelectorLugar } from './SelectorLugar'
 import { SyncSheet } from './SyncSheet'
-import { iniciales } from './iniciales'
+import { MenuPerfil } from './MenuPerfil'
 import { usePanelSync } from './usePanelSync'
 
 /**
  * Barra superior del área de contenido en tablet y desktop (spec 013 FR-014,
  * contracts/ui-contracts.md): selector de lugar de trabajo (spec 014 FR-008;
  * con un solo lugar, su nombre), indicador de sincronización con su panel
- * (spec 012, mismo comportamiento) y avatar. El logo vive en la `Sidebar`.
+ * (spec 012, mismo comportamiento) y avatar, que abre `MenuPerfil` (spec 032).
+ * El logo vive en la `Sidebar`.
  */
-export function TopBar() {
+export function TopBar({ onVerPerfil }: { onVerPerfil?: () => void }) {
   const usuario = useAuthStore((s) => s.usuario)
   const { indicador, abierto, abrir, cerrar } = usePanelSync()
 
@@ -20,14 +21,7 @@ export function TopBar() {
       <SelectorLugar />
       <div className="flex-1" />
       <SyncIndicator indicador={indicador} onClick={abrir} />
-      {usuario && (
-        <div
-          title={usuario.nombre}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-soft text-sm font-bold text-primary-text"
-        >
-          {iniciales(usuario.nombre)}
-        </div>
-      )}
+      {usuario && <MenuPerfil onVerPerfil={onVerPerfil} />}
       {abierto && <SyncSheet indicador={indicador} onClose={cerrar} />}
     </header>
   )

@@ -2351,7 +2351,8 @@ async function pullUsuariosEliminados(client: SupabaseClient, ciclo: CicloSync):
 }
 
 /**
- * Spec 014 FR-021: estado del perfil en el servidor. Si una administradora lo
+ * Spec 014 FR-021: estado del perfil en el servidor (spec 032: también el
+ * nombre). Si una administradora lo
  * desactivó, se marca localmente (la app muestra "acceso desactivado"), se
  * hace el último envío y el ciclo se detiene sin borrar pendientes. Si lo
  * reactivó, se desmarca. Sin respuesta (sin red, error) no cambia nada.
@@ -2371,6 +2372,10 @@ async function revisarPerfil(client: SupabaseClient): Promise<boolean> {
     return false
   }
   if (perfil.rol !== usuario.rol) await useAuthStore.getState().actualizarRol(perfil.rol)
+  // Spec 032 (FR-010): el nombre cambiado desde otro dispositivo.
+  if (perfil.nombre && perfil.nombre !== usuario.nombre) {
+    await useAuthStore.getState().actualizarNombre(perfil.nombre)
+  }
   return true
 }
 

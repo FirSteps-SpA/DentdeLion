@@ -17,6 +17,11 @@ interface AuthState {
   actualizarRol: (rol: UsuarioActual['rol']) => Promise<void>
   /** Spec 014 FR-021: refleja la (des)activación que el sync leyó del servidor. */
   marcarDesactivado: (desactivadoEn: string | null) => Promise<void>
+  /**
+   * Spec 032 (FR-010): el nombre guardado desde Perfil o leído por el sync.
+   * También actualiza `usuariosConocidos`, que nombra al autor en el historial.
+   */
+  actualizarNombre: (nombre: string) => Promise<void>
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -62,6 +67,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!usuario || usuario.rol === rol) return
     const actualizado = { ...usuario, rol }
     await db.usuarioActual.put(actualizado)
+    set({ usuario: actualizado })
+  },
+  actualizarNombre: async (nombre) => {
+    const usuario = get().usuario
+    if (!usuario || usuario.nombre === nombre) return
+    const actualizado = { ...usuario, nombre }
+    await db.usuarioActual.put(actualizado)
+    await db.usuariosConocidos.put({
+      id: usuario.id,
+      nombre,
+      vistoEn: new Date().toISOString(),
+    })
     set({ usuario: actualizado })
   },
   marcarDesactivado: async (desactivadoEn) => {

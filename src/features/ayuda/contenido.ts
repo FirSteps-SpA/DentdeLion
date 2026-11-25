@@ -95,7 +95,8 @@ export const AYUDAS: Record<IdAyuda, Ayuda> = {
       {
         nombre: 'Agregar un material nuevo',
         pasos: [
-          'Toca "+ Material" y completa nombre, categoría y unidad de consumo.',
+          'Toca "+ Material" y completa nombre, categoría, cómo lo usas y cómo lo compras ("Ver un ejemplo" muestra uno completo).',
+          'Si lo compras en otra unidad (p. ej. jeringas de 3 mL), escribe el stock y el mínimo en la que prefieras: la otra se calcula sola.',
           'Si ya tienes stock, toca "Guardar e Ingresar" para cargar el primer lote; si no, "Guardar".',
         ],
       },
@@ -306,9 +307,16 @@ export const AYUDAS: Record<IdAyuda, Ayuda> = {
     paraQue: 'Tus datos y, para la administración, las personas del equipo y sus invitaciones.',
     tareas: [
       {
+        nombre: 'Cambiar tu nombre',
+        pasos: [
+          'Toca "Editar nombre", escríbelo como quieres que aparezca y toca "Guardar" (necesita conexión).',
+          'Se ve en tu avatar y en el historial de lo que registraste.',
+        ],
+      },
+      {
         nombre: 'Cerrar sesión',
         pasos: [
-          'Toca "Cerrar sesión".',
+          'Toca "Cerrar sesión", aquí o en el menú de tu avatar (arriba a la derecha).',
           'Lo que quede sin sincronizar se conserva en el dispositivo y se sube con conexión.',
         ],
       },
