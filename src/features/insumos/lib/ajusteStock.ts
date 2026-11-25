@@ -3,7 +3,8 @@ import { estaVencido } from '../../alertas/lib/caducidad'
 import { editarInsumo, exigirAdministrador, type CambiosInsumoInput } from './catalogo'
 import { guardarMinimoLugar } from './minimos'
 import { crearMovimiento } from './movements'
-import { lotesEnLugar, movimientosNormalizadosDeLote, stockLoteEnLugar } from './stock'
+import { bodegaSegunStore, bodegasActivas, lugaresDeBodega, rotuloBodega } from '../../../stores/lugarStore'
+import { lotesEnBodega, movimientosNormalizadosDeLote, stockLoteEnBodega } from './stock'
 
 /**
  * Spec 024 (data-model.md) — corrección de stock de un lote en un lugar:
@@ -31,7 +32,7 @@ const EPSILON = 1e-9
 /**
  * Spec 024 (R2) — lotes vencidos del insumo con stock en el lugar, para la
  * casilla "Descartar stock vencido" de la recepción. Recibe movimientos
- * normalizados (`inventoryStore`).
+ * normalizados (`inventoryStore`). Spec 033: el stock común de la bodega.
  */
 export function stockVencidoEnLugar(
   insumo: Insumo,
@@ -39,11 +40,12 @@ export function stockVencidoEnLugar(
   movimientos: Movimiento[],
   lugarId: string,
   hoy: Date = new Date(),
+  lugarIds: ReadonlySet<string> = bodegaSegunStore(lugarId),
 ): { lote: Lote; stock: number }[] {
   if (!insumo.caduca) return []
   return lotes
     .filter((lote) => lote.insumoId === insumo.id && estaVencido(lote, hoy))
-    .map((lote) => ({ lote, stock: stockLoteEnLugar(movimientos, lote.id, lugarId) }))
+    .map((lote) => ({ lote, stock: stockLoteEnBodega(movimientos, lote.id, lugarIds) }))
     .filter(({ stock }) => stock > EPSILON)
 }
 
@@ -61,7 +63,9 @@ function compararLotes(a: Lote, b: Lote): number {
  * Spec 024 (R4) — renglones de "Stock por lote". En un lugar: los lotes
  * visibles ahí (`lotesEnLugar`), también los que quedaron en 0, para poder
  * corregir un descarte por error. En "Todos": un renglón por lote y lugar con
- * stock, porque el stock vive en cada lugar (spec 014 R3).
+ * stock, porque el stock vive en cada lugar (spec 014 R3). Spec 033: en un
+ * lugar, el stock común de su bodega; en "Todos", un renglón por lote y
+ * bodega, que corrige en el primer lugar de la bodega.
  */
 export function filasStockPorLote(
   insumo: Insumo,
@@ -74,28 +78,38 @@ export function filasStockPorLote(
   const delInsumo = lotes.filter((lote) => lote.insumoId === insumo.id).sort(compararLotes)
 
   if (vista !== 'todos') {
-    return lotesEnLugar(delInsumo, movimientos, vista).map((lote) => ({
+    const bodega = lugaresDeBodega(vista, lugares)
+    return lotesEnBodega(delInsumo, movimientos, bodega).map((lote) => ({
       lote,
       lugarId: vista,
       nombreLugar: null,
-      stock: stockLoteEnLugar(movimientos, lote.id, vista),
+      stock: stockLoteEnBodega(movimientos, lote.id, bodega),
       vencido: estaVencido(lote, hoy),
     }))
   }
 
+  // Los desactivados siguen apareciendo solos, como antes de la spec 033.
+  const grupos = [
+    ...bodegasActivas(lugares),
+    ...lugares.filter((lugar) => lugar.desactivadoEn).map((lugar) => [lugar]),
+  ]
+  const bodegas = grupos.map((grupo) => ({
+    primero: grupo[0],
+    ids: new Set(grupo.map((lugar) => lugar.id)),
+  }))
   const filas: FilaStockLote[] = []
   for (const lote of delInsumo) {
     const lugaresDelLote = new Set(
       movimientos.filter((m) => m.loteId === lote.id).map((m) => m.lugarId),
     )
-    for (const lugar of lugares) {
-      if (!lugaresDelLote.has(lugar.id)) continue
-      const stock = stockLoteEnLugar(movimientos, lote.id, lugar.id)
+    for (const { primero, ids } of bodegas) {
+      if (![...ids].some((id) => lugaresDelLote.has(id))) continue
+      const stock = stockLoteEnBodega(movimientos, lote.id, ids)
       if (Math.abs(stock) <= EPSILON) continue
       filas.push({
         lote,
-        lugarId: lugar.id,
-        nombreLugar: lugar.nombre,
+        lugarId: primero.id,
+        nombreLugar: ids.size > 1 ? rotuloBodega(ids, lugares) : primero.nombre,
         stock,
         vencido: estaVencido(lote, hoy),
       })
@@ -116,9 +130,16 @@ export function validarCantidadLote(
   return null
 }
 
-/** Stock actual de un lote en un lugar, leído de Dexie y normalizado (R2/R4). */
-async function stockActualEnLugar(loteId: string, lugarId: string): Promise<number> {
-  return stockLoteEnLugar(await movimientosNormalizadosDeLote(loteId), loteId, lugarId)
+/**
+ * Stock actual de un lote en la bodega del lugar, leído de Dexie y
+ * normalizado (R2/R4; spec 033 R3).
+ */
+async function stockActualEnBodega(loteId: string, lugarId: string): Promise<number> {
+  return stockLoteEnBodega(
+    await movimientosNormalizadosDeLote(loteId),
+    loteId,
+    bodegaSegunStore(lugarId),
+  )
 }
 
 /**
@@ -138,7 +159,7 @@ export async function descartarVencidosEnTransaccion(
   const ajustes: Movimiento[] = []
   for (const lote of lotes) {
     if (!estaVencido(lote, hoy)) continue
-    const stock = await stockActualEnLugar(lote.id, lugarId)
+    const stock = await stockActualEnBodega(lote.id, lugarId)
     if (stock <= EPSILON) continue
     ajustes.push(
       await crearMovimiento({
@@ -183,7 +204,7 @@ export async function ajustarStockLotes(
         if (!lote || lote.insumoId !== insumoId) {
           throw new Error('El lote no pertenece a este insumo.')
         }
-        const diferencia = cantidad - (await stockActualEnLugar(loteId, lugarId))
+        const diferencia = cantidad - (await stockActualEnBodega(loteId, lugarId))
         if (Math.abs(diferencia) <= EPSILON) continue
         ajustes.push(
           await crearMovimiento({

@@ -20,6 +20,7 @@ import {
   type FilaStockLote,
 } from '../lib/ajusteStock'
 import { darDeBajaInsumo } from '../lib/catalogo'
+import { minimoPropioBodega } from '../lib/minimos'
 import { ICONO_ESTADO } from '../lib/estadoIconos'
 import { computeStockLote } from '../lib/stock'
 import { ConfirmarBajaDialog } from './ConfirmarBajaDialog'
@@ -27,7 +28,12 @@ import { SelectorMarca } from '../../marcas/components/SelectorMarca'
 import { Card } from '../../../components/ui/Card'
 import { IconField } from '../../../components/ui/IconField'
 import { TouchButton } from '../../../components/ui/TouchButton'
-import { hayVariosLugares, nombreLugar, useLugarStore } from '../../../stores/lugarStore'
+import {
+  hayVariosLugares,
+  lugaresDeBodega,
+  nombreEnTodos,
+  useLugarStore,
+} from '../../../stores/lugarStore'
 import { PresentacionFields } from './PresentacionFields'
 import { ConvertirUnidadDialog } from './ConvertirUnidadDialog'
 import { NumeroInput } from '../../../components/ui/NumeroInput'
@@ -162,9 +168,10 @@ export function EditarInsumoForm({
     hayVariosLugares(lugares) && lugarActivoId && lugarActivoId !== 'todos'
       ? lugarActivoId
       : null
-  const minimoLugarActual = lugarMinimo
-    ? (minimosLugar.find((m) => m.insumoId === insumo.id && m.lugarId === lugarMinimo)
-        ?.stockMinimo ?? null)
+  // Spec 033 (R4): en una bodega compartida, el mínimo es de la bodega.
+  const bodegaMinimo = lugarMinimo ? lugaresDeBodega(lugarMinimo, lugares) : null
+  const minimoLugarActual = bodegaMinimo
+    ? minimoPropioBodega(insumo.id, bodegaMinimo, minimosLugar)
     : null
   const [minimoLugar, setMinimoLugar] = useState(
     minimoLugarActual === null ? '' : String(minimoLugarActual),
@@ -424,7 +431,7 @@ export function EditarInsumoForm({
       {lugarMinimo && (
         <div className="flex flex-col gap-1.5 text-sm font-bold text-text">
           <label htmlFor="editar-minimo-lugar">
-            Stock mínimo en {nombreLugar(lugares, lugarMinimo)}
+            Stock mínimo en {nombreEnTodos(lugarMinimo, lugares)}
           </label>
           <div className="touch-target flex items-center rounded-md border border-border bg-surface px-3.5">
             <NumeroInput
@@ -441,7 +448,8 @@ export function EditarInsumoForm({
             />
           </div>
           <p className="text-xs font-normal text-text-muted">
-            Vacío = usar el mínimo del catálogo en este lugar.
+            Vacío = usar el mínimo del catálogo{' '}
+            {bodegaMinimo && bodegaMinimo.size > 1 ? 'en estos lugares' : 'en este lugar'}.
           </p>
           <ErrorCampo id="error-minimo-lugar" mensaje={errorMinimoLugar ?? undefined} />
         </div>

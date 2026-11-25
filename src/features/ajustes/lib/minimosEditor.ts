@@ -1,7 +1,13 @@
 import type { Insumo, Lugar, MinimoLugar } from '../../../lib/db'
-import { hayVariosLugares, lugaresActivos, type SeleccionLugar } from '../../../stores/lugarStore'
+import {
+  bodegasActivas,
+  hayVariosLugares,
+  lugaresDeBodega,
+  rotuloBodega,
+  type SeleccionLugar,
+} from '../../../stores/lugarStore'
 import { plegar } from '../../insumos/lib/categorias'
-import { minimoEfectivo } from '../../insumos/lib/minimos'
+import { minimoEfectivoBodega } from '../../insumos/lib/minimos'
 
 export type OrigenMinimo = 'lugar' | 'catalogo'
 
@@ -9,7 +15,8 @@ export type OrigenMinimo = 'lugar' | 'catalogo'
  * Fila del editor de stock mínimo (spec 019, research.md R4, data-model.md):
  * la misma regla que `EditarInsumoForm` — con un solo lugar se edita el
  * mínimo del catálogo; con varios, el del lugar activo; en "Todos" solo se
- * mira el de cada lugar.
+ * mira el de cada lugar. Spec 033 (R4): el de la bodega del lugar; en
+ * "Todos", uno por bodega ("Box 1 + Box 2").
  */
 export type FilaMinimo =
   | { insumo: Insumo; modo: 'catalogo'; minimo: number | null }
@@ -20,9 +27,16 @@ export type FilaMinimo =
       porLugar: { lugar: Lugar; minimo: number | null; origen: OrigenMinimo }[]
     }
 
-function origen(insumo: Insumo, lugarId: string, minimosLugar: MinimoLugar[]): OrigenMinimo {
-  const propio = minimosLugar.find((m) => m.insumoId === insumo.id && m.lugarId === lugarId)
-  return propio && propio.stockMinimo !== null ? 'lugar' : 'catalogo'
+function origen(
+  insumo: Insumo,
+  lugarIds: ReadonlySet<string>,
+  minimosLugar: MinimoLugar[],
+): OrigenMinimo {
+  return minimosLugar.some(
+    (m) => m.insumoId === insumo.id && lugarIds.has(m.lugarId) && m.stockMinimo !== null,
+  )
+    ? 'lugar'
+    : 'catalogo'
 }
 
 export function modoEditorMinimos(
@@ -42,7 +56,11 @@ export function filasMinimos(
 ): FilaMinimo[] {
   const texto = plegar(busqueda.trim())
   const modo = modoEditorMinimos(lugares, seleccion)
-  const activos = lugaresActivos(lugares)
+  const bodegas = bodegasActivas(lugares).map((grupo) => {
+    const ids = new Set(grupo.map((lugar) => lugar.id))
+    const lugar = grupo.length > 1 ? { ...grupo[0], nombre: rotuloBodega(ids, lugares) } : grupo[0]
+    return { lugar, ids }
+  })
 
   return insumos
     .filter((insumo) => !insumo.dadoDeBajaEn)
@@ -54,19 +72,19 @@ export function filasMinimos(
         return {
           insumo,
           modo,
-          porLugar: activos.map((lugar) => ({
+          porLugar: bodegas.map(({ lugar, ids }) => ({
             lugar,
-            minimo: minimoEfectivo(insumo, lugar.id, minimosLugar),
-            origen: origen(insumo, lugar.id, minimosLugar),
+            minimo: minimoEfectivoBodega(insumo, ids, minimosLugar),
+            origen: origen(insumo, ids, minimosLugar),
           })),
         }
       }
-      const lugarId = seleccion as string
+      const bodega = lugaresDeBodega(seleccion as string, lugares)
       return {
         insumo,
         modo,
-        minimo: minimoEfectivo(insumo, lugarId, minimosLugar),
-        origen: origen(insumo, lugarId, minimosLugar),
+        minimo: minimoEfectivoBodega(insumo, bodega, minimosLugar),
+        origen: origen(insumo, bodega, minimosLugar),
       }
     })
 }

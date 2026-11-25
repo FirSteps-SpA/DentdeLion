@@ -2,8 +2,9 @@ import { useMemo } from 'react'
 import type { Insumo, ItemCompra, Lote, Lugar, MinimoLugar, Movimiento } from '../../../lib/db'
 import { useInventoryStore } from '../../../stores/inventoryStore'
 import {
-  lugaresActivos,
+  bodegasActivas,
   lugaresDeBodega,
+  rotuloBodega,
   useLugarStore,
   type SeleccionLugar,
 } from '../../../stores/lugarStore'
@@ -89,7 +90,15 @@ export function useInventarioDeLugar(): DatosInventario & {
 
 /** Los datos de un lugar, con el lugar al que pertenecen (`null` sin lugar resuelto). */
 export interface VistaLugar {
+  /**
+   * El lugar de la vista. Spec 033: en "Todos", una bodega compartida se
+   * representa con su primer lugar (donde se registran las acciones que se
+   * abren desde la fila) y el rótulo "Box 1 + Box 2" como `nombre`, que es lo
+   * que muestran los chips.
+   */
   lugar: Lugar | null
+  /** Spec 033: los lugares activos de la bodega de la vista (vacío sin lugar resuelto). */
+  lugares: Lugar[]
   datos: DatosInventario
 }
 
@@ -98,7 +107,8 @@ export interface VistaLugar {
  * alertas, sugeridos y resúmenes se calculen en cada lugar (cada uno con su
  * stock y su mínimo) y se muestren juntos con el lugar de cada fila. Con un
  * lugar activo, solo la de ese lugar — los mismos cálculos sirven para ambos
- * casos.
+ * casos. Spec 033 (FR-014, research.md R7): en "Todos", una vista por bodega,
+ * así un stock común no se cuenta ni se alerta dos veces.
  */
 export function useVistasDeLugar(): { vistas: VistaLugar[]; esTodos: boolean } {
   const insumos = useInventoryStore((s) => s.insumos)
@@ -124,20 +134,24 @@ export function vistasDeLugar(
   if (lugarActivoId === 'todos') {
     return {
       esTodos: true,
-      vistas: lugaresActivos(lugares).map((lugar) => ({
-        lugar,
-        datos: datosDeLugar(datos, minimosLugar, lugar.id),
-      })),
+      vistas: bodegasActivas(lugares).map((grupo) => {
+        const ids = new Set(grupo.map((lugar) => lugar.id))
+        const lugar =
+          grupo.length > 1 ? { ...grupo[0], nombre: rotuloBodega(ids, lugares) } : grupo[0]
+        return { lugar, lugares: grupo, datos: datosDeBodega(datos, minimosLugar, ids) }
+      }),
     }
   }
-  if (!lugarActivoId) return { esTodos: false, vistas: [{ lugar: null, datos }] }
+  if (!lugarActivoId) return { esTodos: false, vistas: [{ lugar: null, lugares: [], datos }] }
+  // Spec 033: el stock de la bodega del lugar activo.
+  const bodega = lugaresDeBodega(lugarActivoId, lugares)
   return {
     esTodos: false,
     vistas: [
       {
         lugar: lugares.find((lugar) => lugar.id === lugarActivoId) ?? null,
-        // Spec 033: el stock de la bodega del lugar activo.
-        datos: datosDeBodega(datos, minimosLugar, lugaresDeBodega(lugarActivoId, lugares)),
+        lugares: lugares.filter((lugar) => bodega.has(lugar.id)),
+        datos: datosDeBodega(datos, minimosLugar, bodega),
       },
     ],
   }
@@ -157,7 +171,8 @@ const PRIORIDAD_ESTADO: Estado[] = ['caducado', 'proximo-a-caducar', 'bajo-stock
 
 /**
  * "Todos" en Inventario (contracts/ui-contracts.md): por insumo, el estado del
- * peor lugar y el stock de cada lugar ("Providencia 4 · Las Condes 2").
+ * peor lugar y el stock de cada lugar ("Providencia: 4 · Las Condes: 2"). Spec
+ * 033: una parte por bodega ("Box 1 + Box 2: 6 · Las Condes: 2").
  */
 export function resumenPorLugar(
   vistas: VistaLugar[],
@@ -176,7 +191,8 @@ export function resumenPorLugar(
       if (PRIORIDAD_ESTADO.indexOf(estado) < PRIORIDAD_ESTADO.indexOf(actual.estado)) {
         actual.estado = estado
       }
-      actual.partes.push(`${lugar?.nombre ?? 'Lugar'} ${stockTotal}`)
+      // Spec 033: con dos puntos, para que "Box 1 + Box 2: 6" no se lea "Box 2 6".
+      actual.partes.push(`${lugar?.nombre ?? 'Lugar'}: ${stockTotal}`)
       porInsumo.set(insumo.id, actual)
     }
   }

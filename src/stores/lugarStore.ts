@@ -167,3 +167,46 @@ export function rotuloBodega(lugarIds: Iterable<string>, lugares: Lugar[]): stri
     .map((lugar) => lugar.nombre)
     .join(' + ')
 }
+
+/**
+ * Spec 033: `lugaresDeBodega` con los lugares que tiene cargados la store, para
+ * la lógica que no recibe la lista: validar contra el stock común una
+ * operación registrada en `lugarId` (research.md R3) o escribir el mínimo en
+ * toda la bodega (R4). Sin bodegas compartidas es `{lugarId}`.
+ */
+export function bodegaSegunStore(lugarId: string): Set<string> {
+  return lugaresDeBodega(lugarId, useLugarStore.getState().lugares)
+}
+
+/**
+ * Spec 033: el lugar que representa a la bodega de `lugarId`, el primero de
+ * sus lugares en el orden de `lugaresActivos` (el mismo que encabeza su vista
+ * en "Todos"). Sirve de clave estable para lo que es de la bodega, como un
+ * sugerido de Compras. Sin bodega compartida es el propio lugar.
+ */
+export function representanteDeBodega(lugarId: string, lugares: Lugar[]): string {
+  const bodega = lugaresDeBodega(lugarId, lugares)
+  if (bodega.size === 1) return lugarId
+  return lugaresActivos(lugares).find((lugar) => bodega.has(lugar.id))?.id ?? lugarId
+}
+
+/**
+ * Spec 033: el nombre con que "Todos" muestra el lugar: el rótulo de su bodega
+ * ("Box 1 + Box 2") si la comparte, o su nombre.
+ */
+export function nombreEnTodos(lugarId: string, lugares: Lugar[]): string {
+  const bodega = lugaresDeBodega(lugarId, lugares)
+  return bodega.size > 1 ? rotuloBodega(bodega, lugares) : nombreLugar(lugares, lugarId)
+}
+
+/**
+ * Spec 033 (ui-contracts §2): cómo se lista un lugar en el selector, "Box 2 ·
+ * bodega con Box 1" si comparte bodega. La pastilla del encabezado usa solo
+ * el nombre.
+ */
+export function etiquetaEnSelector(lugar: Lugar, lugares: Lugar[]): string {
+  const otros = [...lugaresDeBodega(lugar.id, lugares)].filter((id) => id !== lugar.id)
+  return otros.length === 0
+    ? lugar.nombre
+    : `${lugar.nombre} · bodega con ${rotuloBodega(otros, lugares)}`
+}

@@ -55,34 +55,48 @@ y usan el mismo stock.
 
 **Independent Test**: spec US2, quickstart §2 y §4.
 
-- [ ] T010 [P] [US2] Validación contra el stock común en `src/features/insumos/lib/consumo.ts`,
+- [x] T010 [P] [US2] Validación contra el stock común en `src/features/insumos/lib/consumo.ts`,
   `ajusteStock.ts` y `conversion.ts` (research R3), con casos en `tests/unit/consumo-bodega.test.ts`:
-  consumir en Box 2 un lote ingresado en Box 1
-- [ ] T011 [P] [US2] Consumo de tratamientos contra el stock común en
+  consumir en Box 2 un lote ingresado en Box 1. También `ConsumoForm.tsx`, el descarte de vencidos
+  al recibir y "Stock por lote" en Editar (en "Todos", un renglón por bodega). `bodegaSegunStore`
+  (lugarStore) da la bodega dentro de las transacciones. La conversión sigue validando el **saldo
+  propio** de cada lugar a propósito: es más estricta y deja cada saldo en unidades enteras, que es
+  lo que se traslada al separar (US3)
+- [x] T011 [P] [US2] Consumo de tratamientos contra el stock común en
   `src/features/tratamientos/lib/registro.ts` y `RegistrarTratamientoSheet.tsx`
-- [ ] T012 [P] [US2] `reconcileOverdraft` por bodega en `src/lib/sync/reconcileOverdraft.ts`, con
-  `tests/unit/reconcile-bodega.test.ts` (dos consumos sin conexión en dos lugares → En revisión)
-- [ ] T013 [US2] Traslados en `src/features/insumos/lib/traslado.ts` y `TrasladoForm.tsx`: destinos
+- [x] T012 [P] [US2] `reconcileOverdraft` por bodega en `src/lib/sync/reconcileOverdraft.ts`, con
+  `tests/unit/reconcile-bodega.test.ts` (dos consumos sin conexión en dos lugares → En revisión).
+  Los casos quedaron en `tests/unit/reconcileOverdraft.test.ts` (describe "bodega compartida"), que
+  ya tenía el mock de `db`
+- [x] T013 [US2] Traslados en `src/features/insumos/lib/traslado.ts` y `TrasladoForm.tsx`: destinos
   sin la misma bodega, validación con `stockLoteEnBodega`, y sin "Trasladar" si no hay destinos
-  (FR-016, ui-contracts §4)
-- [ ] T014 [US2] "Todos" por bodega en `vistasDeLugar`/`porLugar` (`vistaLugar.ts`):
+  (FR-016, ui-contracts §4). `destinosDeTraslado`; "Trasladar" aparece con 2 o más bodegas
+- [x] T014 [US2] "Todos" por bodega en `vistasDeLugar`/`porLugar` (`vistaLugar.ts`):
   `VistaLugar.lugares` y rótulo. Adaptar `InventarioView.tsx`, `AlertasView.tsx` e `InicioView.tsx`
-  (FR-014, ui-contracts §3)
-- [ ] T015 [US2] Compras comunes en `src/features/compras/components/ComprasView.tsx`: ítems de la
-  bodega y "Agregado en …" en bodegas compartidas (FR-013, research R8)
-- [ ] T016 [US2] Valor del inventario por bodega en `src/features/reportes/lib/valorInventario.ts` y
+  (FR-014, ui-contracts §3). La vista de una bodega compartida lleva su primer lugar con el rótulo
+  como `nombre`, así los chips no cambian. El desglose de Inventario pasó a "Nombre: N" para que
+  "Box 1 + Box 2: 6" no se lea "Box 2 6" (se ajustó `vista-todos.test.tsx`)
+- [x] T015 [US2] Compras comunes en `src/features/compras/components/ComprasView.tsx`: ítems de la
+  bodega y "Agregado en …" en bodegas compartidas (FR-013, research R8). Un sugerido se identifica
+  por el primer lugar de la bodega (`representanteDeBodega`), así lo marcado sigue marcado en el
+  otro lugar. Fuera de "Todos", un manual se recibe en el lugar activo
+- [x] T016 [US2] Valor del inventario por bodega en `src/features/reportes/lib/valorInventario.ts` y
   su vista: "Stock compartido con …" y filas por bodega en "Todos", sin doble conteo (FR-015,
-  SC-004). Verificar que consumo, gasto y KPIs siguen por lugar del movimiento
-- [ ] T017 [US2] Mínimo en Editar insumo y en el editor de Ajustes escribe en todos los lugares de la
-  bodega: `EditarInsumoForm.tsx`, `src/features/ajustes/lib/minimosEditor.ts` y `guardarMinimoLugar`
-- [ ] T018 [US2] Selector de lugar "Box 2 · bodega con Box 1" en `src/app/SelectorLugar.tsx`
-  (ui-contracts §2)
-- [ ] T019 [P] [US2] `tests/integration/inventario-bodega.test.tsx`: mismo stock y lotes en ambos
+  SC-004). Verificar que consumo, gasto y KPIs siguen por lugar del movimiento. Hoy "Todos" era un
+  solo total: las filas por bodega se agregan como notas de la tarjeta y solo si hay alguna bodega
+  compartida (FR-019)
+- [x] T017 [US2] Mínimo en Editar insumo y en el editor de Ajustes escribe en todos los lugares de la
+  bodega: `EditarInsumoForm.tsx`, `src/features/ajustes/lib/minimosEditor.ts` y `guardarMinimoLugar`.
+  El campo muestra `minimoPropioBodega` ("Stock mínimo en Box 1 + Box 2"); el editor de Ajustes
+  en "Todos" lista uno por bodega
+- [x] T018 [US2] Selector de lugar "Box 2 · bodega con Box 1" en `src/app/SelectorLugar.tsx`
+  (ui-contracts §2). También en `ElegirLugarSheet` (selector del teléfono y "¿En qué lugar?")
+- [x] T019 [P] [US2] `tests/integration/inventario-bodega.test.tsx`: mismo stock y lotes en ambos
   lugares, consumo cruzado, alertas una sola vez, "Todos" sin duplicar, traslado sin destinos de la
   bodega
-- [ ] T020 [P] [US2] `tests/integration/compras-bodega.test.tsx` y
+- [x] T020 [P] [US2] `tests/integration/compras-bodega.test.tsx` y
   `tests/integration/reportes-bodega.test.tsx` (ítem visible y recibible en el otro lugar; valor sin
-  doble conteo; consumo por lugar del movimiento)
+  doble conteo; consumo por lugar del movimiento). Checkpoint: lint y tipos ok; 1406/1406
 
 ## Phase 4: US1 — Configurar dos lugares para que compartan bodega (P1)
 

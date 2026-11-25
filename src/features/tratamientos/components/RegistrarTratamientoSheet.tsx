@@ -8,9 +8,9 @@ import { TouchButton } from '../../../components/ui/TouchButton'
 import { etiquetaUnidad, formatearCantidad, unidadAdmiteDecimales } from '../../../lib/unidades'
 import { useAvisosStore } from '../../../stores/avisosStore'
 import { useInventoryStore } from '../../../stores/inventoryStore'
-import { nombreLugar, useLugarStore } from '../../../stores/lugarStore'
+import { lugaresDeBodega, nombreLugar, useLugarStore } from '../../../stores/lugarStore'
 import { formatearCLP } from '../../insumos/lib/precio'
-import { computeStockLote } from '../../insumos/lib/stock'
+import { stockLoteEnBodega } from '../../insumos/lib/stock'
 import { useCostosUnitarios } from '../../insumos/lib/useCostosUnitarios'
 import {
   calcularGanancia,
@@ -66,6 +66,8 @@ export function RegistrarTratamientoSheet({
   const [isPending, setIsPending] = useState(false)
 
   const hoy = new Date()
+  // Spec 033 (R3): el stock común de la bodega del lugar.
+  const bodega = lugaresDeBodega(lugarId, lugares)
   const filas = tratamiento.materiales.map((material) => {
     const insumo = insumos.get(material.insumoId)
     const unidad = insumo?.unidadMedida ?? material.unidad
@@ -73,9 +75,7 @@ export function RegistrarTratamientoSheet({
     let caducado = 0
     for (const lote of lotes) {
       if (lote.insumoId !== material.insumoId) continue
-      const stock = computeStockLote(
-        movimientos.filter((m) => m.loteId === lote.id && m.lugarId === lugarId),
-      )
+      const stock = stockLoteEnBodega(movimientos, lote.id, bodega)
       if (stock <= 0) continue
       if (esLoteVigente(lote, hoy)) disponible += stock
       else caducado += stock

@@ -2,10 +2,10 @@ import { db, type Insumo, type Lote, type Movimiento } from '../../../lib/db'
 import { vibrarLeve } from '../../../lib/haptics'
 import { formatearCantidad } from '../../../lib/unidades'
 import { useAvisosStore } from '../../../stores/avisosStore'
-import { lugarParaEscribirOFallar } from '../../../stores/lugarStore'
+import { bodegaSegunStore, lugarParaEscribirOFallar } from '../../../stores/lugarStore'
 import type { LoteConStock } from './fefo'
 import { crearMovimiento } from './movements'
-import { computeStockLote, movimientosNormalizadosDeLote } from './stock'
+import { computeStockLote, movimientosNormalizadosDeLote, stockLoteEnBodega } from './stock'
 
 /**
  * Spec 025 (research.md R2): consumo desde la hoja "Consumir <insumo>", que
@@ -91,10 +91,11 @@ export async function registrarConsumo({
       if (!lote || lote.insumoId !== insumo.id) {
         throw new Error('El lote elegido ya no existe.')
       }
-      const disponible = computeStockLote(
-        (await movimientosNormalizadosDeLote(loteId)).filter(
-          (m) => m.lugarId === lugarId,
-        ),
+      // Spec 033 (R3): el stock común de la bodega del lugar.
+      const disponible = stockLoteEnBodega(
+        await movimientosNormalizadosDeLote(loteId),
+        loteId,
+        bodegaSegunStore(lugarId),
       )
       if (cantidad > disponible) {
         throw new StockInsuficienteConsumoError(

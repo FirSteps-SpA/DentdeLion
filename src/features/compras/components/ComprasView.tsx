@@ -30,7 +30,13 @@ import { EstadoVacio } from '../../../components/ui/EstadoVacio'
 import { porLugar, useVistasDeLugar, vistasDeLugar } from '../../insumos/lib/vistaLugar'
 import { ChipLugar } from '../../../app/ChipLugar'
 import { ElegirLugarSheet } from '../../../app/ElegirLugarSheet'
-import { nombreLugar, useLugarStore } from '../../../stores/lugarStore'
+import {
+  comparteBodega,
+  nombreEnTodos,
+  nombreLugar,
+  representanteDeBodega,
+  useLugarStore,
+} from '../../../stores/lugarStore'
 import { useInventoryStore } from '../../../stores/inventoryStore'
 import { mapaMarcas } from '../../marcas/lib/marcas'
 import { useAlertasStore } from '../../../stores/alertasStore'
@@ -58,6 +64,11 @@ type Overlay =
  *
  * Spec 022: cada ítem se puede marcar; la barra del pie suma lo marcado y
  * arma el pedido (WhatsApp, Copiar, Compartir) solo con eso.
+ *
+ * Spec 033 (FR-013, research.md R8): en una bodega compartida la lista es
+ * común. Un sugerido se identifica por el primer lugar de la bodega, así lo
+ * marcado en Box 2 sigue marcado en Box 1; un manual muestra "Agregado en …".
+ * Lo que se recibe fuera de "Todos" entra en el lugar activo.
  */
 export function ComprasView() {
   // Spec 014: la lista del lugar activo; en "Todos", la de cada lugar con su chip.
@@ -95,8 +106,12 @@ export function ComprasView() {
     [todosLosInsumos, lotesTenant, cambiosLote, cambiosInsumo],
   )
 
+  /** Spec 033: lugar con el que se identifica un sugerido (el de su bodega). */
+  const lugarDelSugerido = (item: (typeof sugeridos)[number]) =>
+    representanteDeBodega(item.lugar?.id ?? '', lugares)
+
   const items: ItemPedido[] = itemsDelPedido(
-    sugeridos.map((item) => ({ item, lugarId: item.lugar?.id ?? '' })),
+    sugeridos.map((item) => ({ item, lugarId: lugarDelSugerido(item) })),
     manuales,
     insumos,
   )
@@ -151,23 +166,28 @@ export function ComprasView() {
   const mensajePedido = construirMensajePedido(
     saludo,
     seleccionados,
-    esTodos ? new Map(lugares.map((lugar) => [lugar.id, lugar.nombre])) : undefined,
+    esTodos ? new Map(lugares.map((lugar) => [lugar.id, nombreEnTodos(lugar.id, lugares)])) : undefined,
     mapaMarcas(marcas),
   )
 
   // FR-013: el predeterminado del lugar del pedido. En "Todos", solo si todo
-  // lo marcado es de un mismo lugar.
-  const lugaresDelPedido = new Set(seleccionados.map((item) => item.lugarId))
+  // lo marcado es de un mismo lugar (spec 033: de una misma bodega). Fuera de
+  // "Todos", el del lugar activo.
+  const lugaresDelPedido = new Set(
+    esTodos ? seleccionados.map((item) => representanteDeBodega(item.lugarId, lugares)) : [],
+  )
   const predeterminadoId = usePredeterminado(
     lugaresDelPedido.size === 1 ? [...lugaresDelPedido][0] || undefined : undefined,
   )
 
   function claveDe(item: (typeof sugeridos)[number]): string {
-    return claveSugerido(item.lugar?.id ?? '', item.insumo.id)
+    return claveSugerido(lugarDelSugerido(item), item.insumo.id)
   }
 
   function etiquetaSeleccion(nombre: string, lugarId: string): string {
-    return esTodos ? `Seleccionar ${nombre} en ${nombreLugar(lugares, lugarId)}` : `Seleccionar ${nombre}`
+    return esTodos
+      ? `Seleccionar ${nombre} en ${nombreEnTodos(lugarId, lugares)}`
+      : `Seleccionar ${nombre}`
   }
 
   function valorDe(clave: string) {
@@ -331,7 +351,12 @@ export function ComprasView() {
           <ul className="flex flex-col gap-2">
             {manuales.map((item) => (
               <li key={item.id} className="flex flex-col gap-1">
-                {esTodos && <ChipLugar nombre={nombreLugar(lugares, item.lugarId)} />}
+                {esTodos && <ChipLugar nombre={nombreEnTodos(item.lugarId, lugares)} />}
+                {comparteBodega(item.lugarId, lugares) && (
+                  <p className="text-xs text-text-muted">
+                    Agregado en {nombreLugar(lugares, item.lugarId)}
+                  </p>
+                )}
                 <ItemManualCard
                   item={item}
                   seleccionado={seleccion.has(claveManual(item.id))}
@@ -385,7 +410,8 @@ export function ComprasView() {
         <RecibirItemForm
           insumo={insumoDelItemManualOverlay}
           itemCompraId={itemManualOverlay.id}
-          lugarId={itemManualOverlay.lugarId}
+          // Spec 033 (R8): fuera de "Todos", entra en el lugar activo.
+          lugarId={esTodos ? itemManualOverlay.lugarId : undefined}
           onRecibido={() => setOverlay(null)}
           onCancelar={() => setOverlay(null)}
         />

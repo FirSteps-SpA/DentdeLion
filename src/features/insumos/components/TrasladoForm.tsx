@@ -1,15 +1,15 @@
 import { useState, type FormEvent } from 'react'
 import type { Insumo } from '../../../lib/db'
 import { useInventoryStore } from '../../../stores/inventoryStore'
-import { lugaresActivos, nombreLugar, useLugarStore } from '../../../stores/lugarStore'
+import { lugaresDeBodega, nombreLugar, useLugarStore } from '../../../stores/lugarStore'
 import { useAvisosStore } from '../../../stores/avisosStore'
 import { BottomSheet } from '../../../components/ui/BottomSheet'
 import { Stepper } from '../../../components/ui/Stepper'
 import { TouchButton } from '../../../components/ui/TouchButton'
 import { compararFefo } from '../lib/fefo'
 import { permiteDecimales } from '../lib/quantity'
-import { stockLoteEnLugar } from '../lib/stock'
-import { trasladar } from '../lib/traslado'
+import { stockLoteEnBodega } from '../lib/stock'
+import { destinosDeTraslado, trasladar } from '../lib/traslado'
 import { formatearCantidad } from '../../../lib/unidades'
 
 export interface TrasladoFormProps {
@@ -26,19 +26,21 @@ const SELECT =
  * "Trasladar {insumo}" (spec 014 US6, contracts/ui-contracts.md): lote (FEFO
  * por defecto, solo con stock en el origen), destino (los otros lugares
  * activos) y cantidad, con máximo el stock del lote en el origen. Al guardar,
- * aviso con "Deshacer" (como el consumo, spec 007).
+ * aviso con "Deshacer" (como el consumo, spec 007). Spec 033: el stock es el
+ * común de la bodega del origen y los destinos excluyen esa bodega (FR-016).
  */
 export function TrasladoForm({ insumo, origenId, onClose }: TrasladoFormProps) {
   const lotes = useInventoryStore((s) => s.lotes)
   const movimientos = useInventoryStore((s) => s.movimientos)
   const lugares = useLugarStore((s) => s.lugares)
 
+  const bodega = lugaresDeBodega(origenId, lugares)
   const conStock = lotes
     .filter((lote) => lote.insumoId === insumo.id)
-    .map((lote) => ({ lote, stock: stockLoteEnLugar(movimientos, lote.id, origenId) }))
+    .map((lote) => ({ lote, stock: stockLoteEnBodega(movimientos, lote.id, bodega) }))
     .filter((entrada) => entrada.stock > 0)
     .sort((a, b) => compararFefo(a.lote.fechaCaducidad, b.lote.fechaCaducidad))
-  const destinos = lugaresActivos(lugares).filter((lugar) => lugar.id !== origenId)
+  const destinos = destinosDeTraslado(origenId, lugares)
 
   const [loteId, setLoteId] = useState(conStock[0]?.lote.id ?? '')
   const [destinoId, setDestinoId] = useState(destinos[0]?.id ?? '')
